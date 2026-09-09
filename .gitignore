@@ -1,4 +1,18 @@
+# Entornos / secretos
 .env
 env/
+.venv/
+venv/
+
+# Python
 __pycache__/
 *.pyc
+
+# Bases de datos y caches
+.pytest_cache/
+*.sqlite3
+
+# Asset subidos (no versionar contenido de usuarios)
+app/uploads/*/*
+!app/uploads/cotizaciones/.gitkeep
+!app/uploads/modelos3d/.gitkeep
