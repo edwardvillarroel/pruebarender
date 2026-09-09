@@ -1,7 +1,11 @@
 import { Link } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
+import { useTheme } from '../context/ThemeContext.jsx'
 
 export default function HeroEstatico() {
+  const { theme } = useTheme()
+  const oscuro = theme === 'dark'
+
   return (
     <section
       className="hero-section"
@@ -28,6 +32,10 @@ export default function HeroEstatico() {
         }}
         fetchpriority="high"
       />
+
+      {oscuro && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(21,24,29,.6)' }} />
+      )}
 
       <div
         className="wrap hero-content"
@@ -63,12 +71,12 @@ export default function HeroEstatico() {
               letterSpacing: '-.02em',
               fontWeight: 700,
               marginBottom: 20,
-              color: '#1E3A5F',
+              color: oscuro ? '#EDEDE5' : '#1E3A5F',
             }}
           >
             Impulsando <span style={{ color: '#E8863E' }}>la creatividad</span>, con cada impresión.
           </h1>
-          <p style={{ fontSize: 16, color: '#4A5A6A', marginBottom: 30, lineHeight: 1.55 }}>
+          <p style={{ fontSize: 16, color: oscuro ? 'rgba(237,237,229,.85)' : '#4A5A6A', marginBottom: 30, lineHeight: 1.55 }}>
             De nuestro stock o hecho a tu medida: tu idea, con la energía de Apolo Vibes.
           </p>
           <div className="hero-buttons" style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
@@ -90,13 +98,13 @@ export default function HeroEstatico() {
               to="/cotizar"
               className="btn btn-ghost"
               style={{
-                border: '1.5px solid #1E3A5F',
-                color: '#1E3A5F',
+                border: oscuro ? '1.5px solid rgba(237,237,229,.5)' : '1.5px solid #1E3A5F',
+                color: oscuro ? '#EDEDE5' : '#1E3A5F',
                 padding: '14px 28px',
                 borderRadius: 8,
                 fontWeight: 600,
                 textDecoration: 'none',
-                background: 'rgba(255,255,255,.6)',
+                background: oscuro ? 'transparent' : 'rgba(255,255,255,.6)',
               }}
             >
               Cotizar tu producto
