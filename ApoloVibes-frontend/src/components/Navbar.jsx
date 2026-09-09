@@ -3,7 +3,7 @@ import { mediaPath } from '../utils/media.js'
 import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut } from 'lucide-react'
+import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home } from 'lucide-react'
 import LoginModal from './LoginModal.jsx'
 
 export default function Navbar() {
@@ -57,19 +57,22 @@ export default function Navbar() {
         transition: 'background .3s ease, backdrop-filter .3s ease'
       }}
     >
-      <div
-        className="wrap"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '18px 0'
-        }}
-      >
-        {/* LOGO */}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', fontWeight: 700 }}>
-          Apolo Vibes 3D
-        </Link>
+<div
+          className="wrap"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr',
+            alignItems: 'center',
+            padding: '18px 32px',
+            maxWidth: '100%',
+            color: '#FBF7EE'
+          }}
+        >
+          {/* LOGO */}
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 18, color: '#FBF7EE' }}>
+            <Home size={20} />
+            Apolo Vibes 3D
+          </Link>
 
         {/* Desktop nav */}
         <nav className="nav-links hide-mobile">
@@ -78,7 +81,7 @@ export default function Navbar() {
           <Link to="/">Nosotros</Link>
         </nav>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'flex-end' }}>
           <Link to="/carrito" className="cart-icon" aria-label="Carrito" style={{ color: '#FBF7EE' }}>
             <ShoppingCart size={24} />
             {cantidadTotal > 0 && (
