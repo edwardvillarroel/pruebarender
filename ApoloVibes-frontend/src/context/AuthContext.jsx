@@ -14,26 +14,28 @@ function loadAuth() {
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(loadAuth)
+  const [auth, setAuth] = useState(loadAuth)
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem(AUTH_KEY, JSON.stringify(user))
+    if (auth) {
+      localStorage.setItem(AUTH_KEY, JSON.stringify(auth))
     } else {
       localStorage.removeItem(AUTH_KEY)
     }
-  }, [user])
+  }, [auth])
 
-  function login(userData) {
-    setUser(userData)
+  const user = auth?.user ?? null
+
+  function login(sesion) {
+    setAuth(sesion)
   }
 
   function logout() {
-    setUser(null)
+    setAuth(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn: !!user, login, logout }}>
+    <AuthContext.Provider value={{ user, token: auth?.token ?? null, isLoggedIn: !!user, isAdmin: user?.rol === 'admin', login, logout }}>
       {children}
     </AuthContext.Provider>
   )

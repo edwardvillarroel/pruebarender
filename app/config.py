@@ -22,6 +22,13 @@ class Config:
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "glb", "stl"}
     UPLOAD_FOLDER = BASE_DIR / "uploads"
 
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
+    FRONTEND_DIST = os.getenv(
+        "FRONTEND_DIST", str(BASE_DIR.parent / "ApoloVibes-frontend" / "dist")
+    )
+    # Prefijo del build de Vite (vite.config.js usa base: "/ApoloVibes3D-Frontend/").
+    FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "/ApoloVibes3D-Frontend/")
+
     JSON_SORT_KEYS = False
 
 

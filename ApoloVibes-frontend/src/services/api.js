@@ -1,11 +1,23 @@
 
 const BASE_URL = '/api'
+const AUTH_STORAGE_KEY = 'apolovibes_auth'
+
+function authHeaders() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+    const data = raw ? JSON.parse(raw) : null
+    return data?.token ? { Authorization: `Bearer ${data.token}` } : {}
+  } catch {
+    return {}
+  }
+}
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
       ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...authHeaders(),
       ...options.headers,
     },
   })
