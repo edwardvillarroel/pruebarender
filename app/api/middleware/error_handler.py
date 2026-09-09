@@ -25,3 +25,7 @@ def register_error_handlers(app) -> None:
     @app.errorhandler(500)
     def internal_error(_e):
         return jsonify(mensaje="Error interno del servidor"), 500
+
+    @app.errorhandler(NotImplementedError)
+    def no_implementado(_e):
+        return jsonify(mensaje="Endpoint no implementado"), 501

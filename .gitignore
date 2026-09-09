@@ -12,6 +12,10 @@ __pycache__/
 .pytest_cache/
 *.sqlite3
 
+# Frontend
+ApoloVibes-frontend/node_modules/
+ApoloVibes-frontend/dist/
+
 # Asset subidos (no versionar contenido de usuarios)
 app/uploads/*/*
 !app/uploads/cotizaciones/.gitkeep

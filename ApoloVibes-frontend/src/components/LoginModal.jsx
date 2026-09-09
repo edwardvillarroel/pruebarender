@@ -2,6 +2,7 @@ import { useState, useLayoutEffect } from 'react'
 import { mediaPath } from '../utils/media.js'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { api } from '../services/api.js'
 import { Eye, EyeOff } from 'lucide-react'
 
 const overlayStyle = {
@@ -29,6 +30,7 @@ export default function LoginModal({ onClose }) {
     const [password, setPassword] = useState('')
     const [mostrarPassword, setMostrarPassword] = useState(false)
     const [error, setError] = useState('')
+    const [cargando, setCargando] = useState(false)
 
     useLayoutEffect(() => {
         const scrollY = window.scrollY
@@ -45,15 +47,23 @@ export default function LoginModal({ onClose }) {
         }
     }, [])
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault()
         if (!email || !password) {
             setError('Completa todos los campos')
             return
         }
         setError('')
-        login({ email })
-        onClose()
+        setCargando(true)
+        try {
+            const data = await api.post('/auth/login', { email, password })
+            login({ token: data.access_token, user: data.user })
+            onClose()
+        } catch (err) {
+            setError(err.message || 'Error al iniciar sesión')
+        } finally {
+            setCargando(false)
+        }
     }
 
     return createPortal(
@@ -149,16 +159,17 @@ export default function LoginModal({ onClose }) {
 
                         <button
                             type="submit"
+                            disabled={cargando}
                             style={{
                                 width: '100%', padding: '13px 0', borderRadius: 10, border: 'none',
                                 background: 'var(--accent)', color: '#0B0D10', fontSize: 14, fontWeight: 600,
-                                cursor: 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center',
-                                justifyContent: 'center', gap: 8, transition: 'opacity .2s',
+                                cursor: cargando ? 'default' : 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center',
+                                justifyContent: 'center', gap: 8, transition: 'opacity .2s', opacity: cargando ? .7 : 1,
                             }}
-                            onMouseEnter={(e) => (e.currentTarget.style.opacity = '.9')}
-                            onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                            onMouseEnter={(e) => { if (!cargando) e.currentTarget.style.opacity = '.9' }}
+                            onMouseLeave={(e) => { if (!cargando) e.currentTarget.style.opacity = '1' }}
                         >
-                            Entrar <span>→</span>
+                            {cargando ? 'Entrando...' : 'Entrar'} <span>→</span>
                         </button>
                     </form>
 
