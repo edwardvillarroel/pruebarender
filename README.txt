@@ -1,11 +1,12 @@
-Por ahora solo está la base del entorno. **Flask y PostgreSQL no están conectados** ni hay modelos/tablas.
+Backend ApoloVibes — estructura base configurada.
 
-Archivos
-- `requirements.txt` — dependencias agrupadas por función
-- `docker-compose.yaml` — PostgreSQL de desarrollo
-- `app.py` — servidor Flask mínimo (sin lógica de negocio)
+Arquitectura: monolito modular por capas (Clean Architecture Flask).
 
-1. Entorno virtual
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+Documento de diseño: `docs/ARQUITECTURA.md`
+
+Quickstart
+1. python -m venv .venv
+2. source .venv/bin/activate  (Windows: .venv\Scripts\activate)
+3. pip install -r requirements.txt
+4. docker compose up -d db
+5. flask --app app run --port 4000
