@@ -1,4 +1,25 @@
 :root {
+  --bg: #FBF7EE;
+  --surface: #FFFFFF;
+  --surface-2: #F1EDE0;
+  --line: rgba(30, 58, 95, 0.14);
+  --text: #1E3A5F;
+  --text-dim: #5A6B7D;
+  --accent: #E8863E;
+  --accent-soft: rgba(232, 134, 62, 0.14);
+  --gold: #F6D976;
+  --gold-soft: rgba(246, 217, 118, 0.18);
+  --navy: #1E3A5F;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 10px;
+  --surface-light: #FBF7EE;
+  --line-light: rgba(30, 58, 95, .12);
+  --text-dim-light: #5A6B7D;
+}
+
+[data-theme="dark"] {
   --bg: #15181D;
   --surface: #1B1F26;
   --surface-2: #23272F;
@@ -10,13 +31,6 @@
   --gold: #F6D976;
   --gold-soft: rgba(246, 217, 118, 0.12);
   --navy: #1E3A5F;
-  --font-display: 'Space Grotesk', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  --radius: 10px;
-  --surface-light: #FBF7EE;
-  --line-light: rgba(30, 58, 95, .12);
-  --text-dim-light: #5A6B7D;
 }
 
 * {

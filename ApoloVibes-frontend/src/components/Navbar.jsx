@@ -3,12 +3,14 @@ import { mediaPath } from '../utils/media.js'
 import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext.jsx'
+import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun } from 'lucide-react'
 import LoginModal from './LoginModal.jsx'
 
 export default function Navbar() {
   const { cantidadTotal } = useCart()
   const { isLoggedIn, logout } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const [scrolled, setScrolled] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -82,6 +84,24 @@ export default function Navbar() {
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'flex-end' }}>
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+            title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
+            style={{
+              width: 34, height: 34, borderRadius: '50%',
+              border: '1.5px solid rgba(251,247,238,.3)',
+              background: 'rgba(251,247,238,.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', color: '#FBF7EE',
+              transition: 'border-color .2s, background .2s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(251,247,238,.6)'; e.currentTarget.style.background = 'rgba(251,247,238,.15)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(251,247,238,.3)'; e.currentTarget.style.background = 'rgba(251,247,238,.1)' }}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
           <Link to="/carrito" className="cart-icon" aria-label="Carrito" style={{ color: '#FBF7EE' }}>
             <ShoppingCart size={24} />
             {cantidadTotal > 0 && (
@@ -195,6 +215,9 @@ export default function Navbar() {
               Iniciar sesión
             </button>
           )}
+          <button onClick={toggleTheme} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {theme === 'dark' ? <><Sun size={16} /> Modo claro</> : <><Moon size={16} /> Modo oscuro</>}
+          </button>
         </div>
       </div>
 
