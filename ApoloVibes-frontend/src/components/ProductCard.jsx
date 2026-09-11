@@ -18,8 +18,8 @@ export default function ProductCard({ producto, index = 0 }) {
   return (
     <div
       style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--line)',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-card)',
         borderRadius: 16,
         overflow: 'hidden',
         display: 'flex',

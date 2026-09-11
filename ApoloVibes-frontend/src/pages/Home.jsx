@@ -16,7 +16,7 @@ export default function Home() {
       <HeroVideo />
 
       <section className="wrap section-py-mobile" style={{ padding: '80px 0' }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, marginBottom: 30, textAlign: 'center' }}>Explora por categoría</h2>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Explora por categoría</h2>
         <div className="grid-3">
           {categorias.map(cat => {
             const bg = CATEGORY_BACKGROUNDS[cat.id]
@@ -63,7 +63,7 @@ export default function Home() {
       </section>
 
       <section className="wrap section-py-mobile" style={{ padding: '0 0 80px' }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, marginBottom: 30, textAlign: 'center' }}>Productos más vendidos</h2>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Productos más vendidos</h2>
         <div className="grid-4">
           {productos.map(p => <ProductCard key={p.id} producto={p} />)}
         </div>
