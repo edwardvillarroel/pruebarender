@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
 import { Trash2, Minus, Plus, ShoppingCart, Truck, ArrowRight } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
+import nombrelogo from '../../public/media/nombrelogo.png'
+import logoicon from '../../public/media/apolo-vibes-logo.png'
 
 const ENVIO_GRATIS_DESDE = 50000
 
@@ -27,7 +29,7 @@ export default function Carrito() {
       <div className="carrito-grid" style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>
         <div style={{ flex: 2, minWidth: 340 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: 0 }}> Tu carrito</h1>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: 0, color: 'var(--surface)' }}> Tu carrito</h1>
             <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>
               ({items.length} {items.length === 1 ? 'producto' : 'productos'})
             </span>
@@ -37,15 +39,15 @@ export default function Carrito() {
           </p>
 
           <div style={{
-            background: 'var(--surface)',
+            background: 'var(--border-card2)',
             border: '1px solid var(--line)',
             borderRadius: 10,
             padding: 16,
             marginBottom: 24,
           }}
           >
-            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Truck size={15} color="#FA7F19" />
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--surface-2)', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Truck size={20} color="#FA7F19" />
               {envioGratis ? 'Tu pedido tiene envio gratis' : `Envío gratis en compras sobre $${ENVIO_GRATIS_DESDE.toLocaleString('es-CL')}`}
             </p>
             <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, lineHeight: 1.5 }}>
@@ -61,7 +63,7 @@ export default function Carrito() {
                 gap: 16,
                 paddingBottom: 20,
                 marginBottom: 20,
-                borderBottom: '1px solid var(--line)',
+                borderBottom: '1px solid var(--surface-3)',
               }}
             >
               <div
@@ -88,7 +90,7 @@ export default function Carrito() {
 
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <p style={{ fontWeight: 600, color: 'var(--text)', margin: '0 0 6px', fontSize: 15 }}>
+                  <p style={{ fontWeight: 600, color: 'var(--text)', margin: '0 0 6px', fontSize: 15, color: 'var(--surface)' }}>
                     {item.nombre}
                   </p>
                   <button
@@ -124,9 +126,9 @@ export default function Carrito() {
                         color: 'inherit', cursor: 'pointer',
                       }}
                     >
-                      <Minus size={15} />
+                      <Minus size={15} style={{ color: 'var(--surface-2)' }} />
                     </button>
-                    <span style={{ minWidth: 32, textAlign: 'center', fontSize: 14, color: 'var(--text)' }}>
+                    <span style={{ minWidth: 32, textAlign: 'center', fontSize: 14, color: 'var(--surface-2)' }}>
                       {item.cantidad}
                     </span>
                     <button
@@ -138,7 +140,7 @@ export default function Carrito() {
                         color: 'inherit', cursor: 'pointer',
                       }}
                     >
-                      <Plus size={15} />
+                      <Plus size={15} style={{ color: 'var(--surface-2)' }} />
                     </button>
                   </div>
 
@@ -154,15 +156,17 @@ export default function Carrito() {
         <div style={{ flex: 1, minWidth: 260 }}>
           <div
             style={{
-              background: 'var(--surface)',
-              border: '1px solid var(--line)',
+              background: 'transparent',
+              border: '1px solid var(--surface-2)',
               borderRadius: 12,
               padding: 20,
               position: 'sticky',
               top: 24,
             }}
           >
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: '0 0 16px' }}>
+            <img src={logoicon} alt='logo-icon' className='logoicon'></img>
+            <img src={nombrelogo} alt='logo' className='nombre-logo'></img>
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: 'var(--surface-2)', marginBottom: '20px', textAlign: 'center' }}>
               Resumen del pedido
             </h2>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
@@ -175,21 +179,21 @@ export default function Carrito() {
             </div>
 
             <div style={{
-              display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 600, color: 'var(--text)', paddingTop: 14, borderTop: '1px solid var(--line)', marginBottom: 20
+              display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 600, color: 'var(--text)', paddingTop: 14, borderTop: '1px solid var(--surface-3)', marginBottom: 20
             }}
             >
-              <span>Total</span>
-              <span style={{ fontFamily: 'var(--font-mono)' }}>${Math.round(total * 1.19).toLocaleString('es-CL')} CLP</span>
+              <span style={{ color: 'var(--surface)' }}>Total</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface-2)' }}>${Math.round(total * 1.19).toLocaleString('es-CL')} CLP</span>
             </div>
 
-            <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 20px' }}>
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 20, marginTop: -15 }}>
               [IVA incluido ${Math.round(total * 0.19).toLocaleString('es-CL')}]
             </p>
             <Link
               to="/checkout"
               className="btn btn-primary"
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              Ir a pagar <ArrowRight size={16} />
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)' }}>
+              Ir a pagar <ArrowRight size={16} color='var(--text)' />
             </Link>
             <div style={{ paddingTop: 16, borderTop: '1px solid var(--line)' }}>
               <p style={{
@@ -201,13 +205,13 @@ export default function Carrito() {
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 padding: '6px 16px', borderRadius: 6, background: '#ffffffb6',
               }}>
-                <img src={mediaPath('tuu.png')} alt="Tuu" style={{ height: 18 }} />
+                <img src={mediaPath('tuu.png')} alt="Tuu" style={{ height: 25 }} />
               </div>
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </section >
   )
 }
 

@@ -3,6 +3,9 @@ import { mediaPath } from '../utils/media.js'
 import { Navigate, Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { iniciarPago } from '../services/payment.js'
+import nombrelogo from '../../public/media/nombrelogo.png'
+import logoicon from '../../public/media/apolo-vibes-logo.png'
+
 
 const ENVIO_GRATIS_DESDE = 50000
 const COSTO_ENVIO_ESTANDAR = 5990
@@ -12,7 +15,6 @@ const REGIONES = [
   'Metropolitana de Santiago',
   'Biobío',
   'La Araucanía',
-  // agrega el resto de regiones de Chile según necesites
 ]
 
 const COMUNAS_POR_REGION = {
@@ -58,8 +60,8 @@ export default function Checkout() {
     dpto: '',
     ciudad: '',
     telefono: '',
-    tipoDocumento: '', // 'boleta' | 'factura'
-    tipoIdentificacion: '', // 'rut' | 'pasaporte'
+    tipoDocumento: '',
+    tipoIdentificacion: '',
     rut: '',
     razonSocial: '',
     giro: '',
@@ -68,7 +70,7 @@ export default function Checkout() {
   const [facturacionIgual, setFacturacionIgual] = useState(true)
   const [mayorEdad, setMayorEdad] = useState(true)
   const [aceptaTerminos, setAceptaTerminos] = useState(false)
-  const [entrega, setEntrega] = useState(null) // 'retiro' | 'envio'
+  const [entrega, setEntrega] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState(null)
 
@@ -134,8 +136,6 @@ export default function Checkout() {
 
     setEnviando(true)
     try {
-      // Redirige al usuario al formulario seguro de pago.
-      // La confirmación real ocurre en /pago/retorno tras volver de Tuu.
       await iniciarPago({ items, total: totalConIva, cliente, entrega })
     } catch (err) {
       setError('No pudimos iniciar el pago. Intenta nuevamente.')
@@ -146,7 +146,7 @@ export default function Checkout() {
   return (
     <section className="wrap" style={{ padding: '48px 0 80px' }}>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, margin: '0 0 6px' }}>Pagar</h1>
+        <img src={nombrelogo} alt='logo' className='nombre-logo'></img>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
           ({items.length} {items.length === 1 ? 'producto' : 'productos'}) &nbsp; ${totalConIva.toLocaleString('es-CL')}
         </p>
@@ -155,7 +155,7 @@ export default function Checkout() {
       <div className="checkout-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: 48 }}>
         <form onSubmit={pagar}>
           {/* Paso 1: Contacto */}
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16 }}>Contacto</h2>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Contacto</h2>
           <div style={{ marginBottom: 24 }}>
             <label htmlFor="email">Email</label>
             <input
@@ -164,17 +164,18 @@ export default function Checkout() {
               type="email"
               value={cliente.email}
               onChange={e => actualizar('email', e.target.value)}
+              style={{ color: 'var(--surface)', backgroundColor: 'var(--text)' }}
             />
           </div>
 
-          <div style={{ borderTop: '1px solid var(--line)', marginBottom: 24 }} />
+          <div style={{ borderTop: '1px solid var(--surface-3)', marginBottom: 24 }} />
 
           {/* Paso 2: Dirección — bloqueado hasta que el contacto sea válido */}
           <fieldset
             disabled={!contactoCompleto}
             style={{ border: 'none', padding: 0, margin: 0, opacity: contactoCompleto ? 1 : 0.4 }}
           >
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16 }}>Dirección de envío</h2>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Dirección de envío</h2>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
               <div>
@@ -184,6 +185,7 @@ export default function Checkout() {
                   required
                   value={cliente.nombre}
                   onChange={e => actualizar('nombre', e.target.value)}
+                  style={{ color: 'var(--surface)', backgroundColor: 'var(--text)' }}
                 />
               </div>
               <div>
@@ -193,6 +195,7 @@ export default function Checkout() {
                   required
                   value={cliente.apellido}
                   onChange={e => actualizar('apellido', e.target.value)}
+                  style={{ color: 'var(--surface)', backgroundColor: 'var(--text)' }}
                 />
               </div>
             </div>
@@ -205,6 +208,7 @@ export default function Checkout() {
                   required
                   value={cliente.region}
                   onChange={e => cambiarRegion(e.target.value)}
+                  style={{ color: 'var(--surface)', backgroundColor: 'var(--text)' }}
                 >
                   <option value="">Selecciona una región</option>
                   {REGIONES.map(r => (
@@ -220,6 +224,7 @@ export default function Checkout() {
                   disabled={!cliente.region}
                   value={cliente.comuna}
                   onChange={e => actualizar('comuna', e.target.value)}
+                  style={{ color: 'var(--surface)', backgroundColor: 'var(--text)' }}
                 >
                   <option value="">Selecciona una comuna</option>
                   {(COMUNAS_POR_REGION[cliente.region] || []).map(c => (
@@ -312,7 +317,7 @@ export default function Checkout() {
             </div>
           </fieldset>
 
-          <div style={{ borderTop: '1px solid var(--line)', marginBottom: 24 }} />
+          <div style={{ borderTop: '1px solid var(--surface-3)', marginBottom: 24 }} />
 
           {/* Paso 3: Datos personales — bloqueado hasta completar la dirección */}
           <fieldset
@@ -423,7 +428,7 @@ export default function Checkout() {
             </div>
           </fieldset>
 
-          <div style={{ borderTop: '1px solid var(--line)', marginBottom: 24 }} />
+          <div style={{ borderTop: '1px solid var(--surface-3)', marginBottom: 24 }} />
 
           {/* Paso 4: Opciones de entrega — bloqueado hasta completar datos personales */}
           <fieldset
@@ -507,6 +512,7 @@ export default function Checkout() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
+              color: 'var(--text)'
             }}
           >
             {enviando ? (
@@ -523,16 +529,22 @@ export default function Checkout() {
 
         <aside
           style={{
-            background: 'var(--surface)',
-            border: '1px solid var(--line)',
+            background: 'var(--border-card3)',
+            border: '1px solid var(--surface-2)',
             borderRadius: 12,
             padding: 24,
             height: 'fit-content',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 16, margin: 0 }}>Tu pedido</h3>
-            <Link to="/carrito" style={{ fontSize: 13 }}>Editar</Link>
+          <img src={logoicon} alt='logo-icon' className='logoicon'></img>
+          <img src={nombrelogo} alt='logo' className='nombre-logo'></img>
+
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 16, margin: 0, color: 'var(--surface-2)' }}>Tu pedido</h3>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', marginBottom: 16 }}>
+            <Link to="/carrito" style={{ fontSize: 13, color: 'var(--surface-2)' }}>Editar</Link>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
@@ -549,25 +561,21 @@ export default function Checkout() {
               display: 'flex',
               justifyContent: 'space-between',
               paddingTop: 14,
-              borderTop: '1px solid var(--line)',
+              borderTop: '1px solid var(--surface-3)',
               fontFamily: 'var(--font-mono)',
               fontWeight: 600,
               fontSize: 16,
               marginBottom: 4,
             }}
           >
-            <span>Total</span>
-            <span>${totalConIva.toLocaleString('es-CL')}</span>
+            <span style={{ fontSize: 16, margin: 0, color: 'var(--surface-2)' }}>Total</span>
+            <span style={{ color: 'var(--surface)' }}>${totalConIva.toLocaleString('es-CL')}</span>
           </div>
           <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 16px' }}>
             [IVA incluido ${montoIva.toLocaleString('es-CL')}]
           </p>
 
-          <p style={{ fontSize: 13, margin: '0 0 20px' }}>
-            <Link to="/carrito">Usa un código promocional</Link>
-          </p>
-
-          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ borderTop: '1px solid var(--surface-3)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
             {items.map(item => (
               <div key={item.id} style={{ display: 'flex', gap: 12 }}>
                 <div
@@ -589,7 +597,7 @@ export default function Checkout() {
                   )}
                 </div>
                 <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px' }}>{item.nombre}</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--surface)' }}>{item.nombre}</p>
                   <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 4px' }}>
                     ${item.precio.toLocaleString('es-CL')}
                   </p>

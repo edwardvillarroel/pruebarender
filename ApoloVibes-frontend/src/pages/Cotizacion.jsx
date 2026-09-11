@@ -108,7 +108,7 @@ export default function Cotizacion() {
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)', textTransform: 'uppercase' }}>
         Cotización personalizada
       </span>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, margin: '10px 0 8px' }}>Cotiza tu producto</h1>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, margin: '10px 0 8px', color: 'var(--surface)' }}>Cotiza tu producto</h1>
       <p style={{ color: 'var(--text-dim)', marginBottom: 32, lineHeight: 1.6 }}>
         Sube una imagen de lo que necesitas imprimir. Nuestra IA generará un modelo 3D de referencia
         y nuestro equipo revisara la cotización y te confirmará el precio final.
@@ -117,7 +117,7 @@ export default function Cotizacion() {
       <form onSubmit={enviarSolicitud}>
         {/* ─── Paso 1: Imagen + generación 3D ─── */}
         <div style={{
-          background: 'var(--surface)',
+          background: 'var(--surface-3)',
           border: '1px solid var(--line)',
           borderRadius: 12,
           padding: 24,
@@ -125,7 +125,7 @@ export default function Cotizacion() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <div style={{
-              width: 28, height: 28, borderRadius: 8,
+              width: 28, height: 28, borderRadius: 15,
               background: archivo ? 'rgba(34,197,94,.15)' : 'var(--accent-soft)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 13, fontWeight: 700,
@@ -133,7 +133,7 @@ export default function Cotizacion() {
             }}>
               {archivo ? '✓' : '1'}
             </div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Imagen de referencia</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--surface)' }}>Imagen de referencia</h2>
           </div>
 
           {!archivo ? (
@@ -149,7 +149,7 @@ export default function Cotizacion() {
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--line)'}
             >
               <Upload size={32} color="var(--text-dim)" strokeWidth={1.5} style={{ marginBottom: 12 }} />
-              <span style={{ fontSize: 14, color: 'var(--text)', fontWeight: 500, marginBottom: 4 }}>
+              <span style={{ fontSize: 14, color: 'var(--text--dim)', fontWeight: 500, marginBottom: 4 }}>
                 Haz clic para subir una imagen
               </span>
               <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>

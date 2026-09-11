@@ -30,15 +30,15 @@ export default function ProductoDetalle() {
         color: 'var(--text-dim)',
         marginBottom: 20
       }}>
-        <Link to="/categorias" style={{ color: 'var(--text-dim)' }}>Catálogo</Link>
+        <Link to="/categorias" style={{ color: 'var(--surface)' }}>Catálogo</Link>
         {categoria && (
           <>
             <span></span>
-            <Link to={`/categorias?cat=${categoria.id}`} style={{ color: 'var(--text-dim)' }}>{categoria.nombre}</Link>
+            <Link to={`/categorias?cat=${categoria.id}`} style={{ color: 'var(--accent)' }}>{categoria.nombre}</Link>
           </>
         )}
         <span></span>
-        <span style={{ color: 'var(--text)' }}>{producto.nombre}</span>
+        <span style={{ color: 'var(--surface)' }}>{producto.nombre}</span>
       </div>
 
       <div className="producto-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48 }}>
@@ -46,7 +46,7 @@ export default function ProductoDetalle() {
           position: 'relative',
           height: 420,
           background: producto.imagen ? '#FFFFFF' : 'var(--surface)',
-          border: '1px solid var(--line)',
+          border: '1px solid var(--border-card)',
           borderRadius: 12,
           display: 'flex',
           alignItems: 'center',
@@ -138,7 +138,7 @@ export default function ProductoDetalle() {
               {categoria.nombre}
             </span>
           )}
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, marginBottom: 14 }}>{producto.nombre}</h1>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, marginBottom: 14, color: 'var(--surface)' }}>{producto.nombre}</h1>
           {producto.descripcion && (
             <p style={{ fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 24, maxWidth: 420 }}>
               {producto.descripcion}
@@ -174,7 +174,7 @@ export default function ProductoDetalle() {
             <span style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 22,
-              color: 'var(--text)'
+              color: 'var(--surface)'
             }}>
               ${producto.precio.toLocaleString('es-CL')} CLP
             </span>
@@ -207,9 +207,9 @@ export default function ProductoDetalle() {
                   cursor: 'pointer',
                 }}
               >
-                <Minus size={16} />
+                <Minus size={16} style={{ color: 'var(--surface-2)' }} />
               </button>
-              <span style={{ width: 32, textAlign: 'center', textAlign: 'center', fontSize: 14, color: 'var(--text)' }}>{cantidad}</span>
+              <span style={{ width: 32, textAlign: 'center', textAlign: 'center', fontSize: 14, color: 'var(--surface-2)' }}>{cantidad}</span>
               <button onClick={() => setCantidad(c => c + 1)}
                 style={{
                   display: 'flex',
@@ -223,7 +223,7 @@ export default function ProductoDetalle() {
                   cursor: 'pointer',
                 }}
               >
-                <Plus size={16} />
+                <Plus size={16} style={{ color: 'var(--surface-2)' }} />
               </button>
             </div>
 
