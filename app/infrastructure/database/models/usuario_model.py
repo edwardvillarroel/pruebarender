@@ -1,13 +1,13 @@
 import uuid
 from datetime import datetime
 
-from app.infrastructure.database.connection import db
+from app.infrastructure.database.connection import UuidRaw, db
 
 
 class UsuarioModel(db.Model):
     __tablename__ = "usuarios"
 
-    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
+    id = db.Column(UuidRaw, primary_key=True, default=uuid.uuid4)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     nombre = db.Column(db.String(100), nullable=False)

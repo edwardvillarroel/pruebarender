@@ -1,14 +1,14 @@
 import uuid
 from datetime import datetime
 
-from app.infrastructure.database.connection import db
+from app.infrastructure.database.connection import UuidRaw, db
 
 
 class PagoModel(db.Model):
     __tablename__ = "pagos"
 
-    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
-    pedido_id = db.Column(db.Uuid, db.ForeignKey("pedidos.id"), nullable=False)
+    id = db.Column(UuidRaw, primary_key=True, default=uuid.uuid4)
+    pedido_id = db.Column(UuidRaw, db.ForeignKey("pedidos.id"), nullable=False)
     monto = db.Column(db.Integer, nullable=False)
     proveedor = db.Column(db.String(50), nullable=False)
     token = db.Column(db.String(255))
