@@ -10,6 +10,7 @@ Flask-Limiter==3.9.0
 SQLAlchemy==2.0.52
 Alembic==1.19.1
 psycopg2-binary==2.9.12
+oracledb==26.0.0
 
 # --- Validación y configuración ---
 pydantic==2.13.4

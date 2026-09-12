@@ -1,14 +1,14 @@
 import uuid
 from datetime import datetime
 
-from app.infrastructure.database.connection import db
+from app.infrastructure.database.connection import UuidRaw, db
 
 
 class PedidoModel(db.Model):
     __tablename__ = "pedidos"
 
-    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
-    usuario_id = db.Column(db.Uuid, db.ForeignKey("usuarios.id"), nullable=False)
+    id = db.Column(UuidRaw, primary_key=True, default=uuid.uuid4)
+    usuario_id = db.Column(UuidRaw, db.ForeignKey("usuarios.id"), nullable=False)
     estado = db.Column(db.String(30), nullable=False, default="pendiente")
     total = db.Column(db.Integer, nullable=False, default=0)
     direccion_envio = db.Column(db.Text)
