@@ -8,11 +8,10 @@ import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun }
 import LoginModal from './LoginModal.jsx'
 
 export default function Navbar() {
-  const { cantidadTotal } = useCart()
+  const { cantidadTotal, solicitarLogin, abrirLogin, cerrarLogin } = useCart()
   const { isLoggedIn, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [scrolled, setScrolled] = useState(false)
-  const [showLogin, setShowLogin] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
@@ -113,7 +112,7 @@ export default function Navbar() {
           {/* Desktop auth */}
           <div className="hide-mobile" style={{ position: 'relative' }} ref={userMenuRef}>
             <button
-              onClick={() => isLoggedIn ? setUserMenuOpen(v => !v) : setShowLogin(true)}
+              onClick={() => isLoggedIn ? setUserMenuOpen(v => !v) : abrirLogin()}
               aria-label="Mi cuenta"
               style={{
                 width: 34, height: 34, borderRadius: '50%',
@@ -212,7 +211,7 @@ export default function Navbar() {
               </button>
             </>
           ) : (
-            <button onClick={() => { setMobileOpen(false); setShowLogin(true) }}>
+            <button onClick={() => { setMobileOpen(false); abrirLogin() }}>
               Iniciar sesión
             </button>
           )}
@@ -222,8 +221,8 @@ export default function Navbar() {
         </div>
       </div>
 
-      {showLogin && (
-        <LoginModal onClose={() => setShowLogin(false)} />
+      {solicitarLogin && (
+        <LoginModal onClose={cerrarLogin} />
       )}
     </header>
   )

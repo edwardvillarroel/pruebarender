@@ -9,6 +9,11 @@ Wallet_*/
 *.zip
 instrucciones conexion a db.txt
 LLAVE_CONEXION_ORACLE.txt
+test_oracle.py
+ver_tablas.py
+seed_productos_prueba.py
+agregar_producto.py
+migrar_imagen_blob.py
 
 # Logs locales (pueden contener trazas con datos)
 *.log
@@ -29,3 +34,5 @@ ApoloVibes-frontend/dist/
 app/uploads/*/*
 !app/uploads/cotizaciones/.gitkeep
 !app/uploads/modelos3d/.gitkeep
+AGENTS.md
+ARQUITECTURA.md

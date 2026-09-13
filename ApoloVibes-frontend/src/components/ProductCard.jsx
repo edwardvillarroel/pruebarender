@@ -63,26 +63,7 @@ export default function ProductCard({ producto, index = 0 }) {
             </div>
           )}
 
-          {producto.sinStock ? (
-            <span
-              style={{
-                position: 'absolute',
-                top: 19,
-                right: -40,
-                width: 150,
-                transform: 'rotate(45deg)',
-                background: COLOR_SIN_STOCK,
-                color: '#FFFFFF',
-                fontSize: 12,
-                fontWeight: 500,
-                lineHeight: '1.4',
-                padding: '5px 0',
-                textAlign: 'center',
-              }}
-            >
-              SIN STOCK
-            </span>
-          ) : producto.descuento ? (
+          {producto.descuento ? (
             <span
               style={{
                 position: 'absolute',
@@ -126,6 +107,38 @@ export default function ProductCard({ producto, index = 0 }) {
 
       <div style={{ padding: '18px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{producto.nombre}</h4>
+        {producto.sinStock ? (
+          <span
+            style={{
+              display: 'inline-block',
+              background: COLOR_SIN_STOCK,
+              color: '#FFFFFF',
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: 999,
+              width: 'fit-content',
+            }}
+          >
+            SIN STOCK
+          </span>
+        ) : null}
+        {producto.descripcion && (
+          <p
+            style={{
+              fontSize: 12,
+              color: 'var(--text-dim)',
+              lineHeight: 1.5,
+              margin: 0,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {producto.descripcion}
+          </p>
+        )}
         {producto.rating && (
           <div style={{ display: 'flex', gap: 2 }}>
             {Array.from({ length: 5 }).map((_, i) => (
