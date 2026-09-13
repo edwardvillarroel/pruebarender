@@ -1,14 +1,14 @@
 import uuid
 from datetime import datetime
 
-from app.infrastructure.database.connection import db
+from app.infrastructure.database.connection import UuidRaw, db
 
 
 class SolicitudDisenoModel(db.Model):
     __tablename__ = "solicitudes_diseno"
 
-    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
-    usuario_id = db.Column(db.Uuid, db.ForeignKey("usuarios.id"), nullable=False)
+    id = db.Column(UuidRaw, primary_key=True, default=uuid.uuid4)
+    usuario_id = db.Column(UuidRaw, db.ForeignKey("usuarios.id"), nullable=False)
     nombre = db.Column(db.String(150), nullable=False)
     email = db.Column(db.String(255), nullable=False)
     telefono = db.Column(db.String(30))

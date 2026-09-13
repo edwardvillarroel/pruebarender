@@ -5,6 +5,7 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
 from app.config import Config
+from app.infrastructure.database.connection import db
 
 
 def create_app(config_class: type[Config] = Config) -> Flask:
@@ -13,6 +14,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     CORS(app, origins=app.config.get("CORS_ORIGINS", "*"))
     jwt = JWTManager(app)
+    db.init_app(app)
 
     @jwt.unauthorized_loader
     def _no_autenticado(_razon):

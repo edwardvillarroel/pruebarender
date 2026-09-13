@@ -4,6 +4,15 @@ env/
 .venv/
 venv/
 
+# Oracle Autonomous — wallet mTLS y credenciales (NUNCA subir)
+Wallet_*/
+*.zip
+instrucciones conexion a db.txt
+LLAVE_CONEXION_ORACLE.txt
+
+# Logs locales (pueden contener trazas con datos)
+*.log
+
 # Python
 __pycache__/
 *.pyc

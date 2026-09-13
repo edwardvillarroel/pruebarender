@@ -1,42 +1,57 @@
+import bcrypt
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt, jwt_required
 
-from app.application.auth.autenticar import (
-    CredencialesInvalidas,
-    autenticar_admin,
-)
+from app.infrastructure.database.models.usuario_model import UsuarioModel
 
 auth_bp = Blueprint("auth", __name__)
+
+
+def _usuario_a_publico(usuario: UsuarioModel) -> dict:
+    return {
+        "id": str(usuario.id),
+        "email": usuario.email,
+        "nombre": usuario.nombre,
+        "apellido": usuario.apellido,
+        "rol": usuario.rol,
+    }
 
 
 @auth_bp.post("/auth/register")
 def registrar():
     # TODO: validar email/contraseña, hashear con bcrypt, persistir usuario.
-    # Temporal: solo existe el administrador (ver admin en autenticar.py).
     raise NotImplementedError
 
 
 @auth_bp.post("/auth/login")
 def iniciar_sesion():
     datos = request.get_json(silent=True) or {}
-    username = datos.get("username") or datos.get("email")
+    email = datos.get("email") or datos.get("username")
     password = datos.get("password", "")
 
-    if not username or not password:
+    if not email or not password:
         return jsonify(mensaje="Correo y contraseña son obligatorios"), 400
 
+    usuario = UsuarioModel.query.filter_by(email=email.strip().lower()).first()
+    if usuario is None or not usuario.activo:
+        return jsonify(mensaje="Credenciales inválidas"), 401
+
     try:
-        sesion = autenticar_admin(username.strip(), password)
-    except CredencialesInvalidas:
+        hash_valido = bcrypt.checkpw(
+            password.encode("utf-8"), usuario.password_hash.encode("utf-8")
+        )
+    except ValueError:
+        hash_valido = False
+    if not hash_valido:
         return jsonify(mensaje="Credenciales inválidas"), 401
 
     access_token = create_access_token(
-        identity=sesion.username,
-        additional_claims={"rol": sesion.rol, "username": sesion.username},
+        identity=str(usuario.id),
+        additional_claims={"rol": usuario.rol, "email": usuario.email},
     )
     return jsonify(
         access_token=access_token,
-        user={"username": sesion.username, "rol": sesion.rol},
+        user=_usuario_a_publico(usuario),
     )
 
 
@@ -44,9 +59,7 @@ def iniciar_sesion():
 @jwt_required()
 def perfil():
     claims = get_jwt()
-    return jsonify(
-        user={
-            "username": claims.get("username"),
-            "rol": claims.get("rol"),
-        }
-    )
+    usuario = UsuarioModel.query.get(claims.get("sub"))
+    if usuario is None:
+        return jsonify(mensaje="Usuario no encontrado"), 404
+    return jsonify(user=_usuario_a_publico(usuario))
