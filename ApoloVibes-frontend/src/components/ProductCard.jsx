@@ -18,7 +18,7 @@ export default function ProductCard({ producto, index = 0 }) {
   return (
     <div
       style={{
-        background: 'var(--bg-card)',
+        background: 'var(--surface)',
         border: '1px solid var(--border-card)',
         borderRadius: 16,
         overflow: 'hidden',
@@ -172,11 +172,11 @@ export default function ProductCard({ producto, index = 0 }) {
             aria-label="Agregar al carrito"
             style={{
               background: producto.sinStock ? 'var(--surface-2)' : COLOR_BUTTON,
-              color: producto.sinStock ? 'var(--text-dim)' : '#0B0D10',
+              color: producto.sinStock ? 'var(--text-dim)' : 'var(--text)',
               border: 'none',
-              borderRadius: 999,
-              width: 40,
-              height: 40,
+              borderRadius: 12,
+              width: 100,
+              height: 35,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -187,7 +187,7 @@ export default function ProductCard({ producto, index = 0 }) {
             }}
             onMouseEnter={(e) => !producto.sinStock && (e.currentTarget.style.opacity = '.85')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-          >
+          > Agregar
             <img
               src={mediaPath('cart.png')}
               alt=""

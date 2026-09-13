@@ -1,4 +1,5 @@
 import { Sparkles, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext.jsx'
 
 const STATUS_CONFIG = {
   idle: { icon: Sparkles, color: 'var(--text-dim)', bgColor: 'var(--surface-2)' },
@@ -18,10 +19,12 @@ export default function GenerationProgress({ status = 'idle', percent = 0, messa
   const config = STATUS_CONFIG[status] || STATUS_CONFIG.idle
   const Icon = config.icon
   const isSpinning = status === 'uploading' || status === 'processing'
+  const { theme } = useTheme()
+  const esOscuro = theme === 'dark'
 
   return (
     <div style={{
-      background: 'var(--surface)',
+      background: esOscuro ? 'var(--surface)' : 'var(--bg)',
       border: '1px solid var(--line)',
       borderRadius: 12,
       padding: 20,
@@ -30,18 +33,18 @@ export default function GenerationProgress({ status = 'idle', percent = 0, messa
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <div style={{
-          width: 36, height: 36, borderRadius: 10,
-          background: config.bgColor,
+          width: 36, height: 36, borderRadius: 20,
+          backgroundColor: 'var(--bg)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <Icon
-            size={20}
+            size={50}
             color={config.color}
             style={isSpinning ? { animation: 'spin 1s linear infinite' } : {}}
           />
         </div>
         <div>
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: esOscuro ? 'var(--text)' : 'var(--surface)', margin: 0 }}>
             Generando modelo 3D
           </p>
           <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
@@ -96,9 +99,9 @@ export default function GenerationProgress({ status = 'idle', percent = 0, messa
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                fontSize: 11,
+                fontSize: 12,
                 color: isDone ? '#22c55e' : isCurrent ? config.color : 'var(--text-dim)',
-                fontWeight: isCurrent ? 600 : 400,
+                fontWeight: isCurrent ? 800 : 600,
               }}
             >
               <div style={{

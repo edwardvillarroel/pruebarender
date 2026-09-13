@@ -21,7 +21,7 @@ export default function ProductoDetalle() {
   const categoria = categorias.find(c => c.id === producto.categoria)
 
   return (
-    <section className="wrap" style={{ padding: '48px 0 80px' }}>
+    <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px' }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',

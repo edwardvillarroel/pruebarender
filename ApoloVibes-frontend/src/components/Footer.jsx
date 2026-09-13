@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ChevronDown } from 'lucide-react'
 import LegalModal from './LegalModal.jsx'
 
 const ICONOS_SOCIALES = [
@@ -53,13 +54,63 @@ const LINK_BUTTON_STYLE = {
   fontFamily: 'inherit',
 }
 
+// Sección del footer con acordeón: en desktop el contenido siempre se ve
+// y el chevron está oculto (CSS); en móvil el título es un botón que
+// despliega/pliega el contenido.
+function SeccionFooter({ titulo, abierta, alAlternar, children }) {
+  return (
+    <div className="footer-seccion">
+      <button
+        type="button"
+        className="footer-seccion-toggle"
+        onClick={alAlternar}
+        aria-expanded={abierta}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          background: 'none',
+          border: 'none',
+          padding: '10px 0 12px',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          textAlign: 'left',
+        }}
+      >
+        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)' }}>{titulo}</span>
+        <ChevronDown
+          size={16}
+          className="footer-chevron"
+          style={{
+            color: 'var(--text-dim)',
+            flexShrink: 0,
+            transition: 'transform .15s',
+            transform: abierta ? 'rotate(180deg)' : undefined,
+          }}
+        />
+      </button>
+      <div className={abierta ? 'footer-seccion-contenido' : 'footer-seccion-contenido footer-seccion-cerrada'}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Footer() {
   const [modalAbierto, setModalAbierto] = useState(null)
+  const [seccionesAbiertas, setSeccionesAbiertas] = useState({})
+
+  function alternar(id) {
+    setSeccionesAbiertas((s) => ({ ...s, [id]: !s[id] }))
+  }
 
   return (
     <>
       <footer style={{ background: 'var(--surface)', marginTop: 60 }}>
-        <div className="wrap" style={{ padding: '56px 0 24px' }}>
+        <div className="wrap" style={{ paddingTop: '56px', paddingBottom: '24px' }}>
           <div
             className="footer-grid"
             style={{
@@ -70,7 +121,7 @@ export default function Footer() {
               borderBottom: '1px solid var(--line)',
             }}
           >
-            <div>
+            <div className="footer-brand">
               <p
                 style={{
                   fontFamily: 'var(--font-display)',
@@ -128,45 +179,49 @@ export default function Footer() {
             </div>
 
 
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', marginBottom: 12 }}>Tienda</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                {ENLACES_TIENDA.map((e) => (
-                  <Link key={e.nombre} to={e.href} style={{ fontSize: 13, color: 'var(--text-dim)' }}>
-                    {e.nombre}
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <SeccionFooter
+              titulo="Tienda"
+              abierta={seccionesAbiertas.tienda}
+              alAlternar={() => alternar('tienda')}
+            >
+              {ENLACES_TIENDA.map((e) => (
+                <Link key={e.nombre} to={e.href} style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+                  {e.nombre}
+                </Link>
+              ))}
+            </SeccionFooter>
 
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', marginBottom: 12 }}>Empresa</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                {ENLACES_EMPRESA.map((e) => (
-                  <Link key={e.nombre} to={e.href} style={{ fontSize: 13, color: 'var(--text-dim)' }}>
-                    {e.nombre}
-                  </Link>
-                ))}
-                <button onClick={() => setModalAbierto('terminos')} style={LINK_BUTTON_STYLE}>
-                  Términos y condiciones
-                </button>
-                <button onClick={() => setModalAbierto('privacidad')} style={LINK_BUTTON_STYLE}>
-                  Política de privacidad
-                </button>
-              </div>
-            </div>
+            <SeccionFooter
+              titulo="Empresa"
+              abierta={seccionesAbiertas.empresa}
+              alAlternar={() => alternar('empresa')}
+            >
+              {ENLACES_EMPRESA.map((e) => (
+                <Link key={e.nombre} to={e.href} style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+                  {e.nombre}
+                </Link>
+              ))}
+              <button onClick={() => setModalAbierto('terminos')} style={LINK_BUTTON_STYLE}>
+                Términos y condiciones
+              </button>
+              <button onClick={() => setModalAbierto('privacidad')} style={LINK_BUTTON_STYLE}>
+                Política de privacidad
+              </button>
+            </SeccionFooter>
 
-            <div>
-              <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', marginBottom: 12 }}>Contacto</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9, fontSize: 13, color: 'var(--text-dim)' }}>
-                <span>correo@gmail.com</span>
-                <span>+569xxxxxxxx</span>
-                <span>Viña del Mar, Chile</span>
-              </div>
-            </div>
+            <SeccionFooter
+              titulo="Contacto"
+              abierta={seccionesAbiertas.contacto}
+              alAlternar={() => alternar('contacto')}
+            >
+              <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>correo@gmail.com</span>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>+569xxxxxxxx</span>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>Viña del Mar, Chile</span>
+            </SeccionFooter>
           </div>
 
           <div
+            className="footer-bottom"
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -177,7 +232,7 @@ export default function Footer() {
               fontFamily: 'var(--font-mono)',
             }}
           >
-            <span>©2025 ApoloVibes3D</span>
+            <span>©2025 ApoloVibes3D. Todos los derechos reservados</span>
             <span>Impulsando la creatividad con cada impresión</span>
           </div>
         </div>

@@ -2,7 +2,7 @@
   --bg: #e8f6f8;
   --surface: #002A5E;
   --surface-2: #002a5e94;
-  --surface-3: #002a5e17;
+  --surface-3: #065bc417;
   --line: #e8853e6c;
   --text: #EDEDE5;
   --text-dim: #959aa1;
@@ -10,9 +10,10 @@
   --accent: #E8863E;
   --accent-2: #cfccca3a;
   --border-card: #ffae74;
-  --border-card2: #fde0cbee;
+  --border-card2: #fde0cba8;
   --border-card3: #00367700;
-  --bg-card: #01326dee;
+  --border-card4: #c2b7b063;
+  --bg-card: #1e3a5f;
   --accent-soft: rgba(232, 134, 62, 0.12);
   --gold: #F6D976;
   --gold-soft: rgba(246, 217, 118, 0.12);
@@ -94,7 +95,7 @@ video {
 
 .btn-primary {
   background: var(--accent);
-  color: #0B0D10;
+  color: var(--text);
 }
 
 .btn-primary:hover {
@@ -151,6 +152,85 @@ select:-webkit-autofill:focus {
   transition: background-color 5000s ease-in-out 0s;
 }
 
+/* Tema claro: inputs con fondo como el card de subir imagen y texto color surface */
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  background: var(--bg);
+  color: var(--surface);
+}
+
+[data-theme="light"] input:focus,
+[data-theme="light"] textarea:focus,
+[data-theme="light"] select:focus {
+  border-color: var(--gold);
+}
+
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: var(--surface);
+  opacity: 0.55;
+}
+
+/* Autofill en tema claro: evita el fondo celeste del navegador */
+[data-theme="light"] input:-webkit-autofill,
+[data-theme="light"] input:-webkit-autofill:hover,
+[data-theme="light"] input:-webkit-autofill:focus,
+[data-theme="light"] textarea:-webkit-autofill,
+[data-theme="light"] textarea:-webkit-autofill:hover,
+[data-theme="light"] textarea:-webkit-autofill:focus,
+[data-theme="light"] select:-webkit-autofill,
+[data-theme="light"] select:-webkit-autofill:hover,
+[data-theme="light"] select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset !important;
+  -webkit-text-fill-color: var(--surface) !important;
+}
+
+/* Campos inválidos con los que el usuario ya interactuó: borde rojo */
+input:user-invalid,
+textarea:user-invalid,
+select:user-invalid {
+  border-color: #ef4444;
+}
+
+/* Input con prefijo (bandera + código de país): mismo look que los inputs */
+.input-prefijo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+[data-theme="light"] .input-prefijo {
+  background: var(--bg);
+  color: var(--surface);
+}
+
+.input-prefijo input {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 14px;
+  color: inherit;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.input-prefijo:focus-within {
+  border-color: var(--gold);
+}
+
+.input-prefijo:has(input:user-invalid) {
+  border-color: #ef4444;
+}
+
 label {
   font-size: 13px;
   color: var(--text-dim);
@@ -196,6 +276,11 @@ label {
   width: auto;
   display: block;
   margin: 0 auto;
+}
+
+/* Footer: el chevron del acordeón solo se muestra en móvil */
+.footer-chevron {
+  display: none;
 }
 
 /* ─── Responsive utilities ─── */
@@ -342,10 +427,24 @@ label {
     display: none;
   }
 
+  /* Móvil: el header muestra solo logo + botón hamburguesa */
+  /* !important vence al display:flex inline del botón de tema */
+  .theme-toggle,
+  .cart-icon {
+    display: none !important;
+  }
+
   .hamburger {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* Móvil: el header reduce su padding lateral para pegar la hamburguesa al borde
+     y usa 2 columnas (logo | acciones) para que la hamburguesa quede al extremo */
+  header .wrap {
+    grid-template-columns: 1fr auto !important;
+    padding: 16px 16px !important;
   }
 
   .nav-mobile-overlay {
@@ -364,7 +463,7 @@ label {
   }
 
   .nav-mobile-menu {
-    background: var(--surface);
+    background: rgba(250, 127, 25, 1);
     width: 280px;
     height: 100%;
     padding: 24px 20px;
@@ -380,7 +479,7 @@ label {
     padding: 14px 0;
     font-size: 15px;
     color: var(--text);
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid rgba(251, 247, 238, .22);
     text-decoration: none;
     background: none;
     border-left: none;
@@ -393,7 +492,7 @@ label {
 
   .nav-mobile-menu a:first-child,
   .nav-mobile-menu button:first-child {
-    border-top: 1px solid var(--line);
+    border-top: 1px solid rgba(251, 247, 238, .22);
   }
 
   .nav-mobile-menu .close-btn {
@@ -407,13 +506,41 @@ label {
     border: none;
     padding: 8px;
     font-size: 24px;
-    color: var(--text-dim);
+    color: rgba(251, 247, 238, .9);
   }
 
-  /* Footer stacks */
+
   footer .footer-grid {
     grid-template-columns: 1fr !important;
-    gap: 28px !important;
+    gap: 0 !important;
+    border-bottom: none !important;
+  }
+
+  .footer-chevron {
+    display: inline-flex;
+  }
+
+  .footer-seccion {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .footer-seccion-contenido {
+    padding-bottom: 12px;
+  }
+
+  .footer-brand {
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .footer-seccion-contenido.footer-seccion-cerrada {
+    display: none;
+  }
+
+  footer .footer-bottom {
+    flex-direction: column !important;
+    gap: 8px !important;
+    text-align: center;
   }
 
   /* Checkout / Carrito stacks */

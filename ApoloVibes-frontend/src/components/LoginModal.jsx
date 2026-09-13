@@ -110,7 +110,7 @@ export default function LoginModal({ onClose }) {
                             placeholder="tucorreo@correo.cl"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            style={{ ...inputStyle, marginBottom: 14 }}
+                            style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
                         />
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -136,7 +136,7 @@ export default function LoginModal({ onClose }) {
                                     placeholder="••••••••"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    style={{ ...inputStyle, paddingLeft: 34 }}
+                                    style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
                                 />
                             </div>
                             <span

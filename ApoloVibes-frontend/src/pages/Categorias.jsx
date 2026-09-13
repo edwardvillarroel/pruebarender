@@ -8,7 +8,7 @@ export default function Categorias() {
   const filtrados = activa ? productos.filter(p => p.categoria === activa) : productos
 
   return (
-    <section className="wrap section-py-mobile" style={{ padding: '48px 0 80px' }}>
+    <section className="wrap section-py-mobile" style={{ paddingTop: '48px', paddingBottom: '80px' }}>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, marginBottom: 24, textAlign: 'center', color: 'var(--surface)' }}>Catálogo</h1>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap', justifyContent: 'center' }}>

@@ -3,8 +3,7 @@ import { mediaPath } from '../utils/media.js'
 import { Navigate, Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { iniciarPago } from '../services/payment.js'
-import nombrelogo from '../../public/media/nombrelogo.png'
-import logoicon from '../../public/media/apolo-vibes-logo.png'
+import SelectOpciones from '../components/SelectOpciones.jsx'
 
 
 const ENVIO_GRATIS_DESDE = 50000
@@ -25,7 +24,7 @@ const COMUNAS_POR_REGION = {
 }
 
 const emailValido = valor => /\S+@\S+\.\S+/.test(valor)
-const telefonoValido = valor => /^[0-9+ ]{8,15}$/.test(valor)
+const telefonoValido = valor => /^\d{8}$/.test(valor)
 
 function rutValido(rutSucio) {
   const rut = rutSucio.replace(/[.\s]/g, '').toUpperCase()
@@ -44,6 +43,20 @@ function rutValido(rutSucio) {
   const dvEsperado = resto === 11 ? '0' : resto === 10 ? 'K' : String(resto)
 
   return dv === dvEsperado
+}
+
+// Mensaje de error diferenciado: formato vs. dígito verificador.
+function rutMensajeError(cliente) {
+  if (cliente.tipoIdentificacion !== 'rut') return ''
+  const rut = cliente.rut.trim()
+  if (!rut) return ''
+  if (!/^\d{7,8}-[0-9K]$/.test(rut.replace(/[.\s]/g, '').toUpperCase())) {
+    return 'Ingresa tu RUT sin puntos y con guión. Ejemplos: 12345678-K, 1234567-9'
+  }
+  if (!rutValido(rut)) {
+    return 'El dígito verificador no es válido. Revisa el RUT ingresado.'
+  }
+  return ''
 }
 
 export default function Checkout() {
@@ -91,6 +104,13 @@ export default function Checkout() {
     cliente.ciudad.trim() &&
     telefonoValido(cliente.telefono)
 
+  const telefonoError =
+    cliente.telefono.trim() && !telefonoValido(cliente.telefono)
+      ? 'Ingrese un teléfono móvil válido, por ejemplo 1234 5678.'
+      : ''
+
+  const rutError = rutMensajeError(cliente)
+
   const identificacionValida =
     cliente.tipoIdentificacion === 'rut'
       ? rutValido(cliente.rut)
@@ -136,7 +156,11 @@ export default function Checkout() {
 
     setEnviando(true)
     try {
-      await iniciarPago({ items, total: totalConIva, cliente, entrega })
+      // El teléfono se envía completo en formato internacional (+569 + 8 dígitos)
+      const clienteEnvio = cliente.telefono.trim()
+        ? { ...cliente, telefono: '+569' + cliente.telefono.trim() }
+        : cliente
+      await iniciarPago({ items, total: totalConIva, cliente: clienteEnvio, entrega })
     } catch (err) {
       setError('No pudimos iniciar el pago. Intenta nuevamente.')
       setEnviando(false)
@@ -144,16 +168,16 @@ export default function Checkout() {
   }
 
   return (
-    <section className="wrap" style={{ padding: '48px 0 80px' }}>
+    <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px' }}>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <img src={nombrelogo} alt='logo' className='nombre-logo'></img>
+        <img src={mediaPath('nombrelogo.png')} alt='logo' className='nombre-logo'></img>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
           ({items.length} {items.length === 1 ? 'producto' : 'productos'}) &nbsp; ${totalConIva.toLocaleString('es-CL')}
         </p>
       </div>
 
       <div className="checkout-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: 48 }}>
-        <form onSubmit={pagar}>
+        <form noValidate onSubmit={pagar}>
           {/* Paso 1: Contacto */}
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Contacto</h2>
           <div style={{ marginBottom: 24 }}>
@@ -164,7 +188,7 @@ export default function Checkout() {
               type="email"
               value={cliente.email}
               onChange={e => actualizar('email', e.target.value)}
-              style={{ color: 'var(--surface)', backgroundColor: 'var(--text)' }}
+
             />
           </div>
 
@@ -177,7 +201,7 @@ export default function Checkout() {
           >
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Dirección de envío</h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <div className="grid-2" style={{ marginBottom: 16 }}>
               <div>
                 <label htmlFor="nombre">Nombre</label>
                 <input
@@ -185,7 +209,7 @@ export default function Checkout() {
                   required
                   value={cliente.nombre}
                   onChange={e => actualizar('nombre', e.target.value)}
-                  style={{ color: 'var(--surface)', backgroundColor: 'var(--text)' }}
+
                 />
               </div>
               <div>
@@ -195,42 +219,32 @@ export default function Checkout() {
                   required
                   value={cliente.apellido}
                   onChange={e => actualizar('apellido', e.target.value)}
-                  style={{ color: 'var(--surface)', backgroundColor: 'var(--text)' }}
+
                 />
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <div className="grid-2" style={{ marginBottom: 16 }}>
               <div>
                 <label htmlFor="region">Región</label>
-                <select
+                <SelectOpciones
                   id="region"
-                  required
+                  options={REGIONES}
                   value={cliente.region}
-                  onChange={e => cambiarRegion(e.target.value)}
-                  style={{ color: 'var(--surface)', backgroundColor: 'var(--text)' }}
-                >
-                  <option value="">Selecciona una región</option>
-                  {REGIONES.map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
+                  onChange={cambiarRegion}
+                  placeholder="Selecciona una región"
+                />
               </div>
               <div>
                 <label htmlFor="comuna">Comuna</label>
-                <select
+                <SelectOpciones
                   id="comuna"
-                  required
-                  disabled={!cliente.region}
+                  options={COMUNAS_POR_REGION[cliente.region] || []}
                   value={cliente.comuna}
-                  onChange={e => actualizar('comuna', e.target.value)}
-                  style={{ color: 'var(--surface)', backgroundColor: 'var(--text)' }}
-                >
-                  <option value="">Selecciona una comuna</option>
-                  {(COMUNAS_POR_REGION[cliente.region] || []).map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                  onChange={v => actualizar('comuna', v)}
+                  disabled={!cliente.region}
+                  placeholder="Selecciona una comuna"
+                />
                 <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '4px 0 0' }}>
                   Asegúrate que la dirección a ingresar pertenezca a la comuna. Evita inconvenientes de entrega.
                 </p>
@@ -258,7 +272,7 @@ export default function Checkout() {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <div className="grid-2" style={{ marginBottom: 16 }}>
               <div>
                 <label htmlFor="numero">Número de calle</label>
                 <input
@@ -290,14 +304,37 @@ export default function Checkout() {
 
             <div style={{ marginBottom: 12 }}>
               <label htmlFor="telefono">Teléfono</label>
-              <input
-                id="telefono"
-                required
-                type="tel"
-                pattern="[0-9+ ]{8,15}"
-                value={cliente.telefono}
-                onChange={e => actualizar('telefono', e.target.value)}
-              />
+              <div className="input-prefijo" style={telefonoError ? { borderColor: '#ef4444' } : undefined}>
+                <svg
+                  aria-hidden="true"
+                  width={20}
+                  height={14}
+                  viewBox="0 0 60 40"
+                  style={{ borderRadius: 3, flexShrink: 0 }}
+                >
+                  <rect width="60" height="20" fill="#FFFFFF" />
+                  <rect y="20" width="60" height="20" fill="#D52B1E" />
+                  <rect width="20" height="20" fill="#0039A6" />
+                  <polygon
+                    points="10,3 11.65,7.73 16.66,7.84 12.66,10.87 14.12,15.66 10,12.8 5.89,15.66 7.34,10.87 3.34,7.84 8.35,7.73"
+                    fill="#FFFFFF"
+                  />
+                </svg>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: .85 }}>+569</span>
+                <span style={{ opacity: .4 }}>|</span>
+                <input
+                  id="telefono"
+                  required
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={8}
+                  placeholder="1234 5678"
+                  value={cliente.telefono}
+                  onChange={e => actualizar('telefono', e.target.value.replace(/\D/g, '').slice(0, 8))}
+                />
+              </div>
+              {telefonoError && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{telefonoError}</p>}
               <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '4px 0 0' }}>
                 Solo te llamaremos si tenemos alguna duda sobre tu pedido.
               </p>
@@ -324,34 +361,28 @@ export default function Checkout() {
             disabled={!direccionCompleta}
             style={{ border: 'none', padding: 0, margin: 0, opacity: direccionCompleta ? 1 : 0.4 }}
           >
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16 }}>Datos personales</h2>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Datos personales</h2>
 
             <div style={{ marginBottom: 16 }}>
               <label htmlFor="tipoDocumento">Tipo de documento</label>
-              <select
+              <SelectOpciones
                 id="tipoDocumento"
-                required
+                options={[{ value: 'boleta', label: 'Boleta' }, { value: 'factura', label: 'Factura' }]}
                 value={cliente.tipoDocumento}
-                onChange={e => actualizar('tipoDocumento', e.target.value)}
-              >
-                <option value="">Selecciona una opción</option>
-                <option value="boleta">Boleta</option>
-                <option value="factura">Factura</option>
-              </select>
+                onChange={v => actualizar('tipoDocumento', v)}
+                placeholder="Selecciona una opción"
+              />
             </div>
 
             <div style={{ marginBottom: 16 }}>
               <label htmlFor="tipoIdentificacion">Identificación</label>
-              <select
+              <SelectOpciones
                 id="tipoIdentificacion"
-                required
+                options={[{ value: 'rut', label: 'RUT' }, { value: 'pasaporte', label: 'Pasaporte' }]}
                 value={cliente.tipoIdentificacion}
-                onChange={e => actualizar('tipoIdentificacion', e.target.value)}
-              >
-                <option value="">Selecciona una opción</option>
-                <option value="rut">RUT</option>
-                <option value="pasaporte">Pasaporte</option>
-              </select>
+                onChange={v => actualizar('tipoIdentificacion', v)}
+                placeholder="Selecciona una opción"
+              />
             </div>
 
             {cliente.tipoIdentificacion && (
@@ -360,16 +391,16 @@ export default function Checkout() {
                 <input
                   id="rut"
                   required
-                  placeholder={cliente.tipoIdentificacion === 'rut' ? 'xxxxxxx-x' : ''}
+                  placeholder={cliente.tipoIdentificacion === 'rut' ? '12345678-K' : ''}
                   value={cliente.rut}
                   onChange={e => actualizar('rut', e.target.value)}
                   style={{
-                    borderColor: cliente.rut && !identificacionValida ? 'var(--danger, #D8302F)' : undefined,
+                    borderColor: rutError ? '#ef4444' : undefined,
                   }}
                 />
-                {cliente.tipoIdentificacion === 'rut' && cliente.rut && !identificacionValida && (
-                  <p style={{ fontSize: 12, color: 'var(--danger, #D8302F)', margin: '4px 0 0' }}>
-                    Ingresa tu RUT sin puntos y con guión. Ejemplos: xxxxxxx-K, 1234567-9
+                {rutError && (
+                  <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>
+                    {rutError}
                   </p>
                 )}
               </div>
@@ -435,7 +466,7 @@ export default function Checkout() {
             disabled={!datosPersonalesCompletos}
             style={{ border: 'none', padding: 0, margin: 0, opacity: datosPersonalesCompletos ? 1 : 0.4 }}
           >
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16 }}>Opciones de entrega</h2>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Opciones de entrega</h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
               <label
@@ -447,6 +478,7 @@ export default function Checkout() {
                   borderRadius: 8,
                   padding: '12px 14px',
                   cursor: 'pointer',
+                  backgroundColor: 'var(--surface-3)'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -529,22 +561,22 @@ export default function Checkout() {
 
         <aside
           style={{
-            background: 'var(--border-card3)',
+            background: 'var(--surface-3)',
             border: '1px solid var(--surface-2)',
             borderRadius: 12,
             padding: 24,
             height: 'fit-content',
           }}
         >
-          <img src={logoicon} alt='logo-icon' className='logoicon'></img>
-          <img src={nombrelogo} alt='logo' className='nombre-logo'></img>
-
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 16, margin: 0, color: 'var(--surface-2)' }}>Tu pedido</h3>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', marginBottom: 2 }}>
+            <Link to="/carrito" style={{ fontSize: 13, color: 'var(--surface-2)' }}>Editar</Link>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', marginBottom: 16 }}>
-            <Link to="/carrito" style={{ fontSize: 13, color: 'var(--surface-2)' }}>Editar</Link>
+          <img src={mediaPath('apolo-vibes-logo.png')} alt='logo-icon' className='logoicon'></img>
+          <img src={mediaPath('nombrelogo.png')} alt='logo' className='nombre-logo'></img>
+
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, margin: 0, color: 'var(--accent)' }}>Tu pedido</h3>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
