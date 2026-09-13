@@ -81,6 +81,14 @@ Modelo entidad-relación ya definido (no se altera):
 Las entidades viven en `domain/entities/` como clases puras. Los modelos ORM
 viven en `infrastructure/database/models/` y mapean a las mismas tablas.
 
+> **Nota de desviación (2026-09-13):** la entidad `Producto` agregó dos
+> columnas a `productos` para almacenar la imagen como BLOB dentro de la BD:
+> `imagen_bytes` (BLOB) y `imagen_content_type` (VARCHAR2(50)). La columna
+> `imagen` sigue existiendo pero ahora apunta a la URL del endpoint
+> `GET /api/productos/<id>/imagen` que sirve esos bytes. La migración se hace
+> manualmente (`migrar_imagen_blob.py`) y el alta vía `agregar_producto.py`,
+> ambos fuera de git.
+
 ---
 
 ## 6. Contratos API (impuestos por el frontend)
@@ -93,6 +101,8 @@ POST   /api/auth/register
 GET    /api/auth/me
 
 GET    /api/productos                  # catálogo público
+GET    /api/productos/:id              # detalle público
+GET    /api/productos/:id/imagen       # imagen en BLOB (content-type real)
 GET    /api/categorias
 
 POST   /api/pedidos

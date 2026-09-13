@@ -7,8 +7,23 @@ import { useCart } from '../context/CartContext.jsx'
 const ENVIO_GRATIS_DESDE = 50000
 
 export default function Carrito() {
-  const { items, quitarProducto, actualizarCantidad, total } = useCart()
+  const { items, quitarItem, actualizarCantidadItem, vaciarCarrito, error, total, requiereLogin, abrirLogin } = useCart()
   const envioGratis = total >= ENVIO_GRATIS_DESDE
+
+  if (requiereLogin) {
+    return (
+      <div className="wrap" style={{ paddingTop: '80px', paddingBottom: '80px', textAlign: 'center' }} >
+        <ShoppingCart size={64} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 20px', color: 'var(--text-dim)' }}
+        />
+        <p style={{ color: 'var(--text-dim)', marginBottom: 20 }}>
+          Inicia sesión para ver tu carrito y seguir comprando.
+        </p>
+        <button className="btn btn-primary" onClick={abrirLogin}>
+          Iniciar sesión
+        </button>
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (
@@ -31,7 +46,20 @@ export default function Carrito() {
             <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>
               ({items.length} {items.length === 1 ? 'producto' : 'productos'})
             </span>
+            <button
+              type="button"
+              onClick={() => window.confirm('¿Vaciar todo el carrito?') && vaciarCarrito()}
+              style={{
+                marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--text-dim)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5,
+              }}
+            >
+              <Trash2 size={15} /> Vaciar carrito
+            </button>
           </div>
+          {error && (
+            <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 12px' }}>{error}</p>
+          )}
           <p style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
             Los Productos en tu carrito no están reservados.
           </p>
@@ -93,7 +121,7 @@ export default function Carrito() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => quitarProducto(item.id)}
+                    onClick={() => quitarItem(item.itemId)}
                     aria-label={`Quitar ${item.nombre} del carrito`}
                     title="Quitar producto"
                     style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 4 }}
@@ -117,7 +145,7 @@ export default function Carrito() {
                   >
                     <button
                       type="button"
-                      onClick={() => actualizarCantidad(item.id, Math.max(1, item.cantidad - 1))}
+                      onClick={() => actualizarCantidadItem(item.itemId, Math.max(1, item.cantidad - 1))}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: 32, height: 32, border: 'none', background: 'transparent',
@@ -131,7 +159,7 @@ export default function Carrito() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => actualizarCantidad(item.id, item.cantidad + 1)}
+                      onClick={() => actualizarCantidadItem(item.itemId, item.cantidad + 1)}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         width: 32, height: 32, border: 'none', background: 'transparent',

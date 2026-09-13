@@ -14,3 +14,10 @@ class Producto:
     activo: bool = True
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=datetime.utcnow)
+
+
+@dataclass
+class ImagenProducto:
+    """Imagen de un producto almacenada como BLOB (RGBA no; bytes crudos)."""
+    bytes: bytes
+    content_type: str
