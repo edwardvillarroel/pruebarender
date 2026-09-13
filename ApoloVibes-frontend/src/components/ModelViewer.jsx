@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, Suspense } from 'react'
 import ErrorBoundary from './ErrorBoundary.jsx'
+import { useTheme } from '../context/ThemeContext.jsx'
 
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -13,6 +14,8 @@ export default function ModelViewer({ modelUrl, height = 400 }) {
   const controlsRef = useRef(null)
   const frameRef = useRef(null)
   const [state, setState] = useState('loading')
+  const { theme } = useTheme()
+  const esOscuro = theme === 'dark'
 
   useEffect(() => {
     if (!modelUrl || !containerRef.current) return
@@ -151,7 +154,6 @@ export default function ModelViewer({ modelUrl, height = 400 }) {
       borderRadius: 12,
       overflow: 'hidden',
       border: '1px solid var(--line)',
-      background: '#0a0a0a',
       position: 'relative',
     }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
@@ -181,13 +183,13 @@ export default function ModelViewer({ modelUrl, height = 400 }) {
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--surface)',
+          background: esOscuro ? 'var(--surface)' : 'var(--bg)',
           flexDirection: 'column', gap: 8,
         }}>
-          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0, textAlign: 'center' }}>
             No se pudo cargar el modelo 3D.
           </p>
-          <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
+          <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, textAlign: 'center' }}>
             La imagen fue enviada. Nuestro equipo generará la referencia.
           </p>
         </div>

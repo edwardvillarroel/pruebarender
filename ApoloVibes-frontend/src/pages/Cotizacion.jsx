@@ -3,12 +3,15 @@ import { api } from '../services/api.js'
 import { generarModelo3DMock } from '../services/ai-model.js'
 import ModelViewer from '../components/ModelViewer.jsx'
 import GenerationProgress from '../components/GenerationProgress.jsx'
+import SelectOpciones from '../components/SelectOpciones.jsx'
 import { Upload, X, RotateCcw, FileImage } from 'lucide-react'
 
 const ESTADO_INICIAL = {
   nombre: '', email: '', telefono: '',
   material: 'PLA', descripcion: '',
 }
+
+const MATERIALES = ['PLA', 'PETG', 'Resina', 'ABS', 'No estoy seguro']
 
 export default function Cotizacion() {
   const [form, setForm] = useState(ESTADO_INICIAL)
@@ -20,11 +23,19 @@ export default function Cotizacion() {
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState(null)
+  const [errores, setErrores] = useState({})
   const fileInputRef = useRef(null)
   const abortRef = useRef(null)
 
   function actualizar(campo, valor) {
     setForm(prev => ({ ...prev, [campo]: valor }))
+    // Si el campo tenía error, se limpia apenas el usuario escribe
+    setErrores(prev => {
+      if (!(campo in prev)) return prev
+      const next = { ...prev }
+      delete next[campo]
+      return next
+    })
   }
 
   async function manejarArchivo(e) {
@@ -71,13 +82,25 @@ export default function Cotizacion() {
 
   async function enviarSolicitud(e) {
     e.preventDefault()
-    if (!archivo) { setError('Sube una imagen de referencia de la pieza.'); return }
+
+    const nuevosErrores = {}
+    if (!form.nombre.trim()) nuevosErrores.nombre = 'Por favor complete su nombre.'
+    if (!form.email.trim()) nuevosErrores.email = 'Por favor ingrese su email.'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) nuevosErrores.email = 'Ingrese un email válido, por ejemplo nombre@mail.com.'
+    if (!form.descripcion.trim()) nuevosErrores.descripcion = 'Por favor describa la pieza.'
+    const tel = form.telefono.trim()
+    if (!tel) nuevosErrores.telefono = 'Por favor ingrese su teléfono.'
+    else if (!/^\d{8}$/.test(tel)) nuevosErrores.telefono = 'Ingrese un teléfono móvil válido, por ejemplo 1234 5678.'
+    if (Object.keys(nuevosErrores).length) { setErrores(nuevosErrores); return }
+    if (!archivo) { setError('Suba una imagen de referencia de la pieza.'); return }
 
     setEnviando(true)
     setError(null)
 
     const data = new FormData()
     Object.entries(form).forEach(([k, v]) => data.append(k, v))
+    // El teléfono se guarda completo en formato internacional (+569 + 8 dígitos)
+    if (form.telefono.trim()) data.set('telefono', '+569' + form.telefono.trim())
     data.append('imagen', archivo)
     if (modeloUrl) data.append('modeloUrl', modeloUrl)
 
@@ -93,7 +116,7 @@ export default function Cotizacion() {
 
   if (enviado) {
     return (
-      <section className="wrap" style={{ padding: '100px 0', textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>
+      <section className="wrap" style={{ paddingTop: '100px', paddingBottom: '100px', textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, marginBottom: 12 }}>Solicitud enviada</h1>
         <p style={{ color: 'var(--text-dim)' }}>
           Recibimos tu pieza de referencia{modeloUrl ? ' y el modelo 3D generado' : ''}.
@@ -104,7 +127,7 @@ export default function Cotizacion() {
   }
 
   return (
-    <section className="wrap" style={{ padding: '48px 0 80px', maxWidth: 740 }}>
+    <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px', maxWidth: 740 }}>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)', textTransform: 'uppercase' }}>
         Cotización personalizada
       </span>
@@ -114,7 +137,7 @@ export default function Cotizacion() {
         y nuestro equipo revisara la cotización y te confirmará el precio final.
       </p>
 
-      <form onSubmit={enviarSolicitud}>
+      <form noValidate onSubmit={enviarSolicitud}>
         {/* ─── Paso 1: Imagen + generación 3D ─── */}
         <div style={{
           background: 'var(--surface-3)',
@@ -126,10 +149,10 @@ export default function Cotizacion() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <div style={{
               width: 28, height: 28, borderRadius: 15,
-              background: archivo ? 'rgba(34,197,94,.15)' : 'var(--accent-soft)',
+              background: archivo ? '#22c55e' : 'var(--accent-soft)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 13, fontWeight: 700,
-              color: archivo ? '#22c55e' : 'var(--accent)',
+              color: archivo ? 'var(--text)' : 'var(--accent)',
             }}>
               {archivo ? '✓' : '1'}
             </div>
@@ -157,10 +180,10 @@ export default function Cotizacion() {
               </span>
             </label>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="grid-2" style={{ marginBottom: 16 }}>
               {/* Imagen original */}
               <div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
+                <p style={{ fontSize: 11, textAlign: 'center', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
                   Imagen original
                 </p>
                 <div style={{
@@ -191,7 +214,7 @@ export default function Cotizacion() {
 
               {/* Modelo 3D generado */}
               <div>
-                <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
+                <p style={{ fontSize: 11, textAlign: 'center', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 8 }}>
                   Modelo 3D generado
                 </p>
                 {modeloUrl ? (
@@ -248,7 +271,7 @@ export default function Cotizacion() {
 
         {/* ─── Paso 2: Datos de contacto ─── */}
         <div style={{
-          background: 'var(--surface)',
+          background: 'var(--surface-3)',
           border: '1px solid var(--line)',
           borderRadius: 12,
           padding: 24,
@@ -256,49 +279,75 @@ export default function Cotizacion() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: form.nombre && form.email ? 'rgba(34,197,94,.15)' : 'var(--accent-soft)',
+              width: 28, height: 28, borderRadius: 15,
+              background: form.nombre && form.email ? '#22c55e' : 'var(--accent-soft)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 13, fontWeight: 700,
-              color: form.nombre && form.email ? '#22c55e' : 'var(--accent)',
+              color: form.nombre && form.email ? 'var(--text)' : 'var(--accent)',
             }}>
               {form.nombre && form.email ? '✓' : '2'}
             </div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Tus datos</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--surface)' }}>Tus datos</h2>
           </div>
 
           <div className="cotizacion-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
             <div>
               <label>Nombre</label>
               <input required value={form.nombre} onChange={e => actualizar('nombre', e.target.value)} />
+              {errores.nombre && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{errores.nombre}</p>}
             </div>
             <div>
               <label>Email</label>
               <input required type="email" value={form.email} onChange={e => actualizar('email', e.target.value)} />
+              {errores.email && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{errores.email}</p>}
             </div>
           </div>
 
           <div className="cotizacion-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div>
               <label>Teléfono</label>
-              <input value={form.telefono} onChange={e => actualizar('telefono', e.target.value)} />
+              <div className="input-prefijo" style={errores.telefono ? { borderColor: '#ef4444' } : undefined}>
+                <svg
+                  aria-hidden="true"
+                  width={20}
+                  height={14}
+                  viewBox="0 0 60 40"
+                  style={{ borderRadius: 3, flexShrink: 0 }}
+                >
+                  <rect width="60" height="20" fill="#FFFFFF" />
+                  <rect y="20" width="60" height="20" fill="#D52B1E" />
+                  <rect width="20" height="20" fill="#0039A6" />
+                  <polygon
+                    points="10,3 11.65,7.73 16.66,7.84 12.66,10.87 14.12,15.66 10,12.8 5.89,15.66 7.34,10.87 3.34,7.84 8.35,7.73"
+                    fill="#FFFFFF"
+                  />
+                </svg>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: .85 }}>+569</span>
+                <span style={{ opacity: .4 }}>|</span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={8}
+                  required
+                  placeholder="1234 5678"
+                  aria-label="Teléfono móvil chileno"
+                  value={form.telefono}
+                  onChange={e => actualizar('telefono', e.target.value.replace(/\D/g, '').slice(0, 8))}
+                />
+              </div>
+              {errores.telefono && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{errores.telefono}</p>}
             </div>
             <div>
               <label>Material preferido</label>
-              <select value={form.material} onChange={e => actualizar('material', e.target.value)}>
-                <option>PLA</option>
-                <option>PETG</option>
-                <option>Resina</option>
-                <option>ABS</option>
-                <option>No estoy seguro</option>
-              </select>
+              <SelectOpciones options={MATERIALES} value={form.material} onChange={v => actualizar('material', v)} />
             </div>
           </div>
         </div>
 
         {/* ─── Paso 3: Descripción ─── */}
         <div style={{
-          background: 'var(--surface)',
+          background: 'var(--surface-3)',
           border: '1px solid var(--line)',
           borderRadius: 12,
           padding: 24,
@@ -306,15 +355,15 @@ export default function Cotizacion() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: form.descripcion ? 'rgba(34,197,94,.15)' : 'var(--accent-soft)',
+              width: 28, height: 28, borderRadius: 15,
+              background: form.descripcion ? '#22c55e' : 'var(--accent-soft)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 13, fontWeight: 700,
-              color: form.descripcion ? '#22c55e' : 'var(--accent)',
+              color: form.descripcion ? 'var(--text)' : 'var(--accent)',
             }}>
               {form.descripcion ? '✓' : '3'}
             </div>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Descripción de la pieza</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--surface)' }}>Descripción de la pieza</h2>
           </div>
 
           <label>Describe lo que necesitas</label>
@@ -326,6 +375,7 @@ export default function Cotizacion() {
             onChange={e => actualizar('descripcion', e.target.value)}
             style={{ resize: 'vertical', minHeight: 100 }}
           />
+          {errores.descripcion && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{errores.descripcion}</p>}
         </div>
 
         {error && (

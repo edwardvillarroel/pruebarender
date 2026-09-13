@@ -21,7 +21,7 @@ export default function PagoRetorno() {
   }, [params])
 
   return (
-    <section className="wrap" style={{ padding: '100px 0', textAlign: 'center' }}>
+    <section className="wrap" style={{ paddingTop: '100px', paddingBottom: '100px', textAlign: 'center' }}>
       {estado === 'verificando' && <p style={{ color: 'var(--text-dim)' }}>Verificando tu pago…</p>}
       {estado === 'ok' && (
         <>

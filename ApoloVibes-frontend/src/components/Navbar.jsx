@@ -85,6 +85,7 @@ export default function Navbar() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'flex-end' }}>
           <button
+            className="theme-toggle"
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}
             title={theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}

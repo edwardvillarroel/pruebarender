@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
 import { Trash2, Minus, Plus, ShoppingCart, Truck, ArrowRight } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
-import nombrelogo from '../../public/media/nombrelogo.png'
-import logoicon from '../../public/media/apolo-vibes-logo.png'
 
 const ENVIO_GRATIS_DESDE = 50000
 
@@ -14,7 +12,7 @@ export default function Carrito() {
 
   if (items.length === 0) {
     return (
-      <div className="wrap" style={{ padding: '80px 0', textAlign: 'center' }} >
+      <div className="wrap" style={{ paddingTop: '80px', paddingBottom: '80px', textAlign: 'center' }} >
         <ShoppingCart size={64} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 20px', color: 'var(--text-dim)' }}
         />
         <p style={{ color: 'var(--text-dim)', marginBottom: 20 }}> Tu carrito está vacío. </p>
@@ -25,7 +23,7 @@ export default function Carrito() {
   }
 
   return (
-    <section className="wrap" style={{ padding: '48px 0 80px' }}>
+    <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px' }}>
       <div className="carrito-grid" style={{ display: 'flex', gap: 40, flexWrap: 'wrap' }}>
         <div style={{ flex: 2, minWidth: 340 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
@@ -144,7 +142,7 @@ export default function Carrito() {
                     </button>
                   </div>
 
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 600, color: 'var(--surface-2)' }}>
                     ${(item.precio * item.cantidad).toLocaleString('es-CL')}
                   </span>
                 </div>
@@ -156,7 +154,7 @@ export default function Carrito() {
         <div style={{ flex: 1, minWidth: 260 }}>
           <div
             style={{
-              background: 'transparent',
+              background: 'var(--surface-3)',
               border: '1px solid var(--surface-2)',
               borderRadius: 12,
               padding: 20,
@@ -164,9 +162,9 @@ export default function Carrito() {
               top: 24,
             }}
           >
-            <img src={logoicon} alt='logo-icon' className='logoicon'></img>
-            <img src={nombrelogo} alt='logo' className='nombre-logo'></img>
-            <h2 style={{ fontSize: 16, fontWeight: 500, color: 'var(--surface-2)', marginBottom: '20px', textAlign: 'center' }}>
+            <img src={mediaPath('apolo-vibes-logo.png')} alt='logo-icon' className='logoicon'></img>
+            <img src={mediaPath('nombrelogo.png')} alt='logo' className='nombre-logo'></img>
+            <h2 style={{ fontSize: 15, fontWeight: 300, color: 'var(--accent)', marginBottom: '20px', textAlign: 'center' }}>
               Resumen del pedido
             </h2>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
@@ -182,8 +180,8 @@ export default function Carrito() {
               display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 600, color: 'var(--text)', paddingTop: 14, borderTop: '1px solid var(--surface-3)', marginBottom: 20
             }}
             >
-              <span style={{ color: 'var(--surface)' }}>Total</span>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface-2)' }}>${Math.round(total * 1.19).toLocaleString('es-CL')} CLP</span>
+              <span style={{ color: 'var(--surface-2)' }}>Total</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface)' }}>${Math.round(total * 1.19).toLocaleString('es-CL')} CLP</span>
             </div>
 
             <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 20, marginTop: -15 }}>
@@ -192,10 +190,10 @@ export default function Carrito() {
             <Link
               to="/checkout"
               className="btn btn-primary"
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)' }}>
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', marginBottom: 20 }}>
               Ir a pagar <ArrowRight size={16} color='var(--text)' />
             </Link>
-            <div style={{ paddingTop: 16, borderTop: '1px solid var(--line)' }}>
+            <div style={{ paddingTop: 16, borderTop: '1px solid var(--surface-3)' }}>
               <p style={{
                 fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-dim)', margin: '0 0 10px',
               }}>

@@ -15,7 +15,7 @@ export default function Home() {
     <>
       <HeroVideo />
 
-      <section className="wrap section-py-mobile" style={{ padding: '80px 0' }}>
+      <section className="wrap section-py-mobile" style={{ paddingTop: '80px', paddingBottom: '80px' }}>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Explora por categoría</h2>
         <div className="grid-3">
           {categorias.map(cat => {
