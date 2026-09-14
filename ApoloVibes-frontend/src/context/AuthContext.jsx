@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { api } from '../services/api.js'
 
 const AUTH_KEY = 'apolovibes_auth'
 
@@ -31,6 +32,7 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
+    api.logout()
     setAuth(null)
   }
 

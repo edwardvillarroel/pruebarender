@@ -1,35 +1,71 @@
 # ApoloVibes
 
-Tienda web de productos impresos en 3D con diseños personalizados asistidos
+Tienda web de productos impresos en 3D con disenos personalizados asistidos
 por LLM. Monorepo:
 
-- `app/` — Backend Flask (API REST, Clean Architecture).
-- `ApoloVibes-frontend/` — Frontend React + Vite.
+- `gateway/` — API Gateway Flask (`:3000`, publico): auth JWT, proxy, rate limiting, CORS.
+- `app/` — Backend Flask (`:8000`, interno): logica de negocio, Clean Architecture.
+- `ApoloVibes-frontend/` — Frontend React + Vite (`:5173`).
 
-Diseño y contratos API: `docs/ARQUITECTURA.md` (duplicado en la raíz).
+Diseno y contratos API: `docs/ARQUITECTURA.md` (duplicado en la raiz).
 
 ## Requisitos
 
-- Python 3.12+ y Docker (PostgreSQL 16).
+- Python 3.12+.
+- Docker (PostgreSQL 16 para tests).
 - Node 20+.
+- Oracle Instant Client o wallet para Oracle Autonomous DB.
+
+## Estructura
+
+```
+ApoloVibes/
+├── gateway/          # API Gateway (:3000, publico)
+│   ├── auth JWT, proxy reverso, rate limiting, CORS
+│   └── oracle pool, token service, DDL
+├── app/              # Backend interno (:8000)
+│   └── logica de negocio (Clean Architecture)
+└── ApoloVibes-frontend/  # React + Vite (:5173)
+```
+
+El backend NUNCA se expone publicamente. El gateway es el unico punto de entrada.
 
 ## Puesta en marcha (desarrollo)
 
-### Backend (puerto 4000)
+### 1. PostgreSQL (tests)
 
 ```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate   |  Unix: source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env               # edita SECRET_KEY y JWT_SECRET_KEY
-docker compose up -d db            # PostgreSQL (print3d_dev)
-flask --app app run --port 4000
+docker compose up -d db
 ```
 
-> El puerto debe ser `4000`: el proxy de Vite y la URL base de la API
-> (`http://localhost:4000/api`) lo asumen.
+Crea la base `print3d_dev` (user `app` / pass `app`).
 
-### Frontend (puerto 5173)
+### 2. Gateway (puerto 3000)
+
+```bash
+# Activar venv
+python -m venv .venv
+# Windows: .venv\Scripts\activate   |  Unix: source .venv/bin/activate
+pip install -r gateway/requirements.txt
+
+# Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tus credenciales de Oracle, secrets, etc.
+
+# Iniciar gateway
+flask --app gateway.main run --port 3000
+```
+
+### 3. Backend interno (puerto 8000, opcional en dev)
+
+Solo necesario si se necesita probar el backend directamente sin pasar por el gateway.
+
+```bash
+pip install -r requirements.txt
+flask --app app run --port 8000
+```
+
+### 4. Frontend (puerto 5173)
 
 ```bash
 cd ApoloVibes-frontend
@@ -37,29 +73,39 @@ npm install
 npm run dev
 ```
 
-Abrir http://localhost:5173. En desarrollo Vite proxya `/api` →
-`http://localhost:4000` (sin problemas de CORS ni URL absoluta): el frontend
-siempre llama a `'/api/...'` relativo al origen (`src/services/api.js`), y el
-backend ya responde CORS en cada ruta (`CORS_ORIGINS` en `.env`).
+Abrir http://localhost:5173. Vite proxya `/api` al gateway `:3000`.
 
-Para probar el login desde un navegador o `curl`:
-`POST http://localhost:4000/api/auth/login` con `{ "email": "admin", "password": "admin123" }`
-→ `{ access_token, user }`.
+## Variables de entorno
 
-## Administrador (temporal)
+Ver `.env.example` para la lista completa. Variables principales:
 
-No hay base de usuarios todavía: el login del panel admin usa credenciales
-**hardcodeadas** en `app/application/auth/autenticar.py`
-(ADMIN_USERNAME / ADMIN_PASSWORD). Se eliminan cuando exista la tabla de
-usuarios. Entrar con `admin` / `admin123` desde el modal "Iniciar sesión": el
-frontend llama a `POST /api/auth/login`, guarda `{ token, user }` en
-localStorage y el panel `/admin` queda protegido (`rol === 'admin'`).
+| Variable                | Descripcion |
+|-------------------------|-------------|
+| `ORACLE_DSN`            | TNS name del Oracle Autonomous DB (ej. `apolodev_high`). |
+| `ORACLE_PASSWORD`       | Password del usuario Oracle. |
+| `ORACLE_WALLET_DIR`     | Ruta al directorio del wallet Oracle. |
+| `ORACLE_WALLET_PASSWORD`| Password del wallet. |
+| `GATEWAY_SECRET_KEY`    | Secret key para Flask (session signing). |
+| `GATEWAY_JWT_SECRET`    | Secret para firmar/verificar JWT. |
+| `GATEWAY_COOKIE_SECURE` | `1` en prod (https), `0` en dev (http). |
+| `BACKEND_INTERNAL_URL`  | URL del backend interno (default `http://localhost:8000`). |
+| `CORS_ORIGINS`          | Origenes permitidos (default `http://localhost:5173`). |
 
-## Producción
+## Administrador
 
-Construir el frontend y Flask servirá el build y la API desde el mismo puerto:
+Credenciales de desarrollo (tabla `usuarios` de Oracle):
+
+- **Email:** `admin@apolovibes.cl`
+- **Password:** `Admin123!`
+
+CAMBIAR EN PRODUCCION.
+
+## Produccion
 
 ```bash
-cd ApoloVibes-frontend && npm run build
-cd .. && flask --app app run --port 4000   # o gunicorn 'app:create_app()'
+# Gateway con gunicorn
+gunicorn --bind 0.0.0.0:3000 'gateway.main:create_app()'
+
+# O sin gunicorn (desarrollo)
+flask --app gateway.main run --port 3000
 ```

@@ -1,0 +1,104 @@
+import uuid
+
+from gateway.infrastructure.oracle_pool import adquirir_conexion
+
+_CAMPOS_USUARIO = "id, email, password_hash, nombre, apellido, rol, activo"
+
+
+def _uuid_a_texto(valor):
+    if valor is None:
+        return None
+    if isinstance(valor, bytes):
+        return str(uuid.UUID(bytes=valor))
+    return str(valor)
+
+
+def _fila_a_usuario(fila, descripcion):
+    if fila is None:
+        return None
+    columnas = [d[0].lower() for d in descripcion]
+    usuario = dict(zip(columnas, fila))
+    usuario["id"] = _uuid_a_texto(usuario["id"])
+    return usuario
+
+
+def buscar_usuario_por_email(email):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            f"SELECT {_CAMPOS_USUARIO} FROM usuarios WHERE LOWER(email) = LOWER(:email)",
+            email=email,
+        )
+        return _fila_a_usuario(cursor.fetchone(), cursor.description)
+
+
+def buscar_usuario_por_id(user_id):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            f"SELECT {_CAMPOS_USUARIO} FROM usuarios WHERE id = :user_id",
+            user_id=uuid.UUID(user_id).bytes,
+        )
+        return _fila_a_usuario(cursor.fetchone(), cursor.description)
+
+
+def guardar_refresh(jti, user_id, expira_en, ip, user_agent):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            """
+            INSERT INTO refresh_tokens (jti, user_id, expira_en, revocado, ip, user_agent)
+            VALUES (:jti, :user_id, :expira_en, 0, :ip, :user_agent)
+            """,
+            jti=jti, user_id=user_id, expira_en=expira_en, ip=ip, user_agent=user_agent,
+        )
+
+
+def buscar_refresh(jti):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            """
+            SELECT jti, user_id, expira_en, revocado
+            FROM refresh_tokens
+            WHERE jti = :jti
+            """,
+            jti=jti,
+        )
+        fila = cursor.fetchone()
+        if fila is None:
+            return None
+        columnas = [d[0].lower() for d in cursor.description]
+        registro = dict(zip(columnas, fila))
+        registro["revocado"] = bool(registro["revocado"])
+        return registro
+
+
+def revocar_refresh(jti):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            "UPDATE refresh_tokens SET revocado = 1 WHERE jti = :jti",
+            jti=jti,
+        )
+
+
+def revocar_tokens_de_usuario(user_id):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            "UPDATE refresh_tokens SET revocado = 1 WHERE user_id = :user_id",
+            user_id=user_id,
+        )
+
+
+def registrar_log(evento, user_id, ip, detalle):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            """
+            INSERT INTO logs_seguridad (evento, user_id, ip, detalle)
+            VALUES (:evento, :user_id, :ip, :detalle)
+            """,
+            evento=evento, user_id=user_id, ip=ip, detalle=detalle,
+        )

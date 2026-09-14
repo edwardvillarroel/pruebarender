@@ -1,79 +1,110 @@
-# Propuesta de Arquitectura Backend — ApoloVibes
+# Arquitectura — ApoloVibes
 
-> Documento de referencia. Última actualización: 2026-09-09
+> Documento de referencia. Ultima actualizacion: 2026-09-13
 
 ---
 
 ## 1. Contexto
 
-Sistema de gestión y venta de productos impresos en 3D, con módulo de diseños
+Sistema de gestion y venta de productos impresos en 3D, con modulo de disenos
 personalizados asistido por un LLM. **3 personas, plazo de 4 meses.**
 
-El frontend (React) queda fuera de este documento; quedan documentados los
-**contratos API** que éste ya espera, para que el backend los respete.
+La arquitectura se compone de tres servicios:
+
+- **Gateway Flask** (`gateway/`, publico `:3000`): autenticacion JWT, proxy reverso, rate limiting, CORS, RBAC.
+- **Backend Flask** (`app/`, interno `:8000`): logica de negocio, confia en headers `X-User-Id`/`X-User-Rol` inyectados por el gateway.
+- **Frontend React** (`ApoloVibes-frontend/`, Vite `:5173`): proxya `/api` al gateway `:3000`.
+
+Oracle Autonomous DB (oracledb thin, wallet) para datos de produccion.
+PostgreSQL 16 (docker-compose) solo para tests en `print3d_test`.
 
 ---
 
-## 2. Stack tecnológico
+## 2. Stack tecnologico
 
-| Capa               | Tecnología                          | Justificación |
-|--------------------|-------------------------------------|---------------|
-| Framework          | Flask 3.1.3                         | Ya elegido por el equipo; liviano y suficiente. |
-| ORM                | SQLAlchemy 2.0 + Flask-SQLAlchemy   | Maduro, con migraciones (Flask-Migrate/Alembic). |
-| Migraciones        | Alembic                             | Evolución controlada del esquema. |
-| Validación         | Pydantic 2.13                       | Schemas de entrada/salida y validación de DTOs. |
-| JWT Auth           | Flask-JWT-Extended                  | Autenticación con tokens. |
-| Hash de contraseñas | passlib + bcrypt                   | Listo para usar en capa auth. |
-| Tareas async       | Celery 5.5 + Redis 8.1              | Generación 3D asíncrona (polling). |
-| Rate limiting      | Flask-Limiter (a agregar)           | Límites por endpoint, incluido el del LLM. |
-| BD                 | PostgreSQL 16 (docker-compose)      | Persistencia relacional. |
-| Server producción  | gunicorn                            | WSGI de producción. |
-| Testing            | pytest + pytest-flask               | Tests unitarios y de integración. |
+| Capa                  | Tecnologia                          | Justificacion |
+|-----------------------|-------------------------------------|---------------|
+| Framework             | Flask 3.1.3                         | Ya elegido por el equipo; liviano y suficiente. |
+| ORM                   | SQLAlchemy 2.0 + Flask-SQLAlchemy   | Maduro, con migraciones (Flask-Migrate/Alembic). |
+| Migraciones           | Alembic                             | Evolucion controlada del esquema. |
+| Validacion            | Pydantic 2.13                       | Schemas de entrada/salida y validacion de DTOs. |
+| JWT Auth              | Flask-JWT-Extended                  | Autenticacion con tokens. |
+| Hash de contrasenas   | passlib + bcrypt                    | Listo para usar en capa auth. |
+| Tareas async          | Celery 5.5 + Redis 8.1              | Generacion 3D asincrona (polling). |
+| Rate limiting         | Flask-Limiter                       | Limites por endpoint, incluido el del LLM. |
+| Proxy HTTP            | httpx                               | Proxy reverso del gateway al backend interno. |
+| CORS                  | Flask-Cors                          | Origenes configurables via `CORS_ORIGINS`. |
+| BD produccion         | Oracle Autonomous DB (oracledb thin)| Persistencia relacional con wallet. |
+| BD tests              | PostgreSQL 16 (docker-compose)      | Tests de integracion en `print3d_test`. |
+| Server produccion     | gunicorn                            | WSGI de produccion. |
+| Testing               | pytest + pytest-flask               | Tests unitarios y de integracion. |
 
 ---
 
 ## 3. Arquitectura objetivo
 
-**Monolito modular por capas (Clean Architecture).** El código se organiza
-primero por capa arquitectónica y dentro de cada capa por módulos de dominio,
-manteniendo bajo acoplamiento entre módulos.
+**Gateway + Backend separados.** El gateway es el unico punto de entrada publico.
+El backend solo se comunica con el gateway y NUNCA se expone directamente.
 
 ```
-app/
-├── domain/             # Entidades puras + reglas de negocio + interfaces
-├── application/        # Casos de uso por módulo (no dependen de framework)
-├── api/                # HTTP: blueprints, middleware, validación de entrada
-└── infrastructure/     # Implementaciones concretas (DB, LLM, storage, tasks)
+gateway/              :3000 (publico)         app/                :8000 (interno)
+├── auth JWT              ──────────────────►  ├── logica de negocio
+├── proxy /api/*          ──────────────────►  ├── headers X-User-Id / X-User-Rol
+├── rate limiting         ──────────────────►  └── NUNCA expuesto directamente
+├── CORS
+└── RBAC
 ```
 
-### 3.1 Reglas de dependencia (obligatorias)
+### 3.1 Frontera de confianza
+
+El **gateway** (`:3000`) es el unico servicio expuesto publicamente.
+El **backend** (`:8000`) es interno y solo recibe requests del gateway.
+NUNCA exponer `app/` directamente al exterior.
+
+El backend confia ciegamente en los headers `X-User-Id` y `X-User-Rol`
+inyectados por el gateway. Si el backend recibe un request sin esos headers,
+debe rechazarlo.
+
+### 3.2 Reglas de dependencia (obligatorias)
 
 1. `api` depende de `application` y `domain`. **Nunca** de `infrastructure`
    directamente.
-2. `application` depende solo de `domain`. Llamada a infraestructura vía
-   **interfaces** (inyección de dependencias).
+2. `application` depende solo de `domain`. Llamada a infraestructura via
+   **interfaces** (inyeccion de dependencias).
 3. `domain` no depende de nada externo (sin SQLAlchemy, sin Flask).
 4. `infrastructure` implementa las interfaces de `domain`.
-5. Los módulos de `application` **no se importan entre sí** (RNF-08).
+5. Los modulos de `application` **no se importan entre si** (RNF-08).
+6. El gateway NO depende del backend. Solo le pasa headers HTTP.
 
 ---
 
-## 4. Módulos de la capa de aplicación
+## 4. Modulos de la capa de aplicacion
 
-Los casos de uso se agrupan en 4 módulos autocontenidos:
+Los casos de uso se agrupan en 4 modulos autocontenidos:
 
-| Módulo               | Responsabilidad |
-|----------------------|-----------------|
-| `catalogo_stock`     | CRUD de productos y categorías. |
-| `pedidos_pagos`      | Creación/consulta de pedidos; procesamiento de pago (Transbank Webpay Plus). |
-| `disenos_personalizados` | Solicitudes de cotización, aprobación/rechazo, **sanitización de inputs** anti prompt-injection. |
-| `asistente_llm`      | Orquestación de llamada al LLM para generación de modelo 3D. |
+| Modulo                 | Responsabilidad |
+|------------------------|-----------------|
+| `catalogo_stock`       | CRUD de productos y categorias. |
+| `pedidos_pagos`        | Creacion/consulta de pedidos; procesamiento de pago (Transbank Webpay Plus). |
+| `disenos_personalizados` | Solicitudes de cotizacion, aprobacion/rechazo, **sanitizacion de inputs** anti prompt-injection. |
+| `asistente_llm`        | Orquestacion de llamada al LLM para generacion de modelo 3D. |
+
+### 4.1 Modulo auth (gateway)
+
+El gateway implementa autenticacion y autorizacion:
+
+| Endpoint                | Metodo | Descripcion |
+|-------------------------|--------|-------------|
+| `/api/auth/login`       | POST   | Login con email/password, retorna JWT access (15 min) y cookie HttpOnly `refresh_token` (7 dias). |
+| `/api/auth/refresh`     | POST   | Renovacion de access token via cookie refresh, con rotacion y deteccion de reuso. |
+| `/api/auth/logout`      | POST   | Invalidacion del refresh token y limpieza de cookie. |
+| `/api/auth/me`          | GET    | Retorna el usuario autenticado a partir del JWT. |
 
 ---
 
 ## 5. Entidades de dominio
 
-Modelo entidad-relación ya definido (no se altera):
+Modelo entidad-relacion ya definido (no se altera):
 
 `Usuario`, `Categoria`, `Producto`, `Pedido`, `DetallePedido`, `Pago`,
 `SolicitudDiseno`, `LogAuditoria`, `Notificacion`.
@@ -85,14 +116,19 @@ viven en `infrastructure/database/models/` y mapean a las mismas tablas.
 
 ## 6. Contratos API (impuestos por el frontend)
 
-Base URL en desarrollo: **http://localhost:4000/api**
+Base URL en desarrollo: **http://localhost:3000/api**
+
+Todos los endpoints (excepto auth) se proxean al backend interno via el gateway.
 
 ```
-POST   /api/auth/login                 # devuelve JWT
-POST   /api/auth/register
-GET    /api/auth/me
+# --- Auth (resueltos por el gateway) ---
+POST   /api/auth/login                 # body: { email, password } → { access_token, user }
+POST   /api/auth/refresh               # cookie refresh_token → { access_token }
+POST   /api/auth/logout                # invalida cookie y token
+GET    /api/auth/me                    # retorna usuario autenticado
 
-GET    /api/productos                  # catálogo público
+# --- Proxeados al backend interno (:8000) ---
+GET    /api/productos                  # catalogo publico
 GET    /api/categorias
 
 POST   /api/pedidos
@@ -112,21 +148,23 @@ GET    /api/ai/image-to-3d/:taskId     # { status, modelUrl, error } (polling)
 
 Formato de error acordado: **`{ mensaje: string }`**.
 
-Endpoint del LLM: **rate limiting específico e independiente**
-(RNF-02) y el mínimo número de campos de entrada permitidos, validados y
+Endpoint del LLM: **rate limiting especifico e independiente**
+(RNF-02) y el minimo numero de campos de entrada permitidos, validados y
 sanitizados antes de llegar al LLM (RNF-05).
 
 ---
 
-## 7. Requisitos no funcionales → implementación
+## 7. Requisitos no funcionales -> implementacion
 
-| RNF | Implementación |
+| RNF | Implementacion |
 |-----|----------------|
 | RNF-02 · Rate limit en LLM | Blueprint `llm_routes.py` con Flask-Limiter configurado por separado. |
-| RNF-05 · Sanitización anti prompt-injection | `application/disenos_personalizados/sanitizar_input.py` y `asistente_llm/validar_prompt.py`: whitelist de campos, strip de caracteres peligrosos, longitud máxima, prompt del sistema fijo. |
+| RNF-02 · Rate limit en gateway | Flask-Limiter en el gateway: 5/min login, 10/min refresh, por IP. |
+| RNF-05 · Sanitizacion anti prompt-injection | `application/disenos_personalizados/sanitizar_input.py` y `asistente_llm/validar_prompt.py`: whitelist de campos, strip de caracteres peligrosos, longitud maxima, prompt del sistema fijo. |
 | RNF-06 · Log de acciones sensibles | Decorador `api/middleware/audit_logger.py` aplicado a endpoints sensibles; persiste en `LogAuditoria`. |
-| RNF-08 · Módulos independientes | Regla 5 de la sección 3.1; cada módulo testeable de forma aislada. |
-| Hash de contraseñas | `auth` usa passlib/bcrypt; nunca texto plano. JWT con `Flask-JWT-Extended`. |
+| RNF-08 · Modulos independientes | Regla 5 de la seccion 3.2; cada modulo testeable de forma aislada. |
+| Hash de contrasenas | `auth` usa passlib/bcrypt; nunca texto plano. JWT con `Flask-JWT-Extended`. |
+| Cookie Secure | Configurable via `GATEWAY_COOKIE_SECURE` (default `true`; en dev con http -> `0`). |
 
 ---
 
@@ -139,12 +177,40 @@ ApoloVibes/
 ├── .env.example
 ├── .gitignore
 ├── README.md
+├── ARQUITECTURA.md                      # copia de docs/ARQUITECTURA.md
 ├── docs/
-│   └── ARQUITECTURA.md                # ← este documento
+│   └── ARQUITECTURA.md                  # fuente principal de este documento
 │
-├── app/
-│   ├── __init__.py                    # factory: create_app()
-│   ├── config.py                      # Config por entorno
+├── gateway/                             # API Gateway (:3000, publico)
+│   ├── __init__.py
+│   ├── main.py                          # punto de entrada Flask
+│   ├── config.py                        # configuracion del gateway
+│   ├── domain/
+│   │   ├── __init__.py
+│   │   └── seguridad.py                 # hashing, verificacion de tokens
+│   ├── application/
+│   │   ├── __init__.py
+│   │   └── auth.py                      # casos de uso de autenticacion
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── rate_limit.py                # configuracion de Flask-Limiter
+│   │   └── routes/
+│   │       ├── __init__.py
+│   │       ├── auth_routes.py           # /api/auth/*
+│   │       ├── proxy_routes.py          # proxy reverso a backend
+│   │       └── health_routes.py         # healthcheck
+│   ├── infrastructure/
+│   │   ├── __init__.py
+│   │   ├── oracle_pool.py               # pool de conexiones Oracle
+│   │   ├── ddl.py                       # DDL inicial de tablas
+│   │   ├── proxy.py                     # implementacion del proxy httpx
+│   │   ├── repositorios.py              # repositorio de usuarios/tokens en Oracle
+│   │   └── token_service.py             # creacion/verificacion de JWT
+│   └── requirements.txt
+│
+├── app/                                 # Backend interno (:8000)
+│   ├── __init__.py                      # factory: create_app()
+│   ├── config.py                        # Config por entorno
 │   │
 │   ├── domain/
 │   │   ├── __init__.py
@@ -200,7 +266,6 @@ ApoloVibes/
 │   │   │   └── audit_logger.py
 │   │   └── routes/
 │   │       ├── __init__.py
-│   │       ├── auth_routes.py
 │   │       ├── catalogo_routes.py
 │   │       ├── pedido_routes.py
 │   │       ├── diseno_routes.py
@@ -243,7 +308,7 @@ ApoloVibes/
 │   │       ├── celery_app.py
 │   │       └── llm_tasks.py
 │   │
-│   ├── migrations/                   # Alembic
+│   ├── migrations/                       # Alembic
 │   │   ├── versions/
 │   │   └── env.py
 │   │
@@ -259,31 +324,39 @@ ApoloVibes/
 │       └── integration/
 │           ├── api/
 │           └── repositories/
+│
+└── ApoloVibes-frontend/                 # React + Vite (:5173)
 ```
 
 ---
 
 ## 9. Cambios aplicados al esqueleto anterior
 
-| Antes (app/)         | Después (app/)                          | Motivo |
-|----------------------|-----------------------------------------|--------|
+| Antes                  | Despues                                 | Motivo |
+|------------------------|-----------------------------------------|--------|
+| Backend monolitico en `:4000` | Gateway `:3000` + Backend interno `:8000` | Separacion de responsabilidades: auth/gateway vs. logica de negocio. |
 | `app.py` (Hello World) | `__init__.py` factory pattern + `config.py` | Punto de entrada limpio. |
-| `api/` (vacío)       | `api/routes/` + `api/middleware/`       | Separar HTTP de lógica. |
-| `models/` (vacío)    | `domain/entities/` + `infrastructure/database/models/` | Dominio puro vs. ORM. |
-| `schemas/` (vacío)   | `application/common/dto.py` + validación en `api/` | Pydantic en casos de uso y entrada. |
-| `services/` (vacío)  | `application/` (casos de uso)           | Capa de aplicación formal. |
-| `tasks/` (vacío)     | `infrastructure/tasks/` (Celery)        | Tareas = infraestructura. |
-| `utils/` (vacío)     | `api/middleware/` + `infrastructure/`   | Funciones con ubicación específica. |
-| `.envexample`        | `.env.example` (raíz)                   | Nombre y ubicación estándar. |
-| `venv/`              | se moverá a raíz y se ignora en git     | Eliminado del versionado. |
+| Auth hardcodeada en backend | Auth en gateway con JWT + Oracle | Tokens en base de datos, refresh con rotacion. |
+| `api/` (vacio)         | `api/routes/` + `api/middleware/`       | Separar HTTP de logica. |
+| `models/` (vacio)      | `domain/entities/` + `infrastructure/database/models/` | Dominio puro vs. ORM. |
+| `schemas/` (vacio)     | `application/common/dto.py` + validacion en `api/` | Pydantic en casos de uso y entrada. |
+| `services/` (vacio)    | `application/` (casos de uso)           | Capa de aplicacion formal. |
+| `tasks/` (vacio)       | `infrastructure/tasks/` (Celery)        | Tareas = infraestructura. |
+| `utils/` (vacio)       | `api/middleware/` + `infrastructure/`   | Funciones con ubicacion especifica. |
+| Sin rate limiting      | Flask-Limiter en gateway y backend      | Proteccion contra abuso. |
+| Sin proxy              | httpx en gateway proxya a backend       | Backend no expuesto publicamente. |
+| `.envexample`          | `.env.example` (raiz)                   | Nombre y ubicacion estandar. |
+| `venv/`                | se movera a raiz y se ignora en git     | Eliminado del versionado. |
 
 ---
 
 ## 10. Pendientes / siguientes pasos
 
-- [x] Aprobación de estructura y stack
-- [ ] Generación de archivos base (entidades, interfaces, blueprints, config)
-- [ ] Definición de modelos ORM y primera migración Alembic
-- [ ] Implementación de auth (JWT + bcrypt) end-to-end
-- [ ] Integración de Flask-Limiter en requisitos
-- [ ] Dockerizar el backend (opcional, fase 2)
+- [x] Aprobacion de estructura y stack
+- [x] Auth implementada (JWT + refresh + rotation en gateway)
+- [x] Oracle conectado (oracledb thin + wallet)
+- [x] Gateway funcional (proxy, CORS, rate limiting, auth)
+- [ ] Generacion de archivos base del backend (entidades, interfaces, blueprints, config)
+- [ ] Definicion de modelos ORM y primera migracion Alembic
+- [ ] Integracion de Flask-Limiter en requisitos del backend
+- [ ] Dockerizar backend y gateway

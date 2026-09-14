@@ -42,10 +42,6 @@ class Config:
         SQLALCHEMY_ENGINE_OPTIONS = _oracle_engine_options
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", SECRET_KEY)
-    JWT_ACCESS_TOKEN_EXPIRES = 3600
-    JWT_TOKEN_LOCATION = ["headers"]
-
     LLM_API_KEY = os.getenv("LLM_API_KEY", "")
     LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")
 
