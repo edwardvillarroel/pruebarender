@@ -2,7 +2,6 @@ from pathlib import Path
 
 from flask import Flask, jsonify, redirect, send_from_directory
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
 
 from app.config import Config
 from app.infrastructure.database.connection import db
@@ -13,12 +12,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.config.from_object(config_class)
 
     CORS(app, origins=app.config.get("CORS_ORIGINS", "*"))
-    jwt = JWTManager(app)
     db.init_app(app)
-
-    @jwt.unauthorized_loader
-    def _no_autenticado(_razon):
-        return jsonify(mensaje="No autenticado"), 401
 
     from app.api import register_blueprints
 

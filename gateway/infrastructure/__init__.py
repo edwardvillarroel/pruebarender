@@ -1,0 +1,1 @@
+"""Implementaciones concretas: pool Oracle, repositorios, cliente HTTP."""
