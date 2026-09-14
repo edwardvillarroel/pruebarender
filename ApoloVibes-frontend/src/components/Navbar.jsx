@@ -4,12 +4,12 @@ import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
-import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun } from 'lucide-react'
+import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck } from 'lucide-react'
 import LoginModal from './LoginModal.jsx'
 
 export default function Navbar() {
   const { cantidadTotal, solicitarLogin, abrirLogin, cerrarLogin } = useCart()
-  const { isLoggedIn, logout } = useAuth()
+  const { isLoggedIn, logout, user } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -58,22 +58,22 @@ export default function Navbar() {
         transition: 'background .3s ease, backdrop-filter .3s ease'
       }}
     >
-<div
-          className="wrap"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr auto 1fr',
-            alignItems: 'center',
-            padding: '18px 32px',
-            maxWidth: '100%',
-            color: '#FBF7EE'
-          }}
-        >
-          {/* LOGO */}
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 18, color: '#FBF7EE' }}>
-            <Home size={20} />
-            Apolo Vibes 3D
-          </Link>
+      <div
+        className="wrap"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr auto 1fr',
+          alignItems: 'center',
+          padding: '18px 32px',
+          maxWidth: '100%',
+          color: '#FBF7EE'
+        }}
+      >
+        {/* LOGO */}
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 18, color: '#FBF7EE' }}>
+          <Home size={20} />
+          Apolo Vibes 3D
+        </Link>
 
         {/* Desktop nav */}
         <nav className="nav-links hide-mobile">
@@ -132,16 +132,26 @@ export default function Navbar() {
             {userMenuOpen && isLoggedIn && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                background: 'var(--surface)',
+                background: 'rgba(250,127,25,1)',
                 border: '1px solid var(--line)',
                 borderRadius: 12,
                 minWidth: 200,
-                boxShadow: '0 12px 40px rgba(0,0,0,.35)',
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.55)',
                 overflow: 'hidden',
                 zIndex: 200,
               }}>
-                <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
-                  <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>Sesión activa</p>
+                <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--bg)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+                      {user?.nombre || user?.email}
+                    </span>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      color: '#02ff5f', fontSize: 11, fontWeight: 700, letterSpacing: .3,
+                    }}>
+                      Activo<CircleCheck size={13} />
+                    </span>
+                  </div>
                 </div>
                 <button
                   onClick={() => { setUserMenuOpen(false); navigate('/admin') }}
@@ -155,15 +165,15 @@ export default function Navbar() {
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                 >
-                  <LayoutDashboard size={16} color="var(--accent)" />
-                  Panel admin
+                  <LayoutDashboard size={16} color="var(--text)" />
+                  Panel Administrador
                 </button>
                 <button
                   onClick={() => { setUserMenuOpen(false); logout(); navigate('/') }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                     padding: '12px 16px', border: 'none', background: 'none',
-                    color: '#ef4444', fontSize: 13, cursor: 'pointer',
+                    color: '#b60303', fontSize: 13, cursor: 'pointer',
                     textAlign: 'left',
                     transition: 'background .15s',
                   }}
@@ -206,7 +216,7 @@ export default function Navbar() {
           {isLoggedIn ? (
             <>
               <button onClick={() => handleMobileNav('/admin')}>Panel admin</button>
-              <button onClick={() => { logout(); setMobileOpen(false); navigate('/') }} style={{ color: '#ef4444' }}>
+              <button onClick={() => { logout(); setMobileOpen(false); navigate('/') }} style={{ color: '#b60303' }}>
                 Cerrar sesión
               </button>
             </>

@@ -16,7 +16,7 @@ import Cotizacion from './pages/Cotizacion.jsx'
 import AdminLayout from './pages/admin/AdminLayout.jsx'
 import Dashboard from './pages/admin/Dashboard.jsx'
 import Pedidos from './pages/admin/Pedidos.jsx'
-import Productos from './pages/admin/Productos.jsx'
+import RegistrarVentaLocal from './pages/admin/RegistrarVentaLocal.jsx'
 import Inventario from './pages/admin/Inventario.jsx'
 import Cotizaciones from './pages/admin/Cotizaciones.jsx'
 
@@ -35,22 +35,22 @@ export default function App() {
     <>
       <ScrollToTop />
       <Routes>
-      <Route path="/" element={<TiendaLayout><Home /></TiendaLayout>} />
-      <Route path="/categorias" element={<TiendaLayout><Categorias /></TiendaLayout>} />
-      <Route path="/producto/:id" element={<TiendaLayout><ProductoDetalle /></TiendaLayout>} />
-      <Route path="/carrito" element={<TiendaLayout><Carrito /></TiendaLayout>} />
-      <Route path="/checkout" element={<TiendaLayout><Checkout /></TiendaLayout>} />
-      <Route path="/pago/retorno" element={<TiendaLayout><PagoRetorno /></TiendaLayout>} />
-      <Route path="/cotizar" element={<TiendaLayout><Cotizacion /></TiendaLayout>} />
+        <Route path="/" element={<TiendaLayout><Home /></TiendaLayout>} />
+        <Route path="/categorias" element={<TiendaLayout><Categorias /></TiendaLayout>} />
+        <Route path="/producto/:id" element={<TiendaLayout><ProductoDetalle /></TiendaLayout>} />
+        <Route path="/carrito" element={<TiendaLayout><Carrito /></TiendaLayout>} />
+        <Route path="/checkout" element={<TiendaLayout><Checkout /></TiendaLayout>} />
+        <Route path="/pago/retorno" element={<TiendaLayout><PagoRetorno /></TiendaLayout>} />
+        <Route path="/cotizar" element={<TiendaLayout><Cotizacion /></TiendaLayout>} />
 
-      <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
-        <Route index element={<Dashboard />} />
-        <Route path="pedidos" element={<Pedidos />} />
-        <Route path="productos" element={<Productos />} />
-        <Route path="inventario" element={<Inventario />} />
-        <Route path="cotizaciones" element={<Cotizaciones />} />
-      </Route>
-    </Routes>
+        <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
+          <Route index element={<Dashboard />} />
+          <Route path="pedidos" element={<Pedidos />} />
+          <Route path="venta" element={<RegistrarVentaLocal />} />
+          <Route path="inventario" element={<Inventario />} />
+          <Route path="cotizaciones" element={<Cotizaciones />} />
+        </Route>
+      </Routes>
     </>
   )
 }

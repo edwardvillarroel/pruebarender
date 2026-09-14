@@ -1,19 +1,19 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
-import { Menu, X } from 'lucide-react'
+import { Menu, LogOut } from 'lucide-react'
 
 const itemStyle = ({ isActive }) => ({
   display: 'block', padding: '10px 12px', borderRadius: 8, fontSize: 13, marginBottom: 2,
-  color: isActive ? 'var(--accent)' : 'var(--text-dim)',
-  background: isActive ? 'var(--accent-soft)' : 'transparent',
+  color: isActive ? 'var(--text)' : 'var(--surface)',
+  background: isActive ? 'var(--surface-3)' : 'transparent',
   fontWeight: isActive ? 600 : 400,
   textDecoration: 'none',
 })
 
 const sidebarBtnStyle = {
   display: 'block', width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 13,
-  marginBottom: 2, color: '#ef4444', background: 'transparent', border: 'none',
+  marginBottom: 2, color: '#b60303', background: 'transparent', border: 'none',
   textAlign: 'left', cursor: 'pointer', fontWeight: 500,
 }
 
@@ -21,7 +21,7 @@ function ConfirmModal({ onConfirm, onCancel }) {
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)',
+        position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.88)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 9999, backdropFilter: 'blur(4px)',
       }}
@@ -29,13 +29,13 @@ function ConfirmModal({ onConfirm, onCancel }) {
     >
       <div
         style={{
-          background: 'var(--surface)', borderRadius: 16, padding: '32px 28px',
+          background: '#002a5e4b', borderRadius: 16, padding: '32px 28px',
           width: '100%', maxWidth: 360, boxShadow: '0 20px 60px rgba(0,0,0,.3)',
           textAlign: 'center',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ fontSize: 36, marginBottom: 12 }}>&#128682;</div>
+        <div style={{ fontSize: 36, marginBottom: 12 }}></div>
         <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>
           Cerrar sesión
         </h3>
@@ -57,7 +57,7 @@ function ConfirmModal({ onConfirm, onCancel }) {
             onClick={onConfirm}
             style={{
               flex: 1, padding: '10px 0', borderRadius: 10, border: 'none',
-              background: '#ef4444', color: '#fff', fontSize: 13, fontWeight: 600,
+              background: '#b60303', color: '#fff', fontSize: 13, fontWeight: 600,
               cursor: 'pointer',
             }}
           >
@@ -78,11 +78,11 @@ function SidebarContent({ onLogout }) {
       <nav style={{ flex: 1 }}>
         <NavLink to="/admin" end style={itemStyle}>Dashboard</NavLink>
         <NavLink to="/admin/pedidos" style={itemStyle}>Pedidos</NavLink>
-        <NavLink to="/admin/productos" style={itemStyle}>Productos</NavLink>
         <NavLink to="/admin/inventario" style={itemStyle}>Inventario</NavLink>
         <NavLink to="/admin/cotizaciones" style={itemStyle}>Cotizaciones</NavLink>
+        <NavLink to="/admin/venta" style={itemStyle}>Registrar Venta</NavLink>
       </nav>
-      <button style={sidebarBtnStyle} onClick={onLogout}>
+      <button style={sidebarBtnStyle} onClick={onLogout}> <LogOut size={16} />
         Cerrar sesión
       </button>
     </>
@@ -106,7 +106,7 @@ export default function AdminLayout() {
     <div className="admin-layout" style={{ display: 'grid', gridTemplateColumns: '238px 1fr', minHeight: '100vh' }}>
       {/* Desktop sidebar */}
       <aside className="hide-mobile" style={{
-        background: 'var(--surface)', borderRight: '1px solid var(--line)',
+        background: 'var(--accent)', borderRight: '1px solid var(--line)',
         padding: '24px 18px', display: 'flex', flexDirection: 'column',
       }}>
         <SidebarContent onLogout={() => setShowConfirm(true)} />
@@ -118,7 +118,7 @@ export default function AdminLayout() {
         onClick={() => setSidebarOpen(false)}
       />
       <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`} style={{
-        background: 'var(--surface)', borderRight: '1px solid var(--line)',
+        background: 'var(--accent)', borderRight: '1px solid var(--line)',
         padding: '24px 18px', flexDirection: 'column',
       }}>
         <SidebarContent onLogout={() => setShowConfirm(true)} />
@@ -128,7 +128,7 @@ export default function AdminLayout() {
         <header className="admin-topbar" style={{
           display: 'none', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 20px', borderBottom: '1px solid var(--line)',
-          background: 'var(--surface)',
+          background: 'var(--accent)',
         }}>
           <button
             onClick={() => setSidebarOpen(true)}
@@ -145,14 +145,14 @@ export default function AdminLayout() {
 
         <header className="hide-mobile" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-          padding: '16px 34px', borderBottom: '1px solid var(--line)',
-          background: 'var(--surface)',
+          padding: '16px 34px', borderBottom: '1px solid var(--accent)',
+          background: 'var(--accent)',
         }}>
           <button
             title="Mi cuenta"
             style={{
-              width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--line)',
-              background: 'var(--bg)', display: 'flex', alignItems: 'center',
+              width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--surface-3)',
+              background: 'var(--accent-2)', display: 'flex', alignItems: 'center',
               justifyContent: 'center', cursor: 'pointer', color: 'var(--text-dim)',
               transition: 'border-color .2s',
             }}
