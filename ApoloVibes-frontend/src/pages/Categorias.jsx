@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import ProductCard from '../components/ProductCard.jsx'
-import { categorias, productos } from '../data/products.js'
+import { useProductos } from '../context/ProductContext.jsx'
 
 export default function Categorias() {
+  const { productos, categorias, cargando, error } = useProductos()
   const [activa, setActiva] = useState(null)
 
-  const filtrados = activa ? productos.filter(p => p.categoria === activa) : productos
+  const filtrados = activa ? productos.filter(p => p.categoria_id === activa) : productos
 
   return (
     <section className="wrap section-py-mobile" style={{ paddingTop: '48px', paddingBottom: '80px' }}>
@@ -37,7 +38,15 @@ export default function Categorias() {
         ))}
       </div>
 
-      {filtrados.length === 0 ? (
+      {cargando ? (
+        <p style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '4px 0' }}>
+          Cargando productos…
+        </p>
+      ) : error ? (
+        <p style={{ textAlign: 'center', color: '#ef4444', padding: '4px 0' }}>
+          Error al cargar productos: {error}
+        </p>
+      ) : filtrados.length === 0 ? (
         <p style={{
           textAlign: 'center', color: 'var(--text-dim)', padding: '410px 0'
         }}>
@@ -45,7 +54,7 @@ export default function Categorias() {
         </p>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
-          {filtrados.map(p => <ProductCard key={p.id} producto={p} />)}
+          {filtrados.map((p, i) => <ProductCard key={p.id} producto={p} index={i} />)}
         </div>
       )}
     </section>

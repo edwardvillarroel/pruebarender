@@ -3,6 +3,19 @@ from functools import wraps
 from flask import jsonify, request
 
 
+def requiere_sesion():
+    """Decorador: exige que el usuario esté autenticado (X-User-Id del gateway)."""
+
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            if not request.headers.get("X-User-Id"):
+                return jsonify(mensaje="Sesión requerida"), 401
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 def rol_requerido(*roles: str):
     """Decorador: exige uno de los roles (cabecera X-User-Rol del gateway)."""
 

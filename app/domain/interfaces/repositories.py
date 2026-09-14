@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
+from app.domain.entities.categoria import Categoria
 from app.domain.entities.pedido import Pedido
-from app.domain.entities.producto import Producto
+from app.domain.entities.producto import ImagenProducto, Producto
 from app.domain.entities.solicitud_diseno import SolicitudDiseno
 from app.domain.entities.usuario import Usuario
 from app.domain.interfaces.repository_base import RepositoryBase
@@ -22,6 +23,15 @@ class ProductoRepository(RepositoryBase[Producto], ABC):
     @abstractmethod
     def list_activos(self) -> list[Producto]:
         raise NotImplementedError
+
+    @abstractmethod
+    def get_imagen_by_id(self, producto_id: UUID) -> ImagenProducto | None:
+        """Bytes y content-type de la imagen del producto, sin cargar el resto."""
+        raise NotImplementedError
+
+
+class CategoriaRepository(RepositoryBase[Categoria], ABC):
+    pass
 
 
 class PedidoRepository(RepositoryBase[Pedido], ABC):
