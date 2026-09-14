@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
 import { useState } from 'react'
-import { productos, categorias } from '../data/products.js'
+import { useProductos } from '../context/ProductContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
 import { Minus, Plus } from 'lucide-react'
 
@@ -12,13 +12,15 @@ const COLOR_BUTTON = '#FA7F19'
 
 export default function ProductoDetalle() {
   const { id } = useParams()
+  const { productos, categorias, cargando } = useProductos()
   const producto = productos.find(p => p.id === id)
   const { agregarProducto } = useCart()
   const [cantidad, setCantidad] = useState(1)
 
+  if (cargando) return <div className="wrap" style={{ padding: 80 }}>Cargando…</div>
   if (!producto) return <div className="wrap" style={{ padding: 80 }}>Producto no encontrado.</div>
 
-  const categoria = categorias.find(c => c.id === producto.categoria)
+  const categoria = categorias.find(c => c.id === producto.categoria_id)
 
   return (
     <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px' }}>

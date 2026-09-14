@@ -14,6 +14,9 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     CORS(app, origins=app.config.get("CORS_ORIGINS", "*"))
     db.init_app(app)
 
+    _configurar_carrito(app)
+    _configurar_catalogo(app)
+
     from app.api import register_blueprints
 
     register_blueprints(app)
@@ -25,6 +28,44 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     _montar_frontend_produccion(app)
 
     return app
+
+
+def _configurar_carrito(app: Flask) -> None:
+    """Punto de composición del carrito (inyección de dependencias).
+
+    La ruta del carrito lee el servicio desde `app.config`; así la capa API
+    no depende de `infrastructure`. El carrito se persiste en la base de datos
+    (tablas `carrito`/`carrito_items`) y pertenece al usuario del JWT.
+    """
+    from app.application.carrito.gestionar_carrito import GestionarCarrito
+    from app.infrastructure.repositories.carrito_repository_bd import (
+        CarritoRepositoryBd,
+    )
+
+    app.config["CARRITO_SERVICE"] = GestionarCarrito(CarritoRepositoryBd())
+
+
+def _configurar_catalogo(app: Flask) -> None:
+    """Punto de composición del catálogo (inyección de dependencias).
+
+    Las rutas de catálogo leen los servicios desde `app.config`; así la capa
+    API no depende de `infrastructure`. El catálogo se lee desde la base de
+    datos (tablas `productos`/`categorias`). Importar los repositorios registra
+    los modelos ORM con Flask-SQLAlchemy (productos y categorias).
+    """
+    from app.application.catalogo_stock.gestionar_categoria import (
+        GestionarCategoria,
+    )
+    from app.application.catalogo_stock.gestionar_producto import GestionarProducto
+    from app.infrastructure.repositories.categoria_repository import (
+        CategoriaRepository,
+    )
+    from app.infrastructure.repositories.producto_repository import (
+        ProductoRepository,
+    )
+
+    app.config["PRODUCTO_SERVICE"] = GestionarProducto(ProductoRepository())
+    app.config["CATEGORIA_SERVICE"] = GestionarCategoria(CategoriaRepository())
 
 
 def _montar_frontend_produccion(app: Flask) -> None:

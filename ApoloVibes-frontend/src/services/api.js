@@ -24,12 +24,13 @@ function guardarToken(token) {
 }
 
 async function request(path, options = {}, _retry = false) {
+  const { headers = {}, ...rest } = options
   const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
+    ...rest,
     headers: {
-      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+      ...(rest.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...authHeaders(),
-      ...options.headers,
+      ...headers,
     },
   })
 
@@ -56,16 +57,18 @@ async function request(path, options = {}, _retry = false) {
 }
 
 export const api = {
-  get: (path) => request(path),
-  post: (path, body) =>
+  get: (path, options = {}) => request(path, options),
+  post: (path, body, options = {}) =>
     request(path, {
+      ...options,
       method: 'POST',
       body: body instanceof FormData ? body : JSON.stringify(body),
     }),
-  put: (path, body) =>
-    request(path, { method: 'PUT', body: JSON.stringify(body) }),
-  patch: (path, body) =>
-    request(path, { method: 'PATCH', body: JSON.stringify(body) }),
+  put: (path, body, options = {}) =>
+    request(path, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+  patch: (path, body, options = {}) =>
+    request(path, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
+  del: (path, options = {}) => request(path, { ...options, method: 'DELETE' }),
   logout: async () => {
     try {
       await fetch(`${BASE_URL}/auth/logout`, {
