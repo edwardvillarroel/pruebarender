@@ -78,7 +78,7 @@ export default function Home() {
       </section>
 
       <section className="wrap section-py-mobile" style={{ padding: '0 0 80px' }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Todos los productos</h2>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Productos más vendidos</h2>
         {cargando ? (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Cargando productos…</p>
         ) : error ? (
