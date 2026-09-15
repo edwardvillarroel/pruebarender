@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { productoApi } from '../services/products.js'
 
 const ProductContext = createContext(null)
@@ -8,9 +8,10 @@ export function ProductProvider({ children }) {
   const [categorias, setCategorias] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState(null)
+  const primeraCarga = useRef(true)
 
-  async function cargar() {
-    setCargando(true)
+  async function cargar(silencioso = false) {
+    if (!silencioso) setCargando(true)
     setError(null)
     try {
       const [resProductos, resCategorias] = await Promise.all([
@@ -24,12 +25,19 @@ export function ProductProvider({ children }) {
       setError(err.message)
     } finally {
       setCargando(false)
+      primeraCarga.current = false
     }
+  }
+
+  /** Actualiza un producto en el estado local sin re-fetch al API */
+  function actualizarLocal(datos) {
+    setProductos(prev =>
+      prev.map(p => p.id === datos.id ? { ...p, ...datos } : p)
+    )
   }
 
   useEffect(() => {
     cargar()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const categoriasConConteo = useMemo(
@@ -57,7 +65,8 @@ export function ProductProvider({ children }) {
         categorias: categoriasConConteo,
         cargando,
         error,
-        recargar: cargar,
+        recargar: () => cargar(true),
+        actualizarLocal,
       }}
     >
       {children}

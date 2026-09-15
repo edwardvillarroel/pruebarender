@@ -4,6 +4,12 @@ const AUTH_STORAGE_KEY = 'apolovibes_auth'
 
 const EXCLUDE_RETRY = ['/auth/login', '/auth/refresh', '/auth/logout']
 
+// Rutas públicas que NO deben causar logout si el token expira
+const PUBLIC_PATHS = ['/productos', '/categorias', '/productos/']
+
+// Single-flight refresh: evita carreras de refresh concurrentes
+let refreshPromise = null
+
 function authHeaders() {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY)
@@ -23,6 +29,22 @@ function guardarToken(token) {
   } catch { /* noop */ }
 }
 
+function esPublica(path) {
+  return PUBLIC_PATHS.some(p => path.startsWith(p))
+}
+
+function intentarRefresh() {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = fetch(`${BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  }).finally(() => { refreshPromise = null })
+
+  return refreshPromise
+}
+
 async function request(path, options = {}, _retry = false) {
   const { headers = {}, ...rest } = options
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -35,16 +57,31 @@ async function request(path, options = {}, _retry = false) {
   })
 
   if (res.status === 401 && !_retry && !EXCLUDE_RETRY.includes(path)) {
-    const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    })
+    const refreshRes = await intentarRefresh()
+
     if (refreshRes.ok) {
       const body = await refreshRes.json()
       guardarToken(body.access_token)
       return request(path, options, true)
     }
+
+    // Endpoint público: reintentar sin token en vez de borrar sesión
+    if (esPublica(path)) {
+      const retryRes = await fetch(`${BASE_URL}${path}`, {
+        ...rest,
+        headers: {
+          ...(rest.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+          ...headers,
+        },
+      })
+      if (!retryRes.ok) {
+        const err = await retryRes.json().catch(() => ({}))
+        throw new Error(err.mensaje || `Error ${retryRes.status} al llamar ${path}`)
+      }
+      return retryRes.json()
+    }
+
+    // Endpoint privado: sesión expirada de verdad
     localStorage.removeItem(AUTH_STORAGE_KEY)
     throw new Error('Sesion expirada. Inicie sesion de nuevo.')
   }

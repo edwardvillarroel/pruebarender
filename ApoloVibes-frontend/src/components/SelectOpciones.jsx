@@ -2,9 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import { useTheme } from '../context/ThemeContext.jsx'
 import { ChevronDown } from 'lucide-react'
 
-// Dropdown custom reutilizable: las opciones se despliegan pegadas al campo,
-// como una extensión visual del input (mismo ancho, mismo borde).
-// Soporta placeholder (valor vacío), estado deshabilitado y listas largas con scroll.
 export default function SelectOpciones({
   id,
   options,
@@ -12,17 +9,24 @@ export default function SelectOpciones({
   onChange,
   placeholder = 'Selecciona una opción',
   disabled = false,
+  onAbierto,
 }) {
   const { theme } = useTheme()
   const [abierto, setAbierto] = useState(false)
+  const [hoverIdx, setHoverIdx] = useState(-1)
   const contRef = useRef(null)
+
+  function cerrar() {
+    setAbierto(false)
+    setHoverIdx(-1)
+  }
 
   useEffect(() => {
     function clickFuera(e) {
-      if (contRef.current && !contRef.current.contains(e.target)) setAbierto(false)
+      if (contRef.current && !contRef.current.contains(e.target)) cerrar()
     }
     function tecla(e) {
-      if (e.key === 'Escape') setAbierto(false)
+      if (e.key === 'Escape') cerrar()
     }
     document.addEventListener('mousedown', clickFuera)
     document.addEventListener('keydown', tecla)
@@ -32,9 +36,8 @@ export default function SelectOpciones({
     }
   }, [])
 
-  // Si el campo se deshabilita, cerrar el menú
   useEffect(() => {
-    if (disabled) setAbierto(false)
+    if (disabled) cerrar()
   }, [disabled])
 
   const esOscuro = theme === 'dark'
@@ -48,13 +51,20 @@ export default function SelectOpciones({
     ? (typeof opSeleccionada === 'string' ? opSeleccionada : opSeleccionada.label)
     : ''
 
+  function toggle() {
+    const nuevo = !abierto
+    setAbierto(nuevo)
+    setHoverIdx(-1)
+    if (nuevo) onAbierto?.()
+  }
+
   return (
     <div ref={contRef} style={{ position: 'relative' }}>
       <button
         id={id}
         type="button"
         disabled={disabled}
-        onClick={() => setAbierto(a => !a)}
+        onClick={toggle}
         aria-haspopup="listbox"
         aria-expanded={abierto && !disabled}
         aria-disabled={disabled}
@@ -101,22 +111,29 @@ export default function SelectOpciones({
             overflow: 'hidden',
             zIndex: 40,
             boxShadow: '0 10px 24px rgba(0,0,0,.15)',
-            maxHeight: 220,
+            maxHeight: 115,
             overflowY: 'auto',
           }}
         >
-          {lista.map(op => {
+          {lista.map((op, idx) => {
             const valor = typeof op === 'string' ? op : op.value
             const etiqueta = typeof op === 'string' ? op : op.label
             const seleccionado = valor === value
+            const sobre = idx === hoverIdx
             return (
-              <li key={valor} role="option" aria-selected={seleccionado}>
+              <li
+                key={valor}
+                role="option"
+                aria-selected={seleccionado}
+                onMouseEnter={() => setHoverIdx(idx)}
+                onMouseLeave={() => setHoverIdx(-1)}
+              >
                 <button
                   type="button"
-                  onClick={() => { onChange(valor); setAbierto(false) }}
+                  onClick={() => { onChange(valor); cerrar() }}
                   style={{
                     width: '100%',
-                    background: seleccionado ? 'var(--accent-soft)' : 'transparent',
+                    background: seleccionado ? 'var(--accent-soft)' : sobre ? 'var(--accent-soft)' : 'transparent',
                     border: 'none',
                     padding: '10px 12px',
                     fontSize: 14,
@@ -125,8 +142,6 @@ export default function SelectOpciones({
                     textAlign: 'left',
                     cursor: 'pointer',
                   }}
-                  onMouseEnter={e => { if (!seleccionado) e.currentTarget.style.background = 'var(--accent-soft)' }}
-                  onMouseLeave={e => { if (!seleccionado) e.currentTarget.style.background = 'transparent' }}
                 >
                   {etiqueta}
                 </button>
