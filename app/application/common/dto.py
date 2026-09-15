@@ -10,16 +10,27 @@ class CrearProductoDTO:
     stock: int = 0
     descripcion: str | None = None
     imagen: str | None = None
+    material: str | None = None
+    tamano: str | None = None
+    color: str | None = None
+    specs: list[str] | None = None
+    descuento: int | None = None
 
 
 @dataclass
 class ActualizarProductoDTO:
+    id: UUID
     nombre: str | None = None
+    categoria_id: UUID | None = None
     precio: int | None = None
     stock: int | None = None
     descripcion: str | None = None
     activo: bool | None = None
-    id: UUID | None = field(default=None)
+    material: str | None = None
+    tamano: str | None = None
+    color: str | None = None
+    specs: list[str] | None = None
+    descuento: int | None = None
 
 
 @dataclass

@@ -15,6 +15,15 @@ seed_productos_prueba.py
 agregar_producto.py
 migrar_imagen_blob.py
 
+# Scripts de debug/migración (ya no son necesarios)
+_check_cols.py
+_debug_sql.py
+_fix_seed.py
+_list_products.py
+_run_migration.py
+_run_seed.py
+_test_api.py
+
 # Logs locales (pueden contener trazas con datos)
 *.log
 

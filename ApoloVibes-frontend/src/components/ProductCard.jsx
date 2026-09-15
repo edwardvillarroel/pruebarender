@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
 import { useCart } from '../context/CartContext.jsx'
+import { useProductos } from '../context/ProductContext.jsx'
 import { Star, ImageOff } from 'lucide-react'
 import { IconShoppingCartPlus } from '@tabler/icons-react'
 import { useState } from 'react'
@@ -13,7 +14,9 @@ const COLOR_BUTTON = '#FA7F19'
 
 export default function ProductCard({ producto, index = 0 }) {
   const { agregarProducto } = useCart()
+  const { categorias } = useProductos()
   const acento = ACENTOS[index % ACENTOS.length]
+  const categoria = categorias.find(c => c.id === producto.categoria_id)
 
   return (
     <div
@@ -45,7 +48,7 @@ export default function ProductCard({ producto, index = 0 }) {
             <img
               src={producto.imagen}
               alt={producto.nombre}
-              style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'cover' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
             <div
@@ -67,40 +70,53 @@ export default function ProductCard({ producto, index = 0 }) {
             <span
               style={{
                 position: 'absolute',
-                top: 19,
-                right: -40,
-                width: 150,
-                transform: 'rotate(45deg)',
+                top: 10,
+                left: 10,
                 background: COLOR_DESCUENTO,
                 color: '#FFFFFF',
                 fontSize: 12,
-                fontWeight: 500,
-                lineHeight: '1.4',
-                padding: '5px 0',
-                textAlign: 'center',
+                fontWeight: 700,
+                padding: '4px 12px',
+                borderRadius: 20,
+                zIndex: 2,
               }}
             >
-              -{producto.descuento}%
+              -{producto.descuento}% OFF
             </span>
-          ) : producto.badge ? (
-            <div
+          ) : producto.sinStock ? (
+            <span
               style={{
                 position: 'absolute',
-                top: 19,
-                right: -40,
-                width: 150,
-                transform: 'rotate(45deg)',
+                top: 10,
+                left: 10,
+                background: COLOR_SIN_STOCK,
+                color: '#FFFFFF',
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '4px 12px',
+                borderRadius: 20,
+                zIndex: 2,
+              }}
+            >
+              AGOTADO
+            </span>
+          ) : producto.badge ? (
+            <span
+              style={{
+                position: 'absolute',
+                top: 10,
+                left: 10,
                 background: COLOR_NUEVO,
                 color: '#FFFFFF',
                 fontSize: 12,
-                fontWeight: 500,
-                lineHeight: '1.4',
-                padding: '5px 0',
-                textAlign: 'center',
+                fontWeight: 700,
+                padding: '4px 12px',
+                borderRadius: 20,
+                zIndex: 2,
               }}
             >
               {producto.badge}
-            </div>
+            </span>
           ) : null}
         </div>
       </Link>
@@ -120,24 +136,13 @@ export default function ProductCard({ producto, index = 0 }) {
               width: 'fit-content',
             }}
           >
-            SIN STOCK
+            AGOTADO
           </span>
         ) : null}
-        {producto.descripcion && (
-          <p
-            style={{
-              fontSize: 12,
-              color: 'var(--text-dim)',
-              lineHeight: 1.5,
-              margin: 0,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {producto.descripcion}
-          </p>
+        {categoria && (
+          <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>
+            {categoria.nombre}
+          </span>
         )}
         {producto.rating && (
           <div style={{ display: 'flex', gap: 2 }}>
@@ -162,19 +167,18 @@ export default function ProductCard({ producto, index = 0 }) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
+            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
               ${producto.precio.toLocaleString('es-CL')}
             </span>
-            {producto.precioOriginal && (
+            {producto.precio_original && (
               <span
                 style={{
-                  fontFamily: 'var(--font-mono)',
                   fontSize: 12,
                   color: 'var(--text-dim)',
                   textDecoration: 'line-through',
                 }}
               >
-                ${producto.precioOriginal.toLocaleString('es-CL')}
+                ${producto.precio_original.toLocaleString('es-CL')}
               </span>
             )}
           </div>

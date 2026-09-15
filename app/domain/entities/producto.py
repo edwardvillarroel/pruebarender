@@ -14,6 +14,14 @@ class Producto:
     activo: bool = True
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=datetime.utcnow)
+    specs: list[str] | None = None
+    descuento: int | None = None
+    badge: str | None = None
+    precio_original: int | None = None
+    rating: int | None = None
+    material: str | None = None
+    tamano: str | None = None
+    color: str | None = None
 
 
 @dataclass

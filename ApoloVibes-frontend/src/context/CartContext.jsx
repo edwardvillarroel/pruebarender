@@ -14,7 +14,7 @@ function enrichItem(linea, productos) {
     cantidad: linea.cantidad,
     nombre: prod?.nombre ?? 'Producto',
     precio: prod?.precio ?? 0,
-    precioOriginal: prod?.precioOriginal ?? null,
+    precio_original: prod?.precio_original ?? null,
     imagen: prod?.imagen ?? null,
   }
 }

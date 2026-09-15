@@ -1,14 +1,26 @@
 import { useParams, Link } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useProductos } from '../context/ProductContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, Star } from 'lucide-react'
+import ProductCard from '../components/ProductCard.jsx'
 
 const COLOR_NUEVO = '#2fa018'
 const COLOR_DESCUENTO = '#FA7F19'
 const COLOR_SIN_STOCK = '#e71414'
 const COLOR_BUTTON = '#FA7F19'
+
+const SPECS_BLOQUEADAS = ['resistencia', 'colores']
+function specsFiltrados(specs, material, tamano, color) {
+  if (!specs) return []
+  const lower = [material, tamano, color].filter(Boolean).map(s => s.toLowerCase())
+  return specs.filter(s => {
+    const sl = s.toLowerCase()
+    if (SPECS_BLOQUEADAS.some(b => sl.startsWith(b))) return false
+    return !lower.some(v => sl.includes(v) || v.includes(sl))
+  })
+}
 
 export default function ProductoDetalle() {
   const { id } = useParams()
@@ -21,152 +33,222 @@ export default function ProductoDetalle() {
   if (!producto) return <div className="wrap" style={{ padding: 80 }}>Producto no encontrado.</div>
 
   const categoria = categorias.find(c => c.id === producto.categoria_id)
+  const specsLimpios = specsFiltrados(producto.specs, producto.material, producto.tamano, producto.color)
+
+  const recomendados = useMemo(() =>
+    productos
+      .filter(p => p.categoria_id === producto.categoria_id && p.id !== producto.id)
+      .slice(0, 4),
+    [productos, producto]
+  )
 
   return (
-    <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px' }}>
+    <section className="wrap" style={{ paddingTop: '25px', paddingBottom: '80px' }}>
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 6,
-        fontSize: 13,
+        justifyContent: 'center',
+        gap: 3,
+        fontSize: 11,
         color: 'var(--text-dim)',
-        marginBottom: 20
+        marginBottom: 5,
       }}>
-        <Link to="/categorias" style={{ color: 'var(--surface)' }}>Catálogo</Link>
+        <span></span>
+        <Link to="/categorias" style={{ color: 'var(--surface)' }}>Catálogo /</Link>
         {categoria && (
           <>
             <span></span>
-            <Link to={`/categorias?cat=${categoria.id}`} style={{ color: 'var(--accent)' }}>{categoria.nombre}</Link>
+            <Link to={`/categorias?cat=${categoria.id}`} style={{ color: 'var(--accent)' }}>{categoria.nombre} /</Link>
           </>
         )}
         <span></span>
         <span style={{ color: 'var(--surface)' }}>{producto.nombre}</span>
       </div>
 
-      <div className="producto-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48 }}>
-        <div style={{
-          position: 'relative',
-          height: 420,
-          background: producto.imagen ? '#FFFFFF' : 'var(--surface)',
-          border: '1px solid var(--border-card)',
-          borderRadius: 12,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          overflow: 'hidden',
-        }}
-        >
-          {producto.imagen && (
-            <img
-              src={producto.imagen}
-              alt={producto.nombre}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain'
-              }}
-            />
-          )}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 3,
+        fontSize: 35,
+        color: 'var(--text-dim)',
+        fontWeight: 500,
+        marginTop: -10
+      }}>
+        <span></span>
+        <span style={{ color: 'var(--surface)' }}>{producto.nombre}</span>
+      </div>
 
-          {producto.sinStock ? (
-            <span style={{
-              position: 'absolute',
-              top: 30,
-              right: -70,
-              width: 210,
-              transform: 'rotate(45deg)',
-              background: COLOR_SIN_STOCK,
-              color: '#FFFFFF',
-              fontSize: 12,
-              fontWeight: 500,
-              lineHeight: '1.4',
-              padding: '5px 0',
-              textAlign: 'center',
-            }}
-            >
-              SIN STOCK
-            </span>
-          ) : producto.descuento ? (
-            <span style={{
-              position: 'absolute',
-              top: 30,
-              right: -70,
-              width: 210,
-              transform: 'rotate(45deg)',
-              background: COLOR_DESCUENTO,
-              color: '#FFFFFF',
-              fontSize: 12,
-              fontWeight: 500,
-              lineHeight: '1.4',
-              padding: '5px 0',
-              textAlign: 'center',
-            }}
-            >
-              -{producto.descuento}%
-            </span>
-          ) : producto.badge ? (
-            <div style={{
-              position: 'absolute',
-              top: 30,
-              right: -70,
-              width: 210,
-              transform: 'rotate(45deg)',
-              background: COLOR_NUEVO,
-              color: '#FFFFFF',
-              fontSize: 12,
-              fontWeight: 500,
-              lineHeight: '1.4',
-              padding: '5px 0',
-              textAlign: 'center',
-            }}
-            >
-              {producto.badge}
-            </div>
-          ) : null}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 3,
+        fontSize: 12,
+        color: 'var(--text-dim)',
+        marginBottom: 40,
+        marginTop: -5
+      }}>
+        <span></span>
+        <span style={{ color: 'var(--text-dim)' }}>Apolo Vibes 3D</span>
+      </div>
+
+      <div className="producto-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48 }}>
+        <div>
+          <div style={{
+            position: 'relative',
+            height: 420,
+            background: producto.imagen ? '#FFFFFF' : 'var(--surface)',
+            borderRadius: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+          >
+            {producto.imagen && (
+              <img
+                src={producto.imagen}
+                alt={producto.nombre}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover'
+                }}
+              />
+            )}
+
+
+            {producto.sinStock ? (
+              <span style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                background: COLOR_SIN_STOCK,
+                color: '#FFFFFF',
+                fontSize: 13,
+                fontWeight: 700,
+                padding: '5px 16px',
+                borderRadius: 20,
+                zIndex: 2,
+              }}>
+                Agotado
+              </span>
+            ) : producto.descuento ? (
+              <span style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                background: COLOR_DESCUENTO,
+                color: '#FFFFFF',
+                fontSize: 13,
+                fontWeight: 700,
+                padding: '5px 16px',
+                borderRadius: 20,
+                zIndex: 2,
+              }}>
+                -{producto.descuento}% OFF
+              </span>
+            ) : producto.badge ? (
+              <span style={{
+                position: 'absolute',
+                top: 12,
+                left: 12,
+                background: COLOR_NUEVO,
+                color: '#FFFFFF',
+                fontSize: 13,
+                fontWeight: 700,
+                padding: '5px 16px',
+                borderRadius: 20,
+                zIndex: 2,
+              }}>
+                {producto.badge}
+              </span>
+            ) : null}
+          </div>
+
+
+          <div style={{
+            marginTop: 16,
+            padding: '12px 16px',
+            background: 'var(--surface-3)',
+            borderRadius: 8,
+            fontSize: 13,
+            color: 'var(--text-dim)',
+            lineHeight: 1.5,
+          }}>
+            {producto.sinStock ? (
+              <span style={{ color: COLOR_SIN_STOCK, fontWeight: 600 }}>Producto sin stock actualmente.</span>
+            ) : (
+              <>
+                Producto listo para envío — envío en 3-5 días hábiles
+                {producto.stock > 0 && (
+                  <span style={{ marginLeft: 8, color: 'var(--accent)' }}>· {producto.stock} unidades disponibles</span>
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         <div>
-          {categoria && (
-            <span style={{
-              display: 'inline-block',
-              background: '#FA7F19',
-              color: '#FFFFFF',
-              fontSize: 11,
-              padding: '3px 10px',
-              borderRadius: 999,
-              marginBottom: 12,
-            }}
-            >
-              {categoria.nombre}
-            </span>
-          )}
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, marginBottom: 14, color: 'var(--surface)' }}>{producto.nombre}</h1>
           {producto.descripcion && (
-            <p style={{ fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 24, maxWidth: 420 }}>
+            <p style={{ fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 16, textAlign: 'justify', marginTop: 20 }}>
               {producto.descripcion}
             </p>
           )}
-          {producto.specs && producto.specs.length > 0 && (
-            <ul style={{
-              listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 420
-            }}>
-              {producto.specs.map((spec, i) => (
-                <li
+
+          {producto.rating && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
                   key={i}
-                  style={{
-                    fontSize: 13,
-                    color: 'var(--text-dim)',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 8,
-                  }}
-                >
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FA7F19', marginTop: 6, flexShrink: 0 }} />
-                  {spec}
-                </li>
+                  size={18}
+                  fill={i < producto.rating ? '#FA7F19' : 'none'}
+                  color={i < producto.rating ? '#FA7F19' : 'var(--line)'}
+                />
               ))}
-            </ul>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)', marginLeft: 4 }}>
+                {producto.rating}.0
+              </span>
+            </div>
           )}
+
+          <p style={{ fontSize: 14, color: 'var(--surface)', lineHeight: 1.6, marginBottom: 12, textAlign: 'left' }}>
+            Detalles:
+          </p>
+
+          <ul style={{
+            listStyle: 'none', padding: 0, margin: '0 0 24px', display: 'flex', flexDirection: 'column', gap: 8
+          }}>
+            {producto.material && (
+              <li style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FA7F19', marginTop: 6, flexShrink: 0 }} />
+                Material: {producto.material}
+              </li>
+            )}
+            {producto.tamano && (
+              <li style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FA7F19', marginTop: 6, flexShrink: 0 }} />
+                Tamaño: {producto.tamano}
+              </li>
+            )}
+            {producto.color && (
+              <li style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FA7F19', marginTop: 6, flexShrink: 0 }} />
+                Color: {producto.color}
+              </li>
+            )}
+            {specsLimpios.map((spec, i) => (
+              <li
+                key={i}
+                style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', alignItems: 'flex-start', gap: 8 }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FA7F19', marginTop: 6, flexShrink: 0 }} />
+                {spec}
+              </li>
+            ))}
+          </ul>
+
           <div style={{
             display: 'flex',
             alignItems: 'baseline',
@@ -174,21 +256,20 @@ export default function ProductoDetalle() {
             marginBottom: 24
           }}>
             <span style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 22,
+              fontSize: 30,
+              fontWeight: 600,
               color: 'var(--surface)'
             }}>
               ${producto.precio.toLocaleString('es-CL')} CLP
             </span>
-            {producto.precioOriginal && (
+            {producto.precio_original && (
               <span style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 15,
+                fontSize: 16,
                 color: 'var(--text-dim)',
                 textDecoration: 'line-through',
               }}
               >
-                ${producto.precioOriginal.toLocaleString('es-CL')}
+                ${producto.precio_original.toLocaleString('es-CL')}
               </span>
             )}
           </div>
@@ -211,7 +292,7 @@ export default function ProductoDetalle() {
               >
                 <Minus size={16} style={{ color: 'var(--surface-2)' }} />
               </button>
-              <span style={{ width: 32, textAlign: 'center', textAlign: 'center', fontSize: 14, color: 'var(--surface-2)' }}>{cantidad}</span>
+              <span style={{ width: 32, textAlign: 'center', fontSize: 14, color: 'var(--surface-2)' }}>{cantidad}</span>
               <button onClick={() => setCantidad(c => c + 1)}
                 style={{
                   display: 'flex',
@@ -256,9 +337,30 @@ export default function ProductoDetalle() {
           </div>
         </div>
       </div>
+      {/*ACA MOSTRAR SOLO 4 PERO LO MAS VENDIDOS !!!*/}
+      {recomendados.length > 0 && (
+        <div style={{ marginTop: 64 }}>
+          <hr style={{ border: 'none', borderTop: '1px solid var(--line)', marginBottom: 32 }} />
+          <h2 style={{
+            fontSize: 22,
+            fontWeight: 600,
+            color: 'var(--surface-2)',
+            marginBottom: 24,
+            textAlign: 'center',
+          }}>
+            También te recomendamos
+          </h2>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 20,
+          }}>
+            {recomendados.map((p, i) => (
+              <ProductCard key={p.id} producto={p} index={i} />
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
-
-
-

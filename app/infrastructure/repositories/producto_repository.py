@@ -57,14 +57,43 @@ class ProductoRepository(ProductoRepositoryInterface):
 
     def add(self, entidad: Producto) -> Producto:
         db.session.add(_a_modelo(entidad))
+        db.session.commit()
         return entidad
 
     def update(self, entidad: Producto) -> Producto:
-        db.session.merge(_a_modelo(entidad))
+        modelo = db.session.get(self.model, entidad.id)
+        if modelo is None:
+            raise ValueError("Producto no encontrado en BD")
+        modelo.nombre = entidad.nombre
+        modelo.descripcion = entidad.descripcion
+        modelo.precio = entidad.precio
+        modelo.stock = entidad.stock
+        modelo.imagen = entidad.imagen
+        modelo.activo = entidad.activo
+        modelo.categoria_id = entidad.categoria_id
+        modelo.material = entidad.material
+        modelo.tamano = entidad.tamano
+        modelo.color = entidad.color
+        modelo.specs = entidad.specs
+        modelo.descuento = entidad.descuento
+        modelo.badge = entidad.badge
+        modelo.precio_original = entidad.precio_original
+        modelo.rating = entidad.rating
+        db.session.commit()
         return entidad
 
     def delete(self, entidad: Producto) -> None:
         db.session.delete(_a_modelo(entidad))
+        db.session.commit()
+
+    def guardar_imagen(self, producto_id: UUID, imagen: ImagenProducto) -> None:
+        modelo = db.session.get(self.model, producto_id)
+        if modelo:
+            modelo.imagen_bytes = imagen.bytes
+            modelo.imagen_content_type = imagen.content_type
+            if not modelo.imagen:
+                modelo.imagen = f"/api/productos/{producto_id}/imagen"
+            db.session.commit()
 
     def _ejecutar(self, consulta: Any) -> list[Producto]:
         modelos = db.session.execute(consulta).scalars().all()
@@ -82,6 +111,14 @@ def _a_entidad(modelo: ProductoModel) -> Producto:
         activo=modelo.activo,
         categoria_id=modelo.categoria_id,
         creado_en=modelo.creado_en,
+        specs=modelo.specs,
+        descuento=modelo.descuento,
+        badge=modelo.badge,
+        precio_original=modelo.precio_original,
+        rating=modelo.rating,
+        material=modelo.material,
+        tamano=modelo.tamano,
+        color=modelo.color,
     )
 
 
@@ -96,4 +133,12 @@ def _a_modelo(entidad: Producto) -> ProductoModel:
         activo=entidad.activo,
         categoria_id=entidad.categoria_id,
         creado_en=entidad.creado_en,
+        material=entidad.material,
+        tamano=entidad.tamano,
+        color=entidad.color,
+        specs=entidad.specs,
+        descuento=entidad.descuento,
+        badge=entidad.badge,
+        precio_original=entidad.precio_original,
+        rating=entidad.rating,
     )

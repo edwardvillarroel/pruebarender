@@ -54,9 +54,6 @@ const LINK_BUTTON_STYLE = {
   fontFamily: 'inherit',
 }
 
-// Sección del footer con acordeón: en desktop el contenido siempre se ve
-// y el chevron está oculto (CSS); en móvil el título es un botón que
-// despliega/pliega el contenido.
 function SeccionFooter({ titulo, abierta, alAlternar, children }) {
   return (
     <div className="footer-seccion">
@@ -232,7 +229,7 @@ export default function Footer() {
               fontFamily: 'var(--font-mono)',
             }}
           >
-            <span>©2025 ApoloVibes3D. Todos los derechos reservados</span>
+            <span>Copyright © 2024 ApoloVibes3D. </span>
             <span>Impulsando la creatividad con cada impresión</span>
           </div>
         </div>

@@ -11,9 +11,10 @@ export default function HeroEstatico() {
       className="hero-section"
       style={{
         position: 'relative',
-        minHeight: '620px',
+        width: '100%',
+        minHeight: '480px',
         overflow: 'hidden',
-        aspectRatio: '1536 / 1024',
+        aspectRatio: '1536 / 900',
         display: 'flex',
         alignItems: 'flex-start',
       }}
@@ -28,6 +29,7 @@ export default function HeroEstatico() {
           width: '100%',
           height: '100%',
           objectFit: 'cover',
+          objectPosition: 'center',
           objectPosition: 'center',
         }}
         fetchpriority="high"
