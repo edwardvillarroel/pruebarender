@@ -4,7 +4,7 @@ ApoloVibes: web store for 3D-printed products with LLM-assisted custom designs. 
 
 ## Governance
 
-- `docs/ARQUITECTURA.md` (duplicated at root as `ARQUITECTURA.md`, byte-identical; edit `docs/`) is the design contract. The API contracts in §6 are **imposed by the already-built frontend** — do not change route shapes, field names, or response formats without updating the frontend.
+- `docs/ARQUITECTURA.md` is the design contract; **its copy at root `ARQUITECTURA.md` is now stale** (not synced). `docs/` has a "Nota de desviación" (Producto gained BLOB columns `imagen_bytes`/`imagen_content_type`, new `GET /api/productos/:id/imagen`) and **still contains un-resolved `<<<<<<< HEAD` merge-conflict markers around §6** — resolve/reconcile with `docs/` when touching it. The API contracts in §6 are **imposed by the already-built frontend** — do not change route shapes, field names, or response formats without updating the frontend.
 - **Mandatory Clean Architecture layering** (ARQUITECTURA §3.1):
   - `app/domain/` — pure Python, no Flask/SQLAlchemy.
   - `app/application/` — use cases depend only on `domain` via interfaces (DI); application modules must never import each other.
@@ -16,12 +16,18 @@ ApoloVibes: web store for 3D-printed products with LLM-assisted custom designs. 
 
 Two Flask services. The backend (`app/`) is **internal only** — it trusts `X-User-Id`/`X-User-Rol` headers that only the gateway injects; never expose it publicly. The gateway (`gateway/`) owns auth (login/refresh/logout/me), rate limiting and proxies `/api/*` to the backend.
 
-Run from repo root, in a venv (gateway deps from `gateway/requirements.txt`):
+Run from repo root, in a venv. Instala TODO con un solo archivo: `pip install -r requirements.txt` (incluye las deps del gateway, p.ej. `httpx`; `gateway/requirements.txt` queda obsoleto):
 
-1. `docker compose up -d db` — PostgreSQL 16 only (db `print3d_dev`, user/pass `app`/`app`). Redis/Celery are in requirements but have **no compose service**; LLM async task infra is not runnable via compose yet.
+1. `docker compose up -d db` — PostgreSQL 16 only for tests (db `print3d_dev`, user/pass `app`/`app`). `docker-compose.yaml` also declares `backend`/`gateway` services, but the referenced `Dockerfile.backend`/`Dockerfile.gateway` **do not exist** — `docker compose up` (all) will fail; only `-d db` works. Redis/Celery are in requirements but have **no compose service**; LLM async task infra is not runnable via compose.
 2. `flask --app app run --port 8000` — backend interno. El gateway apunta ahí vía `BACKEND_INTERNAL_URL` (default `http://localhost:8000`).
 3. `flask --app gateway.main run --port 3000` — API Gateway público. Sin `ORACLE_DSN` corre sin DB (health/proxy sí; login/me no).
 4. Tests: `python -m pytest` from root. Fixtures (`app`, `client`) in `app/tests/conftest.py` use `TestingConfig` → `TEST_DATABASE_URL` (`print3d_test`), so integration tests need Postgres up. There are currently **no real test files** (only package `__init__.py` skeletons). No pytest.ini/lint/typecheck config exists.
+
+Data scripts (root, run with the backend venv, hit whatever DB `.env` points at — Oracle or Postgres):
+- `agregar_producto.py` — insert a product + image as BLOB (`--imagen ruta.png`, `--what-if` dry-run). Sets `productos.imagen` to the `/api/productos/:id/imagen` URL.
+- `seed_productos_prueba.py` — seeds products intentionally missing descripcion/imagen (frontend robustness test), category "Llaveros".
+- `migrar_imagen_blob.py` — one-off migration adding `imagen_bytes`/`imagen_content_type` (raw SQL, Oracle). Keep as-is unless re-running the migration.
+- `ver_tablas.py` — dump tables/rows of the configured DB.
 
 ## Frontend commands
 
@@ -33,12 +39,13 @@ Run in `ApoloVibes-frontend/`:
 
 ## Current state (verify before assuming anything works)
 
-- Backend bootstraps in `create_app()` (`app/__init__.py`): CORS (Flask-Cors, `CORS_ORIGINS` env) + error handlers (`{mensaje}` JSON, incl. 501 for `NotImplementedError`) + SPA serving. No JWT: la identidad llega como headers `X-User-Id`/`X-User-Rol` y el monolito **confía en ellos** (frontera de confianza = el gateway, jamás exponer `app/`).
-- **Auth vive en el gateway** (`gateway/api/routes/auth_routes.py`): `POST /api/auth/login`, `POST /api/auth/refresh` (cookie HttpOnly `refresh_token`, rotación con detección de reuso), `POST /api/auth/logout`, `GET /api/auth/me`. JWT access 15 min; refresh en Oracle (`refresh_tokens`) si `ORACLE_DSN` está seteado. `/api/auth/register` no existe aún (404 vía proxy).
-- Most non-auth endpoints still `raise NotImplementedError` (catalogo, pedidos, pago, cotizaciones — those live in `app/api/routes/diseno_routes.py` — and ai/image-to-3d). Flask-SQLAlchemy `db` is instantiated in `infrastructure/database/connection.py` but **never `init_app`-ed**, so the DB layer is not wired up despite models existing.
-- Frontend category/payment features run on mock data (`src/data/products.js`, `generarModelo3DMock` in `src/services/ai-model.js` — swap back to real `generarModelo3D` when the AI endpoint lands). Vite `base` is `/ApoloVibes3D-Frontend/`.
-- Frontend login is wired to the API: `LoginModal` calls `POST /api/auth/login` with `{ email, password }` (backend accepts `username` or `email`) and shows `err.mensaje` on failure. `AuthContext` persists `{ token, user }` in localStorage key `apolovibes_auth`; `src/services/api.js` attaches `Authorization: Bearer <token>` to every request when a token exists. `ProtectedRoute` (guards `/admin` in `App.jsx`) requires `rol === 'admin'`.
-- Reusable helpers exist but are **not wired up** — use them when implementing endpoints instead of reinventing: `rol_requerido(*roles)` y `usuario_actual()` (`app/api/middleware/auth.py`, leen los headers `X-User-Rol`/`X-User-Id` del gateway) for the routes marked `TODO: solo rol admin` (`POST /api/productos`, `GET`/`PATCH /api/cotizaciones`); `auditar(accion)` (`app/api/middleware/audit_logger.py`) for RNF-06 audit logging; `app/api/middleware/rate_limiter.py` defines `LLM_RATE_LIMIT` ("5 per minute") / `API_GENERAL_RATE_LIMIT` but Flask-Limiter is never initialized, so rate limiting is inactive.
+- Backend bootstraps in `create_app()` (`app/__init__.py`): CORS (Flask-Cors, `CORS_ORIGINS` env) + `db.init_app(app)` (DB **is wired**: repos/models registered, config reads `DATABASE_URL` or Oracle via `_oracle_uri`) + error handlers (`{mensaje}` JSON, incl. 429 and 501 for `NotImplementedError`) + SPA serving of `ApoloVibes-frontend/dist` under `FRONTEND_BASE_URL`. No JWT: la identidad llega como headers `X-User-Id`/`X-User-Rol` y el monolito **confía en ellos** (frontera de confianza = el gateway, jamás exponer `app/`).
+- **Auth vive en el gateway** (`gateway/api/routes/auth_routes.py`): `POST /api/auth/login`, `POST /api/auth/refresh` (cookie HttpOnly `refresh_token`, rotación con detección de reuso), `POST /api/auth/logout`, `GET /api/auth/me`. JWT access 15 min; refresh en Oracle (`refresh_tokens`) si `ORACLE_DSN` está seteado (el gateway crea `refresh_tokens`/`logs_seguridad` al arrancar vía `infrastructure/ddl.py`). `/api/auth/register` no existe aún (404 vía proxy).
+- **Implementados y contra la BD**: catálogo (`catalogo_routes.py` — GET/POST/PATCH `/productos`, `GET /categorias`, `GET|POST /productos/:id/imagen` sirviendo el BLOB) y **carrito de compras** (`cart_routes.py` — GET `POST`/`PUT`/`DELETE` bajo `/cart`, persiste por usuario real via `CarritoRepositoryBd`, exige sesión con `requiere_sesion()`; ver composición en `_configurar_carrito`/`_configurar_catalogo`, `app/__init__.py`).
+- **Siguen `raise NotImplementedError`**: pedidos y pago (`pedido_routes.py`), cotizaciones (`diseno_routes.py` — TODO `solo rol admin` para GET/PATCH), y ai/image-to-3d (`llm_routes.py`); también `infrastructure/llm/llm_client.py`, `infrastructure/tasks/llm_tasks.py` (Celery), `crear_pedido`/`consultar_pedido`/`procesar_pago` y los casos de uso de cotizaciones.
+- Frontend catálogo y carrito **sí llaman al API** (`src/services/products.js` → `GET /productos`, `/categorias`; `src/services/cart.js` → `/cart`; `ProductContext`/`CartContext`). Solo la generación 3D sigue en mock: `Cotizacion.jsx` usa `generarModelo3DMock` (`src/services/ai-model.js`) — swap a `generarModelo3D` cuando el endpoint LLM aterrice. Vite `base` es `/ApoloVibes3D-Frontend/`.
+- Frontend login is wired to the API: `LoginModal` calls `POST /api/auth/login` with `{ email, password }` (backend accepts `username` or `email`) and shows `err.mensaje` on failure. `AuthContext` persists `{ token, user }` in localStorage key `apolovibes_auth`; `src/services/api.js` attaches `Authorization: Bearer <token>` to every request, auto-refreshes on 401 via `/auth/refresh` (single-flight) y hace logout solo en rutas privadas. `ProtectedRoute` (guards `/admin` in `App.jsx`) requires `rol === 'admin'`.
+- Reusable helpers exist — use them when implementing endpoints instead of reinventing: `requiere_sesion()`, `rol_requerido(*roles)` y `usuario_actual()` (`app/api/middleware/auth.py`, leen los headers `X-User-Id`/`X-User-Rol` del gateway) for the routes marked `TODO: solo rol admin`; `auditar(accion)` (`app/api/middleware/audit_logger.py`) for RNF-06 audit logging; `app/api/middleware/rate_limiter.py` defines `LLM_RATE_LIMIT` ("5 per minute") / `API_GENERAL_RATE_LIMIT` but Flask-Limiter is **never initialized in the backend**, so backend rate limiting is inactive (el gateway sí lo usa: 5/min login, 10/min refresh en `auth_routes.py`).
 
 ## API conventions (frontend expects these)
 

@@ -29,6 +29,9 @@ celery==5.5.3
 # --- Servidor de producción ---
 gunicorn==26.1.0
 
+# --- Proxy HTTP (gateway -> backend) ---
+httpx==0.28.1
+
 # --- Optimización (JSON más rápido, menos CPU) ---
 orjson==3.12.0
 

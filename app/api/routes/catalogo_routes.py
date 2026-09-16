@@ -3,6 +3,7 @@ from uuid import UUID
 
 from flask import Blueprint, current_app, jsonify, request, send_file
 
+from app.api.middleware.auth import requiere_sesion, rol_requerido
 from app.application.catalogo_stock.gestionar_categoria import GestionarCategoria
 from app.application.catalogo_stock.gestionar_producto import GestionarProducto
 from app.application.common.dto import ActualizarProductoDTO, CrearProductoDTO
@@ -74,6 +75,8 @@ def imagen_producto(producto_id):
 
 
 @catalogo_bp.post("/productos")
+@requiere_sesion()
+@rol_requerido("admin")
 def crear_producto():
     datos = request.get_json(silent=True)
     if not datos:
@@ -99,6 +102,8 @@ def crear_producto():
 
 
 @catalogo_bp.patch("/productos/<uuid:producto_id>")
+@requiere_sesion()
+@rol_requerido("admin")
 def actualizar_producto(producto_id):
     datos = request.get_json(silent=True)
     if not datos:
@@ -134,6 +139,8 @@ def listar_categorias():
 
 
 @catalogo_bp.post("/productos/<uuid:producto_id>/imagen")
+@requiere_sesion()
+@rol_requerido("admin")
 def subir_imagen(producto_id):
     if 'imagen' not in request.files:
         return jsonify(mensaje="Campo 'imagen' requerido"), 400
