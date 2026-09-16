@@ -11,6 +11,7 @@ import ProductoDetalle from './pages/ProductoDetalle.jsx'
 import Carrito from './pages/Carrito.jsx'
 import Checkout from './pages/Checkout.jsx'
 import PagoRetorno from './pages/PagoRetorno.jsx'
+import CompraExitosa from './pages/CompraExitosa.jsx'
 import Cotizacion from './pages/Cotizacion.jsx'
 
 import AdminLayout from './pages/admin/AdminLayout.jsx'
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/carrito" element={<TiendaLayout><Carrito /></TiendaLayout>} />
         <Route path="/checkout" element={<TiendaLayout><Checkout /></TiendaLayout>} />
         <Route path="/pago/retorno" element={<TiendaLayout><PagoRetorno /></TiendaLayout>} />
+        <Route path="/compra-exitosa" element={<TiendaLayout><CompraExitosa /></TiendaLayout>} />
         <Route path="/cotizar" element={<TiendaLayout><Cotizacion /></TiendaLayout>} />
 
         <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>

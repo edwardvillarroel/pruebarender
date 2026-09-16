@@ -14,6 +14,11 @@ ver_tablas.py
 seed_productos_prueba.py
 agregar_producto.py
 migrar_imagen_blob.py
+prueba_stock.py
+
+# Docs de diseño/agente (no versionar)
+ARQUITECTURA.md
+AGENTS.md
 
 # Scripts de debug/migración (ya no son necesarios)
 _check_cols.py
@@ -43,5 +48,3 @@ ApoloVibes-frontend/dist/
 app/uploads/*/*
 !app/uploads/cotizaciones/.gitkeep
 !app/uploads/modelos3d/.gitkeep
-AGENTS.md
-ARQUITECTURA.md

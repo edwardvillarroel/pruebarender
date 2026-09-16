@@ -46,7 +46,8 @@ Crea la base `print3d_dev` (user `app` / pass `app`).
 # Activar venv
 python -m venv .venv
 # Windows: .venv\Scripts\activate   |  Unix: source .venv/bin/activate
-pip install -r gateway/requirements.txt
+# Instala deps del gateway + backend (el venv es único, un solo archivo)
+pip install -r requirements.txt
 
 # Configurar variables de entorno
 cp .env.example .env
