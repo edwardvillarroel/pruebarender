@@ -645,8 +645,21 @@ label {
     display: none !important;
   }
 
+  .login-modal-form {
+    padding: 28px 20px !important;
+    overflow-y: auto !important;
+  }
+
   /* Cotizacion responsive */
   .cotizacion-grid {
     grid-template-columns: 1fr !important;
+  }
+}
+
+/* Móvil pequeño: ≤ 480px */
+@media (max-width: 480px) {
+  .login-modal-inner {
+    max-height: 100vh !important;
+    border-radius: 16px !important;
   }
 }

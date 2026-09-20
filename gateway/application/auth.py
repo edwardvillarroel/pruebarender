@@ -1,6 +1,7 @@
 from typing import Protocol
 
 from gateway.domain.seguridad import (
+    crear_hash,
     verificar_password,
     nuevo_jti,
     calcular_expiracion,
@@ -27,6 +28,14 @@ class SesionExpirada(Exception):
     pass
 
 
+class EmailRegistrado(Exception):
+    pass
+
+
+class DatosInvalidos(Exception):
+    pass
+
+
 DURACION_ACCESS_MINUTOS = 15
 DURACION_REFRESH_MINUTOS = 7 * 24 * 60
 
@@ -39,6 +48,40 @@ def _usuario_a_publico(usuario: dict) -> dict:
         "apellido": usuario["apellido"],
         "rol": usuario["rol"],
     }
+
+
+def _validar_registro(email, password, nombre, apellido):
+    email = (email or "").strip().lower()
+    if not email or "@" not in email or "." not in email.split("@")[-1]:
+        raise DatosInvalidos("El correo electrónico no es válido")
+    if not password or len(password) < 6:
+        raise DatosInvalidos("La contraseña debe tener al menos 6 caracteres")
+    if not (nombre or "").strip():
+        raise DatosInvalidos("El nombre es obligatorio")
+    return email, (apellido or "").strip() or None, (nombre or "").strip()
+
+
+def registrar_usuario(email, password, nombre, apellido, telefono, ip, user_agent, fabrica_tokens):
+    """Registra un usuario con rol fijo `cliente` y lo deja con sesión iniciada.
+
+    El rol nunca se recibe del cliente: el registro público jamás crea admins.
+    """
+    email, apellido, nombre = _validar_registro(email, password, nombre, apellido)
+
+    if repositorios.buscar_usuario_por_email(email) is not None:
+        raise EmailRegistrado()
+
+    password_hash = crear_hash(password)
+    usuario = repositorios.crear_usuario(
+        email=email,
+        password_hash=password_hash,
+        nombre=nombre,
+        apellido=apellido,
+        telefono=(telefono or "").strip() or None,
+        rol="cliente",
+    )
+    repositorios.registrar_log("registro_ok", usuario["id"], ip, email)
+    return iniciar_sesion(email, password, ip, user_agent, fabrica_tokens)
 
 
 def iniciar_sesion(email, password, ip, user_agent, fabrica_tokens):

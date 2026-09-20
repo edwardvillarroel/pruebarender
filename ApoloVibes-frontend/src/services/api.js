@@ -2,7 +2,7 @@
 const BASE_URL = '/api'
 const AUTH_STORAGE_KEY = 'apolovibes_auth'
 
-const EXCLUDE_RETRY = ['/auth/login', '/auth/refresh', '/auth/logout']
+const EXCLUDE_RETRY = ['/auth/login', '/auth/refresh', '/auth/logout', '/auth/register']
 
 // Rutas públicas que NO deben causar logout si el token expira
 const PUBLIC_PATHS = ['/productos', '/categorias', '/productos/']

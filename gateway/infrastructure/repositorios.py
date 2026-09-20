@@ -42,6 +42,35 @@ def buscar_usuario_por_id(user_id):
         return _fila_a_usuario(cursor.fetchone(), cursor.description)
 
 
+def crear_usuario(email, password_hash, nombre, apellido, telefono, rol="cliente"):
+    """Crea un usuario nuevo con rol fijo (nunca admin) y lo devuelve."""
+    nuevo_id = uuid.uuid4()
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            """
+            INSERT INTO usuarios
+                (id, email, password_hash, nombre, apellido, telefono, rol, activo, creado_en)
+            VALUES
+                (:id, :email, :password_hash, :nombre, :apellido, :telefono, :rol, 1, CURRENT_TIMESTAMP)
+            """,
+            id=nuevo_id.bytes,
+            email=email,
+            password_hash=password_hash,
+            nombre=nombre,
+            apellido=apellido,
+            telefono=telefono,
+            rol=rol,
+        )
+    return {
+        "id": str(nuevo_id),
+        "email": email,
+        "nombre": nombre,
+        "apellido": apellido,
+        "rol": rol,
+    }
+
+
 def guardar_refresh(jti, user_id, expira_en, ip, user_agent):
     with adquirir_conexion() as conexion:
         cursor = conexion.cursor()

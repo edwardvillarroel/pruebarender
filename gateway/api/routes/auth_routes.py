@@ -2,12 +2,15 @@ from flask import Blueprint, current_app, jsonify, make_response, request
 from flask_jwt_extended import decode_token, get_jwt_identity, jwt_required
 from gateway.api.rate_limit import limiter
 from gateway.application.auth import (
-    CredencialesInvalidas, 
+    CredencialesInvalidas,
+    DatosInvalidos,
+    EmailRegistrado,
     ReusoDetectado,
     SesionExpirada,
     cerrar_sesion,
     iniciar_sesion,
     obtener_perfil,
+    registrar_usuario,
     rotar_refresh,
 )
 from gateway.infrastructure.token_service import TokenServiceFlaskJWT
@@ -70,6 +73,30 @@ def login():
     return _responder_con_sesion(
         {"access_token": sesion["access_token"], "user": sesion["user"]}, sesion
     )
+
+@auth_bp.post("/auth/register")
+@limiter.limit("5 per minute")
+def registrar():
+    datos = request.get_json(silent=True) or {}
+    try:
+        sesion = registrar_usuario(
+            email=datos.get("email", ""),
+            password=datos.get("password", ""),
+            nombre=datos.get("nombre", ""),
+            apellido=datos.get("apellido", ""),
+            telefono=datos.get("telefono"),
+            ip=_ip_cliente(),
+            user_agent=_user_agent(),
+            fabrica_tokens=servicio_tokens,
+        )
+    except DatosInvalidos as e:
+        return jsonify(mensaje=str(e)), 400
+    except EmailRegistrado:
+        return jsonify(mensaje="Ya existe una cuenta con ese correo electrónico"), 409
+    return _responder_con_sesion(
+        {"access_token": sesion["access_token"], "user": sesion["user"]}, sesion
+    )
+
 
 @auth_bp.post("/auth/refresh")
 @limiter.limit("10 per minute")
