@@ -132,6 +132,20 @@ def actualizar_producto(producto_id):
     return jsonify(_a_publico_producto(producto))
 
 
+@catalogo_bp.delete("/productos/<uuid:producto_id>")
+@requiere_sesion()
+@rol_requerido("admin")
+def eliminar_producto(producto_id):
+    try:
+        _servicio_producto().eliminar(producto_id)
+    except ValueError as e:
+        mensaje = str(e)
+        if "no encontrado" in mensaje.lower():
+            return jsonify(mensaje=mensaje), 404
+        return jsonify(mensaje=mensaje), 409
+    return jsonify(mensaje="Producto eliminado correctamente")
+
+
 @catalogo_bp.get("/categorias")
 def listar_categorias():
     categorias = _servicio_categoria().listar()

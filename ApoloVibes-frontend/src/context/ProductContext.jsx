@@ -36,6 +36,11 @@ export function ProductProvider({ children }) {
     )
   }
 
+  /** Elimina un producto del estado local sin re-fetch al API */
+  function eliminarLocal(id) {
+    setProductos(prev => prev.filter(p => p.id !== id))
+  }
+
   useEffect(() => {
     cargar()
   }, [])
@@ -67,6 +72,7 @@ export function ProductProvider({ children }) {
         error,
         recargar: () => cargar(true),
         actualizarLocal,
+        eliminarLocal,
       }}
     >
       {children}

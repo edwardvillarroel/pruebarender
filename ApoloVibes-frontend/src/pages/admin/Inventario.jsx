@@ -1,13 +1,16 @@
 import { useState, useMemo } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { useProductos } from '../../context/ProductContext.jsx';
+import { productoApi } from '../../services/products.js';
 import ModalProducto from '../../components/ModalProducto.jsx';
 import SelectOpciones from '../../components/SelectOpciones.jsx';
 
 export default function Inventario() {
-  const { productos, categorias, cargando, recargar, actualizarLocal } = useProductos();
+  const { productos, categorias, cargando, recargar, actualizarLocal, eliminarLocal } = useProductos();
   const [modal, setModal] = useState(null);
   const [filtroCat, setFiltroCat] = useState(null);
+  const [eliminandoId, setEliminandoId] = useState(null);
+  const [mensaje, setMensaje] = useState(null);
 
   const productosFiltrados = useMemo(() => {
     if (!filtroCat) return productos;
@@ -18,6 +21,25 @@ export default function Inventario() {
     const cat = categorias.find(c => c.id === catId);
     return cat ? cat.nombre : '—';
   };
+
+  async function eliminarProducto(producto) {
+    const confirmado = window.confirm(
+      `¿Estás seguro de que deseas eliminar «${producto.nombre}»? Esta acción no se puede deshacer.`
+    );
+    if (!confirmado) return;
+
+    setEliminandoId(producto.id);
+    setMensaje(null);
+    try {
+      await productoApi.eliminar(producto.id);
+      eliminarLocal(producto.id);
+      setMensaje({ tipo: 'ok', texto: 'Producto eliminado correctamente.' });
+    } catch (err) {
+      setMensaje({ tipo: 'error', texto: err.message });
+    } finally {
+      setEliminandoId(null);
+    }
+  }
 
   return (
     <>
@@ -41,7 +63,13 @@ export default function Inventario() {
       ) : productos.length === 0 ? (
         <p style={{ color: 'var(--text-dim)' }}>No hay productos en la base de datos.</p>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <>
+          {mensaje && (
+            <p style={{ color: mensaje.tipo === 'ok' ? 'var(--green, #22c55e)' : 'var(--red, #ef4444)', margin: '0 0 16px', fontSize: 13 }}>
+              {mensaje.texto}
+            </p>
+          )}
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ color: 'var(--surface)', textAlign: 'left', fontSize: 11, textTransform: 'uppercase' }}>
               <th style={{ padding: '0 10px 12px' }}>#</th>
@@ -78,11 +106,18 @@ export default function Inventario() {
                 <td style={{ padding: '13px 10px', color: 'var(--text-dim)', cursor: 'pointer' }} onClick={() => setModal(p)}>
                   <Pencil size={16} color='var(--green)' />
                 </td>
-                <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}><Trash2 size={16} color='var(--red)' /></td>
+                <td
+                  style={{ padding: '13px 10px', color: 'var(--text-dim)', cursor: eliminandoId === p.id ? 'wait' : 'pointer' }}
+                  onClick={() => !eliminandoId && eliminarProducto(p)}
+                  title="Eliminar producto"
+                >
+                  <Trash2 size={16} color='var(--red)' />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+        </>
       )}
 
       {modal && (
