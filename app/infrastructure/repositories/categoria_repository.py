@@ -39,7 +39,11 @@ class CategoriaRepository(CategoriaRepositoryInterface):
         return entidad
 
     def delete(self, entidad: Categoria) -> None:
-        db.session.delete(_a_modelo(entidad))
+        modelo = db.session.get(self.model, entidad.id)
+        if modelo is None:
+            raise ValueError("Categoría no encontrada en BD")
+        db.session.delete(modelo)
+        db.session.commit()
 
 
 def _a_entidad(modelo: CategoriaModel) -> Categoria:

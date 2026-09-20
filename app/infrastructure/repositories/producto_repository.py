@@ -11,6 +11,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.domain.entities.producto import ImagenProducto, Producto
 from app.domain.interfaces.repositories import (
@@ -83,8 +84,15 @@ class ProductoRepository(ProductoRepositoryInterface):
         return entidad
 
     def delete(self, entidad: Producto) -> None:
-        db.session.delete(_a_modelo(entidad))
-        db.session.commit()
+        modelo = db.session.get(self.model, entidad.id)
+        if modelo is None:
+            raise ValueError("Producto no encontrado en BD")
+        try:
+            db.session.delete(modelo)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            raise ValueError("No se puede eliminar el producto: tiene pedidos asociados")
 
     def guardar_imagen(self, producto_id: UUID, imagen: ImagenProducto) -> None:
         modelo = db.session.get(self.model, producto_id)
