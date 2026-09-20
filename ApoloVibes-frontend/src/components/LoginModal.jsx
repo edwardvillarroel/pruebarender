@@ -1,4 +1,4 @@
-import { useState, useLayoutEffect } from 'react'
+import { useState, useLayoutEffect, useRef } from 'react'
 import { mediaPath } from '../utils/media.js'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -26,11 +26,18 @@ const inputStyle = {
 
 export default function LoginModal({ onClose }) {
     const { login } = useAuth()
+    const [modo, setModo] = useState('login') // 'login' | 'registro'
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [mostrarPassword, setMostrarPassword] = useState(false)
+    const [registro, setRegistro] = useState({
+        nombre: '', apellido: '', email: '', telefono: '', password: '', confirmar: '',
+    })
+    const [mostrarPasswordRegistro, setMostrarPasswordRegistro] = useState(false)
     const [error, setError] = useState('')
+    const [exito, setExito] = useState('')
     const [cargando, setCargando] = useState(false)
+    const tiempoCierre = useRef(null)
 
     useLayoutEffect(() => {
         const scrollY = window.scrollY
@@ -54,6 +61,7 @@ export default function LoginModal({ onClose }) {
             return
         }
         setError('')
+        setExito('')
         setCargando(true)
         try {
             const data = await api.post('/auth/login', { email, password })
@@ -64,6 +72,53 @@ export default function LoginModal({ onClose }) {
         } finally {
             setCargando(false)
         }
+    }
+
+    const cambiarRegistro = (campo, valor) => {
+        setRegistro(prev => ({ ...prev, [campo]: valor }))
+    }
+
+    const handleRegistro = async (e) => {
+        e.preventDefault()
+        const { nombre, apellido, email: rEmail, telefono, password: rPass, confirmar } = registro
+        if (!nombre.trim() || !apellido.trim() || !rEmail || !rPass) {
+            setError('Completa todos los campos obligatorios')
+            return
+        }
+        if (rPass !== confirmar) {
+            setError('Las contraseñas no coinciden')
+            return
+        }
+        if (rPass.length < 6) {
+            setError('La contraseña debe tener al menos 6 caracteres')
+            return
+        }
+        setError('')
+        setExito('')
+        setCargando(true)
+        try {
+            const data = await api.post('/auth/register', {
+                email: rEmail,
+                password: rPass,
+                nombre: nombre.trim(),
+                apellido: apellido.trim(),
+                telefono: telefono.trim() || null,
+            })
+            login({ token: data.access_token, user: data.user })
+            setExito('¡Cuenta creada! Sesión iniciada correctamente.')
+            if (tiempoCierre.current) clearTimeout(tiempoCierre.current)
+            tiempoCierre.current = setTimeout(onClose, 1200)
+        } catch (err) {
+            setError(err.message || 'Error al crear la cuenta')
+        } finally {
+            setCargando(false)
+        }
+    }
+
+    const cambiarModo = (nuevoModo) => {
+        setModo(nuevoModo)
+        setError('')
+        setExito('')
     }
 
     return createPortal(
@@ -87,7 +142,7 @@ export default function LoginModal({ onClose }) {
                 </button>
 
                 {/* Columna izquierda: formulario */}
-                <div style={{ flex: 1, padding: '44px 40px', minWidth: 0 }}>
+                <div className="login-modal-form" style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', padding: '44px 40px' }}>
                     <p
                         style={{
                             fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16,
@@ -97,31 +152,140 @@ export default function LoginModal({ onClose }) {
                         Apolo Vibes 3D
                     </p>
                     <h2 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>
-                        Iniciar sesion
+                        {modo === 'registro' ? 'Crear cuenta' : 'Iniciar sesion'}
                     </h2>
 
-                    <form onSubmit={handleSubmit}>
-                        <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                            Correo electronico
-                        </label>
-                        <input
-                            autoFocus
-                            type="email"
-                            placeholder="tucorreo@correo.cl"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
-                        />
+                    {modo === 'login' ? (
+                        <form onSubmit={handleSubmit}>
+                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                Correo electronico
+                            </label>
+                            <input
+                                autoFocus
+                                type="email"
+                                placeholder="tucorreo@correo.cl"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
+                            />
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Contraseña</label>
-                        </div>
-                        <div style={{ position: 'relative', marginBottom: 18 }}>
-                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Contraseña</label>
+                            </div>
+                            <div style={{ position: 'relative', marginBottom: 18 }}>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMostrarPassword((v) => !v)}
+                                        aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                        style={{
+                                            position: 'absolute', left: 10, zIndex: 1,
+                                            background: 'none', border: 'none',
+                                            color: 'var(--text-dim)', cursor: 'pointer',
+                                            padding: 4, display: 'flex',
+                                        }}
+                                    >
+                                        {mostrarPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                    <input
+                                        type={mostrarPassword ? 'text' : 'password'}
+                                        placeholder="••••••••"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                    />
+                                </div>
+                                <span
+                                    style={{
+                                        fontSize: 11,
+                                        color: 'var(--accent)',
+                                        cursor: 'pointer',
+                                        display: 'block',
+                                        textAlign: 'center',
+                                        marginTop: 12,
+                                    }}
+                                >
+                                    ¿Olvidaste tu contraseña?
+                                </span>
+                            </div>
+
+                            {error && (
+                                <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 14px' }}>{error}</p>
+                            )}
+                            {exito && (
+                                <p style={{ color: '#22c55e', fontSize: 12, margin: '0 0 14px' }}>{exito}</p>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={cargando}
+                                style={{
+                                    width: '100%', padding: '13px 0', borderRadius: 10, border: 'none',
+                                    background: 'var(--accent)', color: '#0B0D10', fontSize: 14, fontWeight: 600,
+                                    cursor: cargando ? 'default' : 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', gap: 8, transition: 'opacity .2s', opacity: cargando ? .7 : 1,
+                                }}
+                                onMouseEnter={(e) => { if (!cargando) e.currentTarget.style.opacity = '.9' }}
+                                onMouseLeave={(e) => { if (!cargando) e.currentTarget.style.opacity = '1' }}
+                            >
+                                {cargando ? 'Entrando...' : 'Entrar'} <span>→</span>
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleRegistro}>
+                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                Nombre
+                            </label>
+                            <input
+                                autoFocus
+                                type="text"
+                                placeholder="Tu nombre"
+                                value={registro.nombre}
+                                onChange={(e) => cambiarRegistro('nombre', e.target.value)}
+                                style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
+                            />
+
+                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                Apellido
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Tu apellido"
+                                value={registro.apellido}
+                                onChange={(e) => cambiarRegistro('apellido', e.target.value)}
+                                style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
+                            />
+
+                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                Correo electronico
+                            </label>
+                            <input
+                                type="email"
+                                placeholder="tucorreo@correo.cl"
+                                value={registro.email}
+                                onChange={(e) => cambiarRegistro('email', e.target.value)}
+                                style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
+                            />
+
+                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                Telefono <span style={{ opacity: .6 }}>(opcional)</span>
+                            </label>
+                            <input
+                                type="tel"
+                                placeholder="+56 9 1234 5678"
+                                value={registro.telefono}
+                                onChange={(e) => cambiarRegistro('telefono', e.target.value)}
+                                style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
+                            />
+
+                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                Contraseña
+                            </label>
+                            <div style={{ position: 'relative', marginBottom: 14 }}>
                                 <button
                                     type="button"
-                                    onClick={() => setMostrarPassword((v) => !v)}
-                                    aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                    onClick={() => setMostrarPasswordRegistro((v) => !v)}
+                                    aria-label={mostrarPasswordRegistro ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                                     style={{
                                         position: 'absolute', left: 10, zIndex: 1,
                                         background: 'none', border: 'none',
@@ -129,55 +293,59 @@ export default function LoginModal({ onClose }) {
                                         padding: 4, display: 'flex',
                                     }}
                                 >
-                                    {mostrarPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    {mostrarPasswordRegistro ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
                                 <input
-                                    type={mostrarPassword ? 'text' : 'password'}
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    type={mostrarPasswordRegistro ? 'text' : 'password'}
+                                    placeholder="Minimo 6 caracteres"
+                                    value={registro.password}
+                                    onChange={(e) => cambiarRegistro('password', e.target.value)}
                                     style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
                                 />
                             </div>
-                            <span
+
+                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                Confirmar contraseña
+                            </label>
+                            <input
+                                type={mostrarPasswordRegistro ? 'text' : 'password'}
+                                placeholder="Repite tu contraseña"
+                                value={registro.confirmar}
+                                onChange={(e) => cambiarRegistro('confirmar', e.target.value)}
+                                style={{ ...inputStyle, marginBottom: 18, color: 'var(--surface)' }}
+                            />
+
+                            {error && (
+                                <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 14px' }}>{error}</p>
+                            )}
+                            {exito && (
+                                <p style={{ color: '#22c55e', fontSize: 12, margin: '0 0 14px' }}>{exito}</p>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={cargando}
                                 style={{
-                                    fontSize: 11,
-                                    color: 'var(--accent)',
-                                    cursor: 'pointer',
-                                    display: 'block',
-                                    textAlign: 'center',
-                                    marginTop: 12,
+                                    width: '100%', padding: '13px 0', borderRadius: 10, border: 'none',
+                                    background: 'var(--accent)', color: '#0B0D10', fontSize: 14, fontWeight: 600,
+                                    cursor: cargando ? 'default' : 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', gap: 8, transition: 'opacity .2s', opacity: cargando ? .7 : 1,
                                 }}
+                                onMouseEnter={(e) => { if (!cargando) e.currentTarget.style.opacity = '.9' }}
+                                onMouseLeave={(e) => { if (!cargando) e.currentTarget.style.opacity = '1' }}
                             >
-                                ¿Olvidaste tu contraseña?
-                            </span>
-                        </div>
+                                {cargando ? 'Creando cuenta...' : 'Crear cuenta'} <span>→</span>
+                            </button>
+                        </form>
+                    )}
 
-                        {error && (
-                            <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 14px' }}>{error}</p>
-                        )}
+                    {modo === 'login' && (
+                        <>
+                            <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', margin: '0 0 14px' }}>
+                                o continua con
+                            </p>
 
-                        <button
-                            type="submit"
-                            disabled={cargando}
-                            style={{
-                                width: '100%', padding: '13px 0', borderRadius: 10, border: 'none',
-                                background: 'var(--accent)', color: '#0B0D10', fontSize: 14, fontWeight: 600,
-                                cursor: cargando ? 'default' : 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center',
-                                justifyContent: 'center', gap: 8, transition: 'opacity .2s', opacity: cargando ? .7 : 1,
-                            }}
-                            onMouseEnter={(e) => { if (!cargando) e.currentTarget.style.opacity = '.9' }}
-                            onMouseLeave={(e) => { if (!cargando) e.currentTarget.style.opacity = '1' }}
-                        >
-                            {cargando ? 'Entrando...' : 'Entrar'} <span>→</span>
-                        </button>
-                    </form>
-
-                    <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', margin: '0 0 14px' }}>
-                        o continua con
-                    </p>
-
-                    <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
+                            <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
                         <button
                             type="button"
                             aria-label="Continuar con Google"
@@ -218,12 +386,31 @@ export default function LoginModal({ onClose }) {
                             Facebook
                         </button>
                     </div>
+                        </>
+                    )}
 
                     <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', margin: 0 }}>
-                        No tienes cuenta?{' '}
-                        <span style={{ color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}>
-                            Registrate gratis
-                        </span>
+                        {modo === 'registro' ? (
+                            <>
+                                Ya tienes cuenta?{' '}
+                                <span
+                                    style={{ color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}
+                                    onClick={() => cambiarModo('login')}
+                                >
+                                    Inicia sesion
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                No tienes cuenta?{' '}
+                                <span
+                                    style={{ color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}
+                                    onClick={() => cambiarModo('registro')}
+                                >
+                                    Registrate gratis
+                                </span>
+                            </>
+                        )}
                     </p>
                 </div>
 
