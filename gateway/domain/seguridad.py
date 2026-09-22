@@ -1,6 +1,14 @@
 import bcrypt
+import secrets
 import uuid
 from datetime import datetime, timezone, timedelta
+
+
+def generar_codigo(digitos: int = 6) -> str:
+    """Código numérico aleatorio para verificación por correo."""
+    minimo = 10 ** (digitos - 1)
+    maximo = (10 ** digitos) - 1
+    return str(secrets.randbelow(maximo - minimo + 1) + minimo)
 
 
 def crear_hash(password: str) -> str:

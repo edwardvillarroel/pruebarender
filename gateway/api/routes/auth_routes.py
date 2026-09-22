@@ -2,16 +2,26 @@ from flask import Blueprint, current_app, jsonify, make_response, request
 from flask_jwt_extended import decode_token, get_jwt_identity, jwt_required
 from gateway.api.rate_limit import limiter
 from gateway.application.auth import (
+    CodigoExpirado,
+    CodigoIncorrecto,
+    CodigoNoEnviado,
+    ContrasenaIncorrecta,
+    CorreoIncorrecto,
     CredencialesInvalidas,
     DatosInvalidos,
     EmailRegistrado,
     ReusoDetectado,
     SesionExpirada,
     cerrar_sesion,
+    confirmar_registro,
+    despachar_codigo_recuperacion,
+    despachar_codigo_verificacion,
     iniciar_sesion,
     obtener_perfil,
     registrar_usuario,
+    restablecer_contrasena,
     rotar_refresh,
+    validar_codigo_recuperacion,
 )
 from gateway.infrastructure.token_service import TokenServiceFlaskJWT
 
@@ -68,11 +78,119 @@ def login():
         return jsonify(mensaje="Correo y contraseña son obligatorios"), 400
     try:
         sesion = iniciar_sesion(email, password, _ip_cliente(), _user_agent(), servicio_tokens)
+    except CorreoIncorrecto:
+        return jsonify(mensaje="Correo incorrecto"), 401
+    except ContrasenaIncorrecta:
+        return jsonify(mensaje="Contraseña incorrecta"), 401
     except CredencialesInvalidas:
         return jsonify(mensaje="Credenciales invalidas"), 401
     return _responder_con_sesion(
         {"access_token": sesion["access_token"], "user": sesion["user"]}, sesion
     )
+
+
+@auth_bp.post("/auth/registro/crear-codigo")
+@limiter.limit("5 per minute")
+def crear_codigo_verificacion():
+    datos = request.get_json(silent=True) or {}
+    email = datos.get("email", "")
+    try:
+        codigo = despachar_codigo_verificacion(email, _ip_cliente())
+    except DatosInvalidos as e:
+        return jsonify(mensaje=str(e)), 400
+    except EmailRegistrado:
+        return jsonify(mensaje="Ya existe una cuenta con ese correo electrónico"), 409
+    except CodigoNoEnviado:
+        return jsonify(mensaje="No se pudo enviar el correo de verificación. Intenta de nuevo"), 502
+    # Envío real (EmailJS configurado): `codigo` es None y no se expone en la respuesta.
+    # MOCK (sin credenciales): se devuelve `codigo` para poder probar el flujo.
+    if codigo is None:
+        return jsonify(mensaje="Código de verificación enviado a tu correo")
+    return jsonify(mensaje="Código de verificación enviado a tu correo", codigo=codigo)
+
+
+@auth_bp.post("/auth/registro/confirmar")
+@limiter.limit("5 per minute")
+def confirmar_cuenta():
+    datos = request.get_json(silent=True) or {}
+    try:
+        sesion = confirmar_registro(
+            email=datos.get("email", ""),
+            codigo=datos.get("codigo", ""),
+            password=datos.get("password", ""),
+            nombre=datos.get("nombre", ""),
+            apellido=datos.get("apellido", ""),
+            telefono=datos.get("telefono"),
+            ip=_ip_cliente(),
+            user_agent=_user_agent(),
+            fabrica_tokens=servicio_tokens,
+        )
+    except DatosInvalidos as e:
+        return jsonify(mensaje=str(e)), 400
+    except CodigoIncorrecto:
+        return jsonify(mensaje="El código de verificación es incorrecto"), 400
+    except CodigoExpirado:
+        return jsonify(mensaje="El código de verificación expiró. Solicita uno nuevo"), 400
+    except EmailRegistrado:
+        return jsonify(mensaje="Ya existe una cuenta con ese correo electrónico"), 409
+    return _responder_con_sesion(
+        {"access_token": sesion["access_token"], "user": sesion["user"]}, sesion
+    )
+
+
+@auth_bp.post("/auth/recuperar/crear-codigo")
+@limiter.limit("5 per minute")
+def crear_codigo_recuperacion():
+    datos = request.get_json(silent=True) or {}
+    email = datos.get("email", "")
+    try:
+        codigo, expira_en = despachar_codigo_recuperacion(email, _ip_cliente())
+    except DatosInvalidos as e:
+        return jsonify(mensaje=str(e)), 400
+    except CodigoNoEnviado:
+        return jsonify(mensaje="No se pudo enviar el correo de verificación. Intenta de nuevo"), 502
+    if codigo is None:
+        return jsonify(mensaje="Código de recuperación enviado a tu correo", expira_en=expira_en.isoformat())
+    return jsonify(mensaje="Código de recuperación enviado a tu correo", codigo=codigo, expira_en=expira_en.isoformat())
+
+
+@auth_bp.post("/auth/recuperar/verificar-codigo")
+@limiter.limit("5 per minute")
+def verificar_codigo_recuperacion():
+    datos = request.get_json(silent=True) or {}
+    try:
+        validar_codigo_recuperacion(
+            email=datos.get("email", ""),
+            codigo=datos.get("codigo", ""),
+        )
+    except DatosInvalidos as e:
+        return jsonify(mensaje=str(e)), 400
+    except CodigoIncorrecto:
+        return jsonify(mensaje="El código de verificación es incorrecto"), 400
+    except CodigoExpirado:
+        return jsonify(mensaje="El código de verificación expiró. Solicita uno nuevo"), 400
+    return jsonify(mensaje="Código válido")
+
+
+@auth_bp.post("/auth/recuperar/confirmar")
+@limiter.limit("5 per minute")
+def confirmar_recuperacion():
+    datos = request.get_json(silent=True) or {}
+    try:
+        restablecer_contrasena(
+            email=datos.get("email", ""),
+            codigo=datos.get("codigo", ""),
+            nueva_password=datos.get("password", ""),
+            ip=_ip_cliente(),
+        )
+    except DatosInvalidos as e:
+        return jsonify(mensaje=str(e)), 400
+    except CodigoIncorrecto:
+        return jsonify(mensaje="El código de verificación es incorrecto"), 400
+    except CodigoExpirado:
+        return jsonify(mensaje="El código de verificación expiró. Solicita uno nuevo"), 400
+    return jsonify(mensaje="Contraseña actualizada. Ya puedes iniciar sesión")
+
 
 @auth_bp.post("/auth/register")
 @limiter.limit("5 per minute")

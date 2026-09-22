@@ -192,7 +192,7 @@ export default function Checkout() {
             />
           </div>
 
-          <div style={{ borderTop: '1px solid var(--surface-3)', marginBottom: 24 }} />
+          <div className="separador-suave" style={{ marginBottom: 24 }} />
 
           {/* Paso 2: Dirección — bloqueado hasta que el contacto sea válido */}
           <fieldset
@@ -354,7 +354,7 @@ export default function Checkout() {
             </div>
           </fieldset>
 
-          <div style={{ borderTop: '1px solid var(--surface-3)', marginBottom: 24 }} />
+          <div className="separador-suave" style={{ marginBottom: 24 }} />
 
           {/* Paso 3: Datos personales — bloqueado hasta completar la dirección */}
           <fieldset
@@ -459,7 +459,7 @@ export default function Checkout() {
             </div>
           </fieldset>
 
-          <div style={{ borderTop: '1px solid var(--surface-3)', marginBottom: 24 }} />
+          <div className="separador-suave" style={{ marginBottom: 24 }} />
 
           {/* Paso 4: Opciones de entrega — bloqueado hasta completar datos personales */}
           <fieldset
@@ -589,11 +589,11 @@ export default function Checkout() {
           </div>
 
           <div
+            className="separador-suave"
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               paddingTop: 14,
-              borderTop: '1px solid var(--surface-3)',
               fontFamily: 'var(--font-mono)',
               fontWeight: 600,
               fontSize: 16,

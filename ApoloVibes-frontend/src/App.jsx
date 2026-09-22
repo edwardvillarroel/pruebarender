@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 
 import Navbar from './components/Navbar.jsx'
+import TopBar from './components/TopBar.jsx'
 import Footer from './components/Footer.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import ScrollToTop from './components/ScrollToTop.jsx'
@@ -20,10 +21,12 @@ import Pedidos from './pages/admin/Pedidos.jsx'
 import RegistrarVentaLocal from './pages/admin/RegistrarVentaLocal.jsx'
 import Inventario from './pages/admin/Inventario.jsx'
 import Cotizaciones from './pages/admin/Cotizaciones.jsx'
+import ReportesVentas from './pages/admin/ReportesVentas.jsx'
 
 function TiendaLayout({ children }) {
   return (
     <>
+      <TopBar />
       <Navbar />
       {children}
       <Footer />
@@ -51,6 +54,7 @@ export default function App() {
           <Route path="venta" element={<RegistrarVentaLocal />} />
           <Route path="inventario" element={<Inventario />} />
           <Route path="cotizaciones" element={<Cotizaciones />} />
+          <Route path="reportes" element={<ReportesVentas />} />
         </Route>
       </Routes>
     </>

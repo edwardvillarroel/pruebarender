@@ -18,3 +18,8 @@ class Config:
         "yes",
         "on",
     )
+    # --- EmailJS (envío real de correos del gateway) ---
+    EMAILJS_PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY", "")
+    EMAILJS_PRIVATE_KEY = os.getenv("EMAILJS_PRIVATE_KEY", "")
+    EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID", "")
+    EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID", "")

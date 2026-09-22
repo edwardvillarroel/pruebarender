@@ -23,8 +23,19 @@ CREATE TABLE IF NOT EXISTS logs_seguridad (
 )
 """
 
+_DDL_CODIGOS_VERIFICACION = """
+CREATE TABLE IF NOT EXISTS codigos_verificacion (
+   email       VARCHAR2(255) NOT NULL,
+   codigo_hash VARCHAR2(255) NOT NULL,
+   expira_en   TIMESTAMP NOT NULL,
+   usado       NUMBER(1) DEFAULT 0 NOT NULL,
+   creado_en   TIMESTAMP DEFAULT SYSTIMESTAMP
+)
+"""
+
 def crear_tablas():
     with adquirir_conexion() as conexion:
         cursor = conexion.cursor()
         cursor.execute(_DDL_REFRESH_TOKENS )
         cursor.execute(_DDL_LOGS_SEGURIDAD)
+        cursor.execute(_DDL_CODIGOS_VERIFICACION)

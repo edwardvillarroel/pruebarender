@@ -71,6 +71,16 @@ def crear_usuario(email, password_hash, nombre, apellido, telefono, rol="cliente
     }
 
 
+def actualizar_password(user_id, password_hash):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            "UPDATE usuarios SET password_hash = :password_hash WHERE id = :user_id",
+            password_hash=password_hash,
+            user_id=uuid.UUID(user_id).bytes,
+        )
+
+
 def guardar_refresh(jti, user_id, expira_en, ip, user_agent):
     with adquirir_conexion() as conexion:
         cursor = conexion.cursor()
@@ -130,4 +140,50 @@ def registrar_log(evento, user_id, ip, detalle):
             VALUES (:evento, :user_id, :ip, :detalle)
             """,
             evento=evento, user_id=user_id, ip=ip, detalle=detalle,
+        )
+
+
+def guardar_codigo(email, codigo_hash, expira_en):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            "DELETE FROM codigos_verificacion WHERE LOWER(email) = LOWER(:email) AND usado = 0",
+            email=email,
+        )
+        cursor.execute(
+            """
+            INSERT INTO codigos_verificacion (email, codigo_hash, expira_en)
+            VALUES (:email, :codigo_hash, :expira_en)
+            """,
+            email=email, codigo_hash=codigo_hash, expira_en=expira_en,
+        )
+
+
+def buscar_codigo(email):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            """
+            SELECT email, codigo_hash, expira_en, usado
+            FROM codigos_verificacion
+            WHERE LOWER(email) = LOWER(:email) AND usado = 0
+            ORDER BY creado_en DESC
+            """,
+            email=email,
+        )
+        fila = cursor.fetchone()
+        if fila is None:
+            return None
+        columnas = [d[0].lower() for d in cursor.description]
+        registro = dict(zip(columnas, fila))
+        registro["usado"] = bool(registro["usado"])
+        return registro
+
+
+def marcar_codigo_usado(email):
+    with adquirir_conexion() as conexion:
+        cursor = conexion.cursor()
+        cursor.execute(
+            "UPDATE codigos_verificacion SET usado = 1 WHERE LOWER(email) = LOWER(:email)",
+            email=email,
         )

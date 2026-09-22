@@ -69,9 +69,20 @@ video {
 }
 
 .wrap {
-  max-width: 1180px;
+  max-width: 1380px;
   margin: 0 auto;
   padding: 0 32px;
+}
+
+/* Líneas separadoras: centralizadas para ajustar grosor/color/margen desde acá */
+.separador {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 0 0 32px;
+}
+
+.separador-suave {
+  border-top: 1px solid var(--surface-3);
 }
 
 .header-logo {
@@ -117,6 +128,12 @@ video {
 .btn:disabled {
   opacity: .5;
   cursor: not-allowed;
+}
+
+/* Oculta el ojo nativo del navegador (Edge ::-ms-reveal) en inputs de
+   contraseña: el toggle propio es el botón Eye del componente. */
+input[type="password"]::-ms-reveal {
+  display: none;
 }
 
 input,
