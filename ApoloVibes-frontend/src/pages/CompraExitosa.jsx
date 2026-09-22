@@ -15,9 +15,6 @@ export default function CompraExitosa() {
         <Link to="/categorias" className="btn btn-primary">Seguir comprando</Link>
         <Link to="/" className="btn btn-ghost">Volver al inicio</Link>
       </div>
-      <p style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 28 }}>
-        Pago simulado: el sistema de pagos real estará disponible próximamente.
-      </p>
     </div>
   )
 }

@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID, uuid4
 
+from app.domain.entities.detalle_pedido import DetallePedido
 from app.domain.enums import EstadoPedido
 
 
@@ -13,3 +14,4 @@ class Pedido:
     direccion_envio: str | None = None
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=datetime.utcnow)
+    detalles: list[DetallePedido] = field(default_factory=list)

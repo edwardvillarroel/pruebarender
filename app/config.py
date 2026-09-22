@@ -45,6 +45,27 @@ class Config:
     LLM_API_KEY = os.getenv("LLM_API_KEY", "")
     LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")
 
+    # Pasarela de pagos TUU (Pago Online de Haulmer)
+    TUU_ACCOUNT_ID = os.getenv("TUU_ACCOUNT_ID", "62224230")
+    TUU_SECRET_KEY = os.getenv(
+        "TUU_SECRET_KEY",
+        "yAk0dXTJLQzkeEWODsQWVpPX0bn7ND50qwoQrXgqqNiUyEpgxIPxPtoCgKeLNeh1upTw72JZx5O9x5IaAtPIGUAVcMNcsUSg3M0M8tgWdUb4F8qkS8I7rHpOUmZqzvfS",
+    )
+    TUU_API_URL = os.getenv(
+        "TUU_API_URL", "https://frontend-api.payment.haulmer.dev/v1/payment"
+    )
+    TUU_SHOP_NAME = os.getenv("TUU_SHOP_NAME", "ApoloVibes")
+    # URL a donde TUU notifica el resultado del pago (server-to-server). Debe
+    # ser accesible públicamente; en producción siempre HTTPS.
+    TUU_URL_CALLBACK = os.getenv(
+        "TUU_URL_CALLBACK", "http://localhost:3000/api/pago/callback"
+    )
+    # URL a donde TUU redirige al cliente después de pagar/cancelar (frontend).
+    TUU_URL_COMPLETE = os.getenv(
+        "TUU_URL_COMPLETE", "http://localhost:5173/pago/retorno"
+    )
+    TUU_URL_CANCEL = os.getenv("TUU_URL_CANCEL", "http://localhost:5173/checkout")
+
     MAX_UPLOAD_SIZE = 10 * 1024 * 1024
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "glb", "stl"}
     UPLOAD_FOLDER = BASE_DIR / "uploads"

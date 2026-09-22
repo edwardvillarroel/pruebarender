@@ -16,6 +16,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     _configurar_carrito(app)
     _configurar_catalogo(app)
+    _configurar_pedidos_pagos(app)
 
     from app.api import register_blueprints
 
@@ -66,6 +67,43 @@ def _configurar_catalogo(app: Flask) -> None:
 
     app.config["PRODUCTO_SERVICE"] = GestionarProducto(ProductoRepository())
     app.config["CATEGORIA_SERVICE"] = GestionarCategoria(CategoriaRepository())
+
+
+def _configurar_pedidos_pagos(app: Flask) -> None:
+    """Punto de composición de pedidos y pago (inyección de dependencias).
+
+    La capa API solo lee los servicios desde `app.config`; así no depende de
+    `infrastructure`. Importar los repositorios y el cliente de TUU aquí
+    registra además los modelos ORM de pedidos/pagos/detalle_pedidos con
+    Flask-SQLAlchemy.
+    """
+    from app.application.pedidos_pagos.consultar_pedido import ConsultarPedido
+    from app.application.pedidos_pagos.crear_pedido import CrearPedido
+    from app.application.pedidos_pagos.procesar_pago import ProcesarPago
+    from app.infrastructure.pagos.tuu_client import TuuCliente
+    from app.infrastructure.database.models.usuario_model import UsuarioModel  # noqa: F401 (registra "usuarios" para la FK de pedidos)
+    from app.infrastructure.repositories.carrito_repository_bd import (
+        CarritoRepositoryBd,
+    )
+    from app.infrastructure.repositories.pago_repository import PagoRepository
+    from app.infrastructure.repositories.pedido_repository import PedidoRepository
+    from app.infrastructure.repositories.producto_repository import (
+        ProductoRepository,
+    )
+
+    pedidos = PedidoRepository()
+    pagos = PagoRepository()
+    productos = ProductoRepository()
+
+    app.config["PEDIDO_SERVICE"] = CrearPedido(pedidos, productos)
+    app.config["CONSULTA_PEDIDO_SERVICE"] = ConsultarPedido(pedidos)
+    app.config["PAGO_SERVICE"] = ProcesarPago(
+        pedidos,
+        pagos,
+        productos,
+        TuuCliente(app.config),
+        CarritoRepositoryBd(),
+    )
 
 
 def _montar_frontend_produccion(app: Flask) -> None:

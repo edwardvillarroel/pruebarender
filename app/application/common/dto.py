@@ -37,3 +37,32 @@ class ActualizarProductoDTO:
 class CrearCategoriaDTO:
     nombre: str
     descripcion: str | None = None
+
+
+@dataclass
+class ItemPedidoDTO:
+    producto_id: UUID
+    cantidad: int
+
+
+@dataclass
+class CrearPedidoDTO:
+    usuario_id: UUID
+    items: list[ItemPedidoDTO]
+    entrega: str = "retiro"
+    cliente: dict | None = None
+
+
+@dataclass
+class IniciarPagoDTO:
+    usuario_id: UUID
+    items: list[ItemPedidoDTO]
+    entrega: str = "retiro"
+    cliente: dict | None = None
+
+
+@dataclass
+class ResultadoConfirmacionPago:
+    estado: str
+    pedido_id: str
+    mensaje: str
