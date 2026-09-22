@@ -1,9 +1,10 @@
-import { useState, useLayoutEffect, useRef } from 'react'
+import { useState, useLayoutEffect, useEffect, useRef } from 'react'
 import { mediaPath } from '../utils/media.js'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { api } from '../services/api.js'
-import { Eye, EyeOff } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, Lock, Mail, User } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 const overlayStyle = {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)',
@@ -24,9 +25,49 @@ const inputStyle = {
     boxSizing: 'border-box',
 }
 
+const errorSlotStyle = { color: '#ef4444', fontSize: 12, margin: '5px 0 14px', height: 14 }
+
+const botonAccionRegistro = {
+    padding: '13px 0', borderRadius: 10, border: 'none',
+    background: 'var(--accent)', color: '#ffff', fontSize: 14, fontWeight: 600,
+    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: 8, transition: 'opacity .2s',
+}
+
+const botonFlechaRegistro = {
+    flex: 1, border: '1px solid var(--line)', borderRadius: 10,
+    padding: '11px 0', background: 'transparent', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: 6, color: 'var(--text-dim)', fontSize: 13, fontWeight: 600,
+    transition: 'border-color .2s',
+}
+
+const analizarPassword = (pw) => {
+    const reqs = [
+        { id: 'largo', label: 'Mínimo 8 caracteres', ok: pw.length >= 8 },
+        { id: 'variedad', label: 'Mayúsculas y minúsculas', ok: /[a-z]/.test(pw) && /[A-Z]/.test(pw) },
+        { id: 'numero', label: 'Al menos un número', ok: /\d/.test(pw) },
+        { id: 'simbolo', label: 'Al menos un símbolo', ok: /[^A-Za-z0-9]/.test(pw) },
+    ]
+    const puntos = reqs.filter(r => r.ok).length
+    if (!pw) return { reqs, puntos, nivel: null, color: null }
+    const nivel = puntos <= 1 ? 'Insegura' : puntos === 2 ? 'Débil' : puntos === 3 ? 'Media' : 'Segura'
+    const color = puntos <= 1 ? '#ef4444' : puntos === 2 ? '#f59e0b' : puntos === 3 ? '#eab308' : '#22c55e'
+    return { reqs, puntos, nivel, color }
+}
+
+const ocultarCorreo = (email) => {
+    if (!email) return '';
+    const [usuario, dominio] = email.trim().split('@');
+    if (!usuario || !dominio) return email;
+    const visibles = usuario.slice(-4);
+    const ocultos = Math.max(usuario.length - 4, 4);
+    return `${'x'.repeat(ocultos)}${visibles}@${dominio}`;
+}
+
 export default function LoginModal({ onClose }) {
     const { login } = useAuth()
-    const [modo, setModo] = useState('login') // 'login' | 'registro'
+    const [modo, setModo] = useState('login')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [mostrarPassword, setMostrarPassword] = useState(false)
@@ -34,10 +75,33 @@ export default function LoginModal({ onClose }) {
         nombre: '', apellido: '', email: '', telefono: '', password: '', confirmar: '',
     })
     const [mostrarPasswordRegistro, setMostrarPasswordRegistro] = useState(false)
+    const [mostrarConfirmarRegistro, setMostrarConfirmarRegistro] = useState(false)
     const [error, setError] = useState('')
     const [exito, setExito] = useState('')
     const [cargando, setCargando] = useState(false)
     const tiempoCierre = useRef(null)
+    const [errores, setErrores] = useState({ email: '', password: '' })
+    const [paso, setPaso] = useState(1)
+    const [erroresPaso, setErroresPaso] = useState({})
+    const [enviandoCodigo, setEnviandoCodigo] = useState(false)
+    const [codigoEnviado, setCodigoEnviado] = useState(false)
+    const [codigoDePrueba, setCodigoDePrueba] = useState('')
+    const [codigo, setCodigo] = useState('')
+    const [olvidar, setOlvidar] = useState({ email: '', codigo: '', password: '', confirmar: '' })
+    const [erroresOlvidar, setErroresOlvidar] = useState({})
+    const [mostrarNuevaPassword, setMostrarNuevaPassword] = useState(false)
+    const [mostrarConfirmarNueva, setMostrarConfirmarNueva] = useState(false)
+    const [enviandoCodigoRecup, setEnviandoCodigoRecup] = useState(false)
+    const [codigoRecupEnviado, setCodigoRecupEnviado] = useState(false)
+    const [codigoRecupPrueba, setCodigoRecupPrueba] = useState('')
+    const [errorRecup, setErrorRecup] = useState('')
+    const [exitoRecup, setExitoRecup] = useState('')
+    const [pasoRecup, setPasoRecup] = useState(1)
+    const [cargandoRecup, setCargandoRecup] = useState(false)
+    const [expiraRecupEn, setExpiraRecupEn] = useState('')
+    const [tiempoRestante, setTiempoRestante] = useState(0)
+    const [codigoExpiradoRecup, setCodigoExpiradoRecup] = useState(false)
+    const navigate = useNavigate()
 
     useLayoutEffect(() => {
         const scrollY = window.scrollY
@@ -54,12 +118,33 @@ export default function LoginModal({ onClose }) {
         }
     }, [])
 
+    const formatearTiempo = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+
+    // Countdown de expiración del código de recuperación
+    useEffect(() => {
+        if (!expiraRecupEn) return
+        const fin = new Date(expiraRecupEn).getTime()
+        const tick = () => {
+            const resta = Math.max(0, Math.floor((fin - Date.now()) / 1000))
+            setTiempoRestante(resta)
+            if (resta <= 0) {
+                setCodigoExpiradoRecup(true)
+                clearInterval(id)
+            }
+        }
+        tick()
+        const id = setInterval(tick, 1000)
+        return () => clearInterval(id)
+    }, [expiraRecupEn])
+
     const handleSubmit = async (e) => {
         e.preventDefault()
-        if (!email || !password) {
-            setError('Completa todos los campos')
-            return
+        const nuevosErrores = {
+            email: !email.trim() ? 'Completa tu correo' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? 'Ingresa un correo válido' : '',
+            password: !password ? 'Completa tu contraseña' : '',
         }
+        setErrores(nuevosErrores)
+        if (nuevosErrores.email || nuevosErrores.password) return
         setError('')
         setExito('')
         setCargando(true)
@@ -68,7 +153,16 @@ export default function LoginModal({ onClose }) {
             login({ token: data.access_token, user: data.user })
             onClose()
         } catch (err) {
-            setError(err.message || 'Error al iniciar sesión')
+            const msg = err.message || ''
+            if (msg.startsWith('Correo')) {
+                setErrores(prev => ({ ...prev, email: msg }))
+            } else if (msg.startsWith('Contraseña')) {
+                setErrores(prev => ({ ...prev, password: msg }))
+            } else if (/credenciales/i.test(msg)) {
+                setErrores({ email: 'Correo inválido', password: 'Contraseña inválida' })
+            } else {
+                setError(msg || 'Error al iniciar sesión')
+            }
         } finally {
             setCargando(false)
         }
@@ -76,40 +170,92 @@ export default function LoginModal({ onClose }) {
 
     const cambiarRegistro = (campo, valor) => {
         setRegistro(prev => ({ ...prev, [campo]: valor }))
+        setErroresPaso(prev => (prev[campo] ? { ...prev, [campo]: '' } : prev))
     }
 
-    const handleRegistro = async (e) => {
+    const limpiarErrorCampo = (campo) => {
+        setErroresPaso(prev => (prev[campo] ? { ...prev, [campo]: '' } : prev))
+    }
+
+    const validarPaso1 = () => {
+        const e = {}
+        if (!registro.nombre.trim()) e.nombre = 'Completa tu nombre'
+        if (!registro.apellido.trim()) e.apellido = 'Completa tu apellido'
+        const mail = registro.email.trim()
+        if (!mail) e.email = 'Completa tu correo'
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) e.email = 'Ingresa un correo válido'
+        setErroresPaso(e)
+        return Object.keys(e).length === 0
+    }
+
+    const validarPaso2 = () => {
+        const e = {}
+        if (!registro.password) e.password = 'Completa tu contraseña'
+        else if (registro.password.length < 6) e.password = 'Ingresa tu contraseña'
+        if (!registro.confirmar) e.confirmar = 'Repite tu contraseña'
+        else if (registro.confirmar !== registro.password) e.confirmar = 'Las contraseñas no coinciden'
+        setErroresPaso(e)
+        return Object.keys(e).length === 0
+    }
+
+    const enviarCodigoPaso3 = async () => {
+        if (enviandoCodigo) return
+        setEnviandoCodigo(true)
+        setError('')
+        setCodigoEnviado(false)
+        try {
+            const data = await api.post('/auth/registro/crear-codigo', { email: registro.email.trim() })
+            setCodigoEnviado(true)
+            setCodigoDePrueba(data.codigo || '')
+            setPaso(4)
+        } catch (err) {
+            if ((err.message || '').includes('cuenta con ese correo')) {
+                setErroresPaso({ email: err.message })
+            } else {
+                setError(err.message || 'No se pudo enviar el código')
+            }
+        } finally {
+            setEnviandoCodigo(false)
+        }
+    }
+
+    const confirmarRegistro = async (e) => {
         e.preventDefault()
-        const { nombre, apellido, email: rEmail, telefono, password: rPass, confirmar } = registro
-        if (!nombre.trim() || !apellido.trim() || !rEmail || !rPass) {
-            setError('Completa todos los campos obligatorios')
+        const c = codigo.trim()
+        const eCodigo = {}
+        if (!c) eCodigo.codigo = 'Ingresa el código'
+        else if (!/^\d{6}$/.test(c)) eCodigo.codigo = 'El código tiene 6 dígitos'
+        if (Object.keys(eCodigo).length > 0) {
+            setErroresPaso(eCodigo)
             return
         }
-        if (rPass !== confirmar) {
-            setError('Las contraseñas no coinciden')
-            return
-        }
-        if (rPass.length < 6) {
-            setError('La contraseña debe tener al menos 6 caracteres')
-            return
-        }
+        setErroresPaso({})
         setError('')
         setExito('')
         setCargando(true)
         try {
-            const data = await api.post('/auth/register', {
-                email: rEmail,
-                password: rPass,
-                nombre: nombre.trim(),
-                apellido: apellido.trim(),
-                telefono: telefono.trim() || null,
+            const data = await api.post('/auth/registro/confirmar', {
+                email: registro.email.trim(),
+                codigo: c,
+                password: registro.password,
+                nombre: registro.nombre.trim(),
+                apellido: registro.apellido.trim(),
+                telefono: registro.telefono.trim() ? '+569' + registro.telefono.trim() : null,
             })
             login({ token: data.access_token, user: data.user })
             setExito('¡Cuenta creada! Sesión iniciada correctamente.')
             if (tiempoCierre.current) clearTimeout(tiempoCierre.current)
-            tiempoCierre.current = setTimeout(onClose, 1200)
+            tiempoCierre.current = setTimeout(() => {
+                onClose()
+                navigate('/')
+            }, 1800)
         } catch (err) {
-            setError(err.message || 'Error al crear la cuenta')
+            const msg = err.message || 'Error al crear la cuenta'
+            if (/c[dó]digo/.test(msg.toLowerCase())) {
+                setErroresPaso({ codigo: msg })
+            } else {
+                setError(msg)
+            }
         } finally {
             setCargando(false)
         }
@@ -119,7 +265,122 @@ export default function LoginModal({ onClose }) {
         setModo(nuevoModo)
         setError('')
         setExito('')
+        setPaso(1)
+        setErroresPaso({})
+        setCodigoEnviado(false)
+        setCodigoDePrueba('')
+        setCodigo('')
+        setErroresOlvidar({})
+        setErrorRecup('')
+        setExitoRecup('')
+        setCodigoRecupEnviado(false)
+        setCodigoRecupPrueba('')
+        setPasoRecup(1)
+        setExpiraRecupEn('')
+        setTiempoRestante(0)
+        setCodigoExpiradoRecup(false)
     }
+
+    // ---- Recuperación de contraseña ----
+    const abrirRecuperacion = () => {
+        setOlvidar(prev => ({ email: email.trim() || prev.email, codigo: '', password: '', confirmar: '' }))
+        cambiarModo('olvidar')
+    }
+
+    const cambiarOlvidar = (campo, valor) => {
+        setOlvidar(prev => ({ ...prev, [campo]: valor }))
+        setErroresOlvidar(prev => (prev[campo] ? { ...prev, [campo]: '' } : prev))
+    }
+
+    const validarPasoRecup1 = () => {
+        const e = {}
+        const mail = olvidar.email.trim()
+        if (!mail) e.email = 'Completa tu correo'
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) e.email = 'Ingresa un correo válido'
+        setErroresOlvidar(e)
+        return Object.keys(e).length === 0
+    }
+
+    const enviarCodigoRecuperacion = async () => {
+        if (!validarPasoRecup1() || enviandoCodigoRecup) return
+        setEnviandoCodigoRecup(true)
+        setErrorRecup('')
+        setCodigoRecupEnviado(false)
+        try {
+            const data = await api.post('/auth/recuperar/crear-codigo', { email: olvidar.email.trim() })
+            setCodigoRecupEnviado(true)
+            setCodigoRecupPrueba(data.codigo || '')
+            setExpiraRecupEn(data.expira_en || new Date(Date.now() + 5 * 60 * 1000).toISOString())
+            setCodigoExpiradoRecup(false)
+            setPasoRecup(2)
+        } catch (err) {
+
+            setErroresOlvidar(prev => ({ ...prev, email: err.message || 'No se pudo enviar el código' }))
+        } finally {
+            setEnviandoCodigoRecup(false)
+        }
+    }
+
+    const validarPasoRecup3 = () => {
+        const e = {}
+        if (!olvidar.password) e.password = 'Completa la nueva contraseña'
+        else if (olvidar.password.length < 6) e.password = 'Ingresa tu nueva contraseña'
+        if (!olvidar.confirmar) e.confirmar = 'Repite la nueva contraseña'
+        else if (olvidar.confirmar !== olvidar.password) e.confirmar = 'Las contraseñas no coinciden'
+        setErroresOlvidar(e)
+        return Object.keys(e).length === 0
+    }
+
+    const verificarCodigoRecuperacion = async (e) => {
+        e.preventDefault()
+        const c = olvidar.codigo.trim()
+        const eCodigo = {}
+        if (!c) eCodigo.codigo = 'Ingresa el código'
+        else if (!/^\d{6}$/.test(c)) eCodigo.codigo = 'El código tiene 6 dígitos'
+        setErroresOlvidar(eCodigo)
+        if (Object.keys(eCodigo).length > 0 || cargandoRecup) return
+        setErroresOlvidar({})
+        setErrorRecup('')
+        setCargandoRecup(true)
+        try {
+            await api.post('/auth/recuperar/verificar-codigo', { email: olvidar.email.trim(), codigo: c })
+            setPasoRecup(3)
+        } catch (err) {
+            const msg = err.message || 'Error al verificar el código'
+            if (/c[dó]digo/.test(msg.toLowerCase())) setErroresOlvidar({ codigo: msg })
+            else setErrorRecup(msg)
+        } finally {
+            setCargandoRecup(false)
+        }
+    }
+
+    const confirmarRecuperacion = async (e) => {
+        e.preventDefault()
+        if (!validarPasoRecup3() || cargandoRecup) return
+        setErroresOlvidar({})
+        setErrorRecup('')
+        setExitoRecup('')
+        setCargandoRecup(true)
+        try {
+            await api.post('/auth/recuperar/confirmar', {
+                email: olvidar.email.trim(),
+                codigo: olvidar.codigo.trim(),
+                password: olvidar.password,
+            })
+            setExitoRecup('ok')
+            if (tiempoCierre.current) clearTimeout(tiempoCierre.current)
+            tiempoCierre.current = setTimeout(() => cambiarModo('login'), 2200)
+        } catch (err) {
+            const msg = err.message || 'Error al restablecer la contraseña'
+            if (/c[dó]digo/.test(msg.toLowerCase())) setErroresOlvidar({ codigo: msg })
+            else setErrorRecup(msg)
+        } finally {
+            setCargandoRecup(false)
+        }
+    }
+
+    const fortaleza = analizarPassword(registro.password)
+    const fortalezaRecup = analizarPassword(olvidar.password)
 
     return createPortal(
         <div style={overlayStyle} onClick={onClose}>
@@ -142,67 +403,326 @@ export default function LoginModal({ onClose }) {
                 </button>
 
                 {/* Columna izquierda: formulario */}
-                <div className="login-modal-form" style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', padding: '44px 40px' }}>
+                <div className="login-modal-form" style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', padding: '28px 40px' }}>
                     <p
                         style={{
-                            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16,
-                            color: 'var(--accent)', margin: '0 0 6px',
+                            fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, textAlign: 'center',
+                            color: 'var(--accent)', margin: '0 0 0px',
                         }}
                     >
                         Apolo Vibes 3D
                     </p>
-                    <h2 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>
-                        {modo === 'registro' ? 'Crear cuenta' : 'Iniciar sesion'}
+                    <h2 style={{ margin: '0 0 10px', fontSize: 24, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', textAlign: 'center', }}>
+                        {modo === 'registro' ? 'Crear cuenta' : modo === 'olvidar' ? 'Recuperar contraseña' : 'Iniciar sesion'}
                     </h2>
 
-                    {modo === 'login' ? (
-                        <form onSubmit={handleSubmit}>
-                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                                Correo electronico
-                            </label>
-                            <input
-                                autoFocus
-                                type="email"
-                                placeholder="tucorreo@correo.cl"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
-                            />
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                                <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Contraseña</label>
+                    {modo === 'olvidar' ? (
+                        exitoRecup ? (
+                            <div style={{ textAlign: 'center', padding: '60px 0 70px' }}>
+                                <div
+                                    style={{
+                                        width: 64, height: 64, borderRadius: '50%', background: '#22c55e',
+                                        color: '#fff', fontSize: 34, display: 'flex', alignItems: 'center',
+                                        justifyContent: 'center', margin: '0 auto 20px',
+                                    }}
+                                >
+                                    ✓
+                                </div>
+                                <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>
+                                    ¡Contraseña actualizada!
+                                </h3>
+                                <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
+                                    Ya puedes iniciar sesión. Te vamos a redirigir…
+                                </p>
                             </div>
-                            <div style={{ position: 'relative', marginBottom: 18 }}>
+                        ) : pasoRecup === 1 ? (
+                            <form onSubmit={(ev) => { ev.preventDefault(); enviarCodigoRecuperacion() }}>
+                                <div
+                                    style={{
+                                        width: 54, height: 54, borderRadius: '50%',
+                                        background: 'var(--surface-2)', color: 'var(--accent)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        margin: '0 auto 14px',
+                                    }}
+                                >
+                                    <Mail size={50} />
+                                </div>
+                                <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', margin: '0 0 20px', lineHeight: 1.5 }}>
+                                    Te enviaremos un código a tu correo para restablecer tu contraseña.
+                                </p>
+                                <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                    Correo electronico
+                                </label>
+                                <div style={{ position: 'relative' }}>
+                                    <Mail
+                                        size={16}
+                                        style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }}
+                                    />
+                                    <input
+                                        autoFocus
+                                        type="email"
+                                        placeholder="tucorreo@correo.cl"
+                                        value={olvidar.email}
+                                        onChange={(e) => cambiarOlvidar('email', e.target.value)}
+                                        style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                    />
+                                </div>
+                                <p style={{ color: '#ef4444', fontSize: 12, margin: '5px 0 14px', minHeight: 16 }}>
+                                    {erroresOlvidar.email || ''}
+                                </p>
+
+                                <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                                    <button type="button" style={botonFlechaRegistro} onClick={() => cambiarModo('login')}>
+                                        Volver
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={enviandoCodigoRecup}
+                                        style={{ ...botonAccionRegistro, flex: 1, ...(enviandoCodigoRecup ? { opacity: .7, cursor: 'default' } : {}) }}
+                                        onMouseEnter={(e) => { if (!enviandoCodigoRecup) e.currentTarget.style.opacity = '.9' }}
+                                        onMouseLeave={(e) => { if (!enviandoCodigoRecup) e.currentTarget.style.opacity = '1' }}
+                                    >
+                                        {enviandoCodigoRecup ? 'Enviando...' : 'Enviar código'} <span></span>
+                                    </button>
+                                </div>
+                            </form>
+                        ) : pasoRecup === 2 ? (
+                            <form onSubmit={verificarCodigoRecuperacion}>
+                                {codigoRecupEnviado && (
+                                    <div style={{ margin: '30px 0 5px', textAlign: 'center' }}>
+                                        <CheckCircle2
+                                            size={50}
+                                            color="#22c55e"
+                                            style={{ display: 'block', margin: '0 auto 8px' }}
+                                        />
+                                        <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: 0, textAlign: 'center', marginBottom: 20 }}>
+                                            Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvidar.email.trim())}</strong>
+                                            {codigoRecupPrueba && (
+                                                <span style={{ display: 'block', marginTop: 6, padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 8, color: 'var(--text)' }}>
+                                                    Simulación (correo aún no configurado): tu código es <strong>{codigoRecupPrueba}</strong>
+                                                </span>
+                                            )}
+                                        </p>
+                                    </div>
+                                )}
+                                <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', margin: '14px 0 6px' }}>
+                                    Codigo de confirmacion
+                                </label>
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={6}
+                                    placeholder="••••••"
+                                    value={olvidar.codigo}
+                                    onChange={(e) => cambiarOlvidar('codigo', e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    style={{ ...inputStyle, color: 'var(--surface)', letterSpacing: 6, textAlign: 'center', fontSize: 18 }}
+                                />
+                                <p style={errorSlotStyle}>{erroresOlvidar.codigo || ''}</p>
+                                {errorRecup && (
+                                    <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 14px', textAlign: 'center' }}>{errorRecup}</p>
+                                )}
+                                <p style={{ fontSize: 11, color: codigoExpiradoRecup ? '#ef4444' : tiempoRestante <= 60 ? '#f59e0b' : 'var(--text-dim)', textAlign: 'center', marginTop: 0, marginBottom: 0 }}>
+                                    {codigoExpiradoRecup
+                                        ? 'El código expiró. Solicita uno nuevo.'
+                                        : `El código expira en ${formatearTiempo(tiempoRestante)}`}
+                                </p>
+                                <div style={{ display: 'flex', gap: 10, marginTop: 20, marginBottom: 20 }}>
+                                    <button type="button" style={botonFlechaRegistro} onClick={() => setPasoRecup(1)}>
+                                        Volver
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={cargandoRecup || codigoExpiradoRecup}
+                                        style={{ ...botonAccionRegistro, flex: 1, ...((cargandoRecup || codigoExpiradoRecup) ? { opacity: .7, cursor: 'default' } : {}) }}
+                                        onMouseEnter={(e) => { if (!cargandoRecup && !codigoExpiradoRecup) e.currentTarget.style.opacity = '.9' }}
+                                        onMouseLeave={(e) => { if (!cargandoRecup && !codigoExpiradoRecup) e.currentTarget.style.opacity = '1' }}
+                                    >
+                                        {cargandoRecup ? 'Verificando...' : 'Verificar código'} <span></span>
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <form onSubmit={confirmarRecuperacion}>
+                                <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                    Nueva contraseña
+                                </label>
                                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <Lock
+                                        size={16}
+                                        style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }}
+                                    />
+                                    <input
+                                        type={mostrarNuevaPassword ? 'text' : 'password'}
+                                        placeholder="Ingresa tu nueva contraseña"
+                                        value={olvidar.password}
+                                        onChange={(e) => cambiarOlvidar('password', e.target.value)}
+                                        style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--surface)' }}
+                                    />
                                     <button
                                         type="button"
-                                        onClick={() => setMostrarPassword((v) => !v)}
-                                        aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                        onClick={() => setMostrarNuevaPassword((v) => !v)}
+                                        aria-label={mostrarNuevaPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                                         style={{
-                                            position: 'absolute', left: 10, zIndex: 1,
+                                            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 1,
                                             background: 'none', border: 'none',
                                             color: 'var(--text-dim)', cursor: 'pointer',
                                             padding: 4, display: 'flex',
                                         }}
                                     >
-                                        {mostrarPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                        {mostrarNuevaPassword ? <Eye size={16} /> : <EyeOff size={16} />}
                                     </button>
+                                </div>
+                                <p style={{ ...errorSlotStyle, margin: '8px 0 -15px' }}>{erroresOlvidar.password || ''}</p>
+                                <div style={{ marginTop: 8, background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px' }}>
+                                    <div style={{ display: 'grid', gap: 3 }}>
+                                        {fortalezaRecup.reqs.map(r => (
+                                            <div
+                                                key={r.id}
+                                                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: r.ok ? '#22c55e' : 'var(--text-dim)', transition: 'color .15s' }}
+                                            >
+                                                <span style={{ fontSize: 12 }}>{r.ok ? '✓' : '○'}</span>
+                                                {r.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                                        {[1, 2, 3, 4].map(i => (
+                                            <span
+                                                key={i}
+                                                style={{
+                                                    flex: 1, height: 4, borderRadius: 2, transition: 'background .15s',
+                                                    background: fortalezaRecup.nivel && i <= fortalezaRecup.puntos ? fortalezaRecup.color : 'var(--line)',
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', margin: '16px 0 6px' }}>
+                                    Confirmar nueva contraseña
+                                </label>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <Lock
+                                        size={16}
+                                        style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }}
+                                    />
+                                    <input
+                                        type={mostrarConfirmarNueva ? 'text' : 'password'}
+                                        placeholder="Repite tu nueva contraseña"
+                                        value={olvidar.confirmar}
+                                        onChange={(e) => cambiarOlvidar('confirmar', e.target.value)}
+                                        style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--surface)' }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setMostrarConfirmarNueva((v) => !v)}
+                                        aria-label={mostrarConfirmarNueva ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                        style={{
+                                            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 1,
+                                            background: 'none', border: 'none',
+                                            color: 'var(--text-dim)', cursor: 'pointer',
+                                            padding: 4, display: 'flex',
+                                        }}
+                                    >
+                                        {mostrarConfirmarNueva ? <Eye size={16} /> : <EyeOff size={16} />}
+                                    </button>
+                                </div>
+                                <p style={{ ...errorSlotStyle, margin: '4px 0 -8px' }}>{erroresOlvidar.confirmar || ''}</p>
+
+                                {errorRecup && (
+                                    <p style={{ color: '#ef4444', fontSize: 12, margin: '10px 0 0', textAlign: 'center' }}>{errorRecup}</p>
+                                )}
+
+                                <div style={{ display: 'flex', gap: 10, marginTop: 20, marginBottom: 20 }}>
+                                    <button type="button" style={botonFlechaRegistro} onClick={() => setPasoRecup(2)}>
+                                        Volver
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={cargandoRecup}
+                                        style={{ ...botonAccionRegistro, flex: 1, ...(cargandoRecup ? { opacity: .7, cursor: 'default' } : {}) }}
+                                        onMouseEnter={(e) => { if (!cargandoRecup) e.currentTarget.style.opacity = '.9' }}
+                                        onMouseLeave={(e) => { if (!cargandoRecup) e.currentTarget.style.opacity = '1' }}
+                                    >
+                                        {cargandoRecup ? 'Guardando...' : 'Restablecer'} <span></span>
+                                    </button>
+                                </div>
+                            </form>
+                        )
+                    ) : modo === 'login' ? (
+                        <form onSubmit={handleSubmit}>
+                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                Correo electronico
+                            </label>
+                            <div>
+                                <div style={{ position: 'relative' }}>
+                                    <Mail
+                                        size={16}
+                                        style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }}
+                                    />
+                                    <input
+                                        autoFocus
+                                        type="email"
+                                        placeholder="tucorreo@correo.cl"
+                                        value={email}
+                                        onChange={(e) => { setEmail(e.target.value); setErrores(prev => ({ ...prev, email: '' })) }}
+                                        style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                    />
+                                </div>
+                                <p style={{ color: '#ef4444', fontSize: 12, margin: '5px 0 0', height: 16 }}>
+                                    {errores.email || ''}
+                                </p>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <label style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 5 }}>Contraseña</label>
+                            </div>
+                            <div style={{ position: 'relative', marginBottom: 18 }}>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <Lock
+                                        size={16}
+                                        style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }}
+                                    />
                                     <input
                                         type={mostrarPassword ? 'text' : 'password'}
                                         placeholder="••••••••"
                                         value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                        onChange={(e) => { setPassword(e.target.value); setErrores(prev => ({ ...prev, password: '' })) }}
+                                        style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--surface)' }}
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setMostrarPassword((v) => !v)}
+                                        aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                        style={{
+                                            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 1,
+                                            background: 'none', border: 'none',
+                                            color: 'var(--text-dim)', cursor: 'pointer',
+                                            padding: 4, display: 'flex',
+                                        }}
+                                    >
+                                        {mostrarPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+                                    </button>
                                 </div>
+                                <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0', height: 16 }}>
+                                    {errores.password || ''}
+                                </p>
                                 <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={abrirRecuperacion}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') abrirRecuperacion() }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '.75')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
                                     style={{
                                         fontSize: 11,
                                         color: 'var(--accent)',
                                         cursor: 'pointer',
                                         display: 'block',
                                         textAlign: 'center',
-                                        marginTop: 12,
+                                        marginTop: 5,
+                                        transition: 'opacity .2s',
                                     }}
                                 >
                                     ¿Olvidaste tu contraseña?
@@ -221,122 +741,373 @@ export default function LoginModal({ onClose }) {
                                 disabled={cargando}
                                 style={{
                                     width: '100%', padding: '13px 0', borderRadius: 10, border: 'none',
-                                    background: 'var(--accent)', color: '#0B0D10', fontSize: 14, fontWeight: 600,
+                                    background: 'var(--accent)', color: '#ffffff', fontSize: 14, fontWeight: 600,
                                     cursor: cargando ? 'default' : 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center',
                                     justifyContent: 'center', gap: 8, transition: 'opacity .2s', opacity: cargando ? .7 : 1,
                                 }}
                                 onMouseEnter={(e) => { if (!cargando) e.currentTarget.style.opacity = '.9' }}
                                 onMouseLeave={(e) => { if (!cargando) e.currentTarget.style.opacity = '1' }}
                             >
-                                {cargando ? 'Entrando...' : 'Entrar'} <span>→</span>
+                                {cargando ? 'Entrando...' : 'Entrar'} <span></span>
                             </button>
                         </form>
-                    ) : (
-                        <form onSubmit={handleRegistro}>
-                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                                Nombre
-                            </label>
-                            <input
-                                autoFocus
-                                type="text"
-                                placeholder="Tu nombre"
-                                value={registro.nombre}
-                                onChange={(e) => cambiarRegistro('nombre', e.target.value)}
-                                style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
-                            />
-
-                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                                Apellido
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="Tu apellido"
-                                value={registro.apellido}
-                                onChange={(e) => cambiarRegistro('apellido', e.target.value)}
-                                style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
-                            />
-
-                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                                Correo electronico
-                            </label>
-                            <input
-                                type="email"
-                                placeholder="tucorreo@correo.cl"
-                                value={registro.email}
-                                onChange={(e) => cambiarRegistro('email', e.target.value)}
-                                style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
-                            />
-
-                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                                Telefono <span style={{ opacity: .6 }}>(opcional)</span>
-                            </label>
-                            <input
-                                type="tel"
-                                placeholder="+56 9 1234 5678"
-                                value={registro.telefono}
-                                onChange={(e) => cambiarRegistro('telefono', e.target.value)}
-                                style={{ ...inputStyle, marginBottom: 14, color: 'var(--surface)' }}
-                            />
-
-                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                                Contraseña
-                            </label>
-                            <div style={{ position: 'relative', marginBottom: 14 }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setMostrarPasswordRegistro((v) => !v)}
-                                    aria-label={mostrarPasswordRegistro ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                                    style={{
-                                        position: 'absolute', left: 10, zIndex: 1,
-                                        background: 'none', border: 'none',
-                                        color: 'var(--text-dim)', cursor: 'pointer',
-                                        padding: 4, display: 'flex',
-                                    }}
-                                >
-                                    {mostrarPasswordRegistro ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </button>
-                                <input
-                                    type={mostrarPasswordRegistro ? 'text' : 'password'}
-                                    placeholder="Minimo 6 caracteres"
-                                    value={registro.password}
-                                    onChange={(e) => cambiarRegistro('password', e.target.value)}
-                                    style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
-                                />
-                            </div>
-
-                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                                Confirmar contraseña
-                            </label>
-                            <input
-                                type={mostrarPasswordRegistro ? 'text' : 'password'}
-                                placeholder="Repite tu contraseña"
-                                value={registro.confirmar}
-                                onChange={(e) => cambiarRegistro('confirmar', e.target.value)}
-                                style={{ ...inputStyle, marginBottom: 18, color: 'var(--surface)' }}
-                            />
-
-                            {error && (
-                                <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 14px' }}>{error}</p>
-                            )}
-                            {exito && (
-                                <p style={{ color: '#22c55e', fontSize: 12, margin: '0 0 14px' }}>{exito}</p>
-                            )}
-
-                            <button
-                                type="submit"
-                                disabled={cargando}
+                    ) : exito ? (
+                        <div style={{ textAlign: 'center', padding: '60px 0 70px' }}>
+                            <div
                                 style={{
-                                    width: '100%', padding: '13px 0', borderRadius: 10, border: 'none',
-                                    background: 'var(--accent)', color: '#0B0D10', fontSize: 14, fontWeight: 600,
-                                    cursor: cargando ? 'default' : 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center',
-                                    justifyContent: 'center', gap: 8, transition: 'opacity .2s', opacity: cargando ? .7 : 1,
+                                    width: 64, height: 64, borderRadius: '50%', background: '#22c55e',
+                                    color: '#fff', fontSize: 34, display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', margin: '0 auto 20px',
                                 }}
-                                onMouseEnter={(e) => { if (!cargando) e.currentTarget.style.opacity = '.9' }}
-                                onMouseLeave={(e) => { if (!cargando) e.currentTarget.style.opacity = '1' }}
                             >
-                                {cargando ? 'Creando cuenta...' : 'Crear cuenta'} <span>→</span>
-                            </button>
-                        </form>
+                                ✓
+                            </div>
+                            <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>
+                                ¡Cuenta creada!
+                            </h3>
+                            <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
+                                Bienvenido/a a Apolo Vibes 3D. Te vamos a redirigir a la tienda…
+                            </p>
+                        </div>
+                    ) : (
+                        <div>
+                            {/* Paso 1: datos personales */}
+                            {paso === 1 && (
+                                <form onSubmit={(ev) => { ev.preventDefault(); if (validarPaso1()) setPaso(2) }}>
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                        Nombre
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span
+                                            style={{
+                                                position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                                                zIndex: 1, color: 'var(--text-dim)', display: 'flex', pointerEvents: 'none',
+                                            }}
+                                        >
+                                            <User size={16} />
+                                        </span>
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            placeholder="Tu nombre"
+                                            value={registro.nombre}
+                                            onChange={(e) => cambiarRegistro('nombre', e.target.value)}
+                                            style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                        />
+                                    </div>
+                                    <p style={errorSlotStyle}>{erroresPaso.nombre || ''}</p>
+
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                        Apellido
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span
+                                            style={{
+                                                position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                                                zIndex: 1, color: 'var(--text-dim)', display: 'flex', pointerEvents: 'none',
+                                            }}
+                                        >
+                                            <User size={16} />
+                                        </span>
+                                        <input
+                                            type="text"
+                                            placeholder="Tu apellido"
+                                            value={registro.apellido}
+                                            onChange={(e) => cambiarRegistro('apellido', e.target.value)}
+                                            style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                        />
+                                    </div>
+                                    <p style={errorSlotStyle}>{erroresPaso.apellido || ''}</p>
+
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                        Correo electronico
+                                    </label>
+                                    <div style={{ position: 'relative' }}>
+                                        <span
+                                            style={{
+                                                position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                                                zIndex: 1, color: 'var(--text-dim)', display: 'flex', pointerEvents: 'none',
+                                            }}
+                                        >
+                                            <Mail size={16} />
+                                        </span>
+                                        <input
+                                            type="email"
+                                            placeholder="tucorreo@correo.cl"
+                                            value={registro.email}
+                                            onChange={(e) => cambiarRegistro('email', e.target.value)}
+                                            style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                        />
+                                    </div>
+                                    <p style={errorSlotStyle}>{erroresPaso.email || ''}</p>
+
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                        Telefono <span style={{ opacity: .6 }}></span>
+                                    </label>
+                                    <div className="input-prefijo" style={{ marginBottom: 14 }}>
+                                        <svg
+                                            aria-hidden="true"
+                                            width={20}
+                                            height={14}
+                                            viewBox="0 0 60 40"
+                                            style={{ borderRadius: 3, flexShrink: 0 }}
+                                        >
+                                            <rect width="60" height="20" fill="#FFFFFF" />
+                                            <rect y="20" width="60" height="20" fill="#D52B1E" />
+                                            <rect width="20" height="20" fill="#0039A6" />
+                                            <polygon
+                                                points="10,3 11.65,7.73 16.66,7.84 12.66,10.87 14.12,15.66 10,12.8 5.89,15.66 7.34,10.87 3.34,7.84 8.35,7.73"
+                                                fill="#FFFFFF"
+                                            />
+                                        </svg>
+                                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: .85 }}>+569</span>
+                                        <span style={{ opacity: .4 }}>|</span>
+                                        <input
+                                            type="tel"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            maxLength={8}
+                                            placeholder="1234 5678"
+                                            value={registro.telefono}
+                                            onChange={(e) => cambiarRegistro('telefono', e.target.value.replace(/\D/g, '').slice(0, 8))}
+                                        />
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        style={{ ...botonAccionRegistro, width: '100%', marginBottom: 14, color: '#ffffff' }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '.9')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                                    >
+                                        Continuar <span></span>
+                                    </button>
+                                </form>
+                            )}
+
+                            {/* Paso 2: contraseña */}
+                            {paso === 2 && (
+                                <form onSubmit={(ev) => { ev.preventDefault(); if (validarPaso2()) setPaso(3) }}>
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                        Contraseña
+                                    </label>
+                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                        <Lock
+                                            size={16}
+                                            style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }}
+                                        />
+                                        <input
+                                            autoFocus
+                                            type={mostrarPasswordRegistro ? 'text' : 'password'}
+                                            placeholder="Ingresa tu contraseña"
+                                            value={registro.password}
+                                            onChange={(e) => cambiarRegistro('password', e.target.value)}
+                                            style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--surface)' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setMostrarPasswordRegistro((v) => !v)}
+                                            aria-label={mostrarPasswordRegistro ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                            style={{
+                                                position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 1,
+                                                background: 'none', border: 'none',
+                                                color: 'var(--text-dim)', cursor: 'pointer',
+                                                padding: 4, display: 'flex',
+                                            }}
+                                        >
+                                            {mostrarPasswordRegistro ? <Eye size={16} /> : <EyeOff size={16} />}
+                                        </button>
+                                    </div>
+                                    <p style={{ ...errorSlotStyle, margin: '8px 0 -15px' }}>{erroresPaso.password || ''}</p>
+                                    {/* Requisitos de contraseña segura + medidor en vivo */}
+                                    <div style={{ marginTop: 8, background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px' }}>
+                                        <div style={{ display: 'grid', gap: 3 }}>
+                                            {fortaleza.reqs.map(r => (
+                                                <div
+                                                    key={r.id}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: r.ok ? '#22c55e' : 'var(--text-dim)', transition: 'color .15s' }}
+                                                >
+                                                    <span style={{ fontSize: 12 }}>{r.ok ? '✓' : '○'}</span>
+                                                    {r.label}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                                            {[1, 2, 3, 4].map(i => (
+                                                <span
+                                                    key={i}
+                                                    style={{
+                                                        flex: 1, height: 4, borderRadius: 2, transition: 'background .15s',
+                                                        background: fortaleza.nivel && i <= fortaleza.puntos ? fortaleza.color : 'var(--line)',
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                        <p style={{ fontSize: 11, fontWeight: 600, color: fortaleza.color || 'var(--text-dim)', margin: '4px 0 0', minHeight: 14 }}>
+                                            {fortaleza.nivel || 'La fortaleza se actualiza mientras escribes'}
+                                        </p>
+                                    </div>
+
+
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                        Confirmar contraseña
+                                    </label>
+                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: 20 }}>
+                                        <Lock
+                                            size={16}
+                                            style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)', pointerEvents: 'none' }}
+                                        />
+                                        <input
+                                            type={mostrarConfirmarRegistro ? 'text' : 'password'}
+                                            placeholder="Repite tu contraseña"
+                                            value={registro.confirmar}
+                                            onChange={(e) => cambiarRegistro('confirmar', e.target.value)}
+                                            style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--surface)' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setMostrarConfirmarRegistro((v) => !v)}
+                                            aria-label={mostrarConfirmarRegistro ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                            style={{
+                                                position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 1,
+                                                background: 'none', border: 'none',
+                                                color: 'var(--text-dim)', cursor: 'pointer',
+                                                padding: 4, display: 'flex',
+                                            }}
+                                        >
+                                            {mostrarConfirmarRegistro ? <Eye size={16} /> : <EyeOff size={16} />}
+                                        </button>
+                                    </div>
+                                    <p style={{ ...errorSlotStyle, margin: '-13px 0 15px' }}>{erroresPaso.confirmar || ''}</p>
+
+                                    <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                                        <button type="button" style={botonFlechaRegistro} onClick={() => setPaso(1)}>
+                                            Volver
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            style={{ ...botonAccionRegistro, flex: 1, color: '#ffff' }}
+                                            onMouseEnter={(e) => (e.currentTarget.style.opacity = '.9')}
+                                            onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+                                        >
+                                            Continuar <span></span>
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+
+                            {/* Paso 3: enviar código */}
+                            {paso === 3 && (
+                                <div style={{ textAlign: 'center', padding: '16px 0 6px' }}>
+                                    <div
+                                        style={{
+                                            width: 54, height: 54, borderRadius: '50%',
+                                            background: 'var(--surface-2)', color: 'var(--accent)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            margin: '0 auto 14px',
+                                        }}
+                                    >
+                                        <Mail size={50} />
+                                    </div>
+                                    <p style={{ fontSize: 13, color: 'var(--text)', margin: '15px 0 5px', fontWeight: 600 }}>
+                                        Te enviaremos un código de confirmación
+                                    </p>
+                                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 50px' }}>
+                                        a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(registro.email)}</strong>
+                                    </p>
+
+                                    {codigoEnviado && (
+                                        <p style={{ color: '#22c55e', fontSize: 12, margin: '0 0 14px' }}>
+                                            Código enviado. Revisa tu correo.
+                                            {codigoDePrueba && (
+                                                <span style={{ display: 'block', marginTop: 6, padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 8, color: 'var(--text)' }}>
+                                                    Simulación (correo aún no configurado): tu código es <strong>{codigoDePrueba}</strong>
+                                                </span>
+                                            )}
+                                        </p>
+                                    )}
+                                    {error && (
+                                        <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 14px' }}>{error}</p>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={enviarCodigoPaso3}
+                                        disabled={enviandoCodigo}
+                                        style={{ ...botonAccionRegistro, width: '100%', marginBottom: 12, ...(enviandoCodigo ? { opacity: .7, cursor: 'default' } : {}) }}
+                                        onMouseEnter={(e) => { if (!enviandoCodigo) e.currentTarget.style.opacity = '.9' }}
+                                        onMouseLeave={(e) => { if (!enviandoCodigo) e.currentTarget.style.opacity = '1' }}
+                                    >
+                                        {enviandoCodigo ? 'Enviando...' : codigoEnviado ? 'Reenviar código' : 'Enviar código'} <span></span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        style={{ ...botonFlechaRegistro, width: '100%', marginBottom: 20 }}
+                                        onClick={() => setPaso(2)}
+                                    >
+                                        Volver
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Paso 4: validar código */}
+                            {paso === 4 && (
+                                <form onSubmit={confirmarRegistro}>
+                                    {codigoEnviado && (
+                                        <div style={{ margin: '30px 0 5px', textAlign: 'center' }}>
+                                            <CheckCircle2
+                                                size={40}
+                                                color="#22c55e"
+                                                style={{ display: 'block', margin: '0 auto 10px' }}
+                                            />
+                                            <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: 0, textAlign: 'center' }}>
+                                                Código enviado a <strong style={{ color: 'var(--accent)' }}>{registro.email.trim()}</strong>
+                                                {codigoDePrueba && (
+                                                    <span style={{ display: 'block', marginTop: 6, padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 8, color: 'var(--text)' }}>
+                                                        Simulación (correo aún no configurado): tu código es <strong>{codigoDePrueba}</strong>
+                                                    </span>
+                                                )}
+                                            </p>
+                                        </div>
+                                    )}
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 30, textAlign: 'center' }}>
+                                        Codigo de confirmacion
+                                    </label>
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={6}
+                                        placeholder="••••••"
+                                        value={codigo}
+                                        onChange={(e) => {
+                                            setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))
+                                            limpiarErrorCampo('codigo')
+                                        }}
+                                        style={{ ...inputStyle, color: 'var(--surface)', letterSpacing: 6, textAlign: 'center', fontSize: 18 }}
+                                    />
+                                    <p style={errorSlotStyle}>{erroresPaso.codigo || ''}</p>
+
+                                    {error && (
+                                        <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 14px', textAlign: 'center' }}>{error}</p>
+                                    )}
+
+                                    <div style={{ display: 'flex', gap: 10, marginBottom: 20, marginTop: 30 }}>
+                                        <button type="button" style={botonFlechaRegistro} onClick={() => setPaso(3)}>
+                                            Volver
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={cargando}
+                                            style={{ ...botonAccionRegistro, flex: 1, ...(cargando ? { opacity: .7, cursor: 'default' } : {}) }}
+                                            onMouseEnter={(e) => { if (!cargando) e.currentTarget.style.opacity = '.9' }}
+                                            onMouseLeave={(e) => { if (!cargando) e.currentTarget.style.opacity = '1' }}
+                                        >
+                                            {cargando ? 'Verificando...' : 'Crear cuenta'} <span></span>
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
                     )}
 
                     {modo === 'login' && (
@@ -346,46 +1117,46 @@ export default function LoginModal({ onClose }) {
                             </p>
 
                             <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
-                        <button
-                            type="button"
-                            aria-label="Continuar con Google"
-                            style={{
-                                flex: 1, border: '1px solid var(--line)', borderRadius: 10,
-                                padding: '11px 0', background: 'transparent', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                gap: 8, color: 'var(--text-dim)', fontSize: 12,
-                                transition: 'border-color .2s',
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--line)')}
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24">
-                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                            </svg>
-                            Google
-                        </button>
-                        <button
-                            type="button"
-                            aria-label="Continuar con Facebook"
-                            style={{
-                                flex: 1, border: '1px solid var(--line)', borderRadius: 10,
-                                padding: '11px 0', background: 'transparent', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                gap: 8, color: 'var(--text-dim)', fontSize: 12,
-                                transition: 'border-color .2s',
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--line)')}
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="#1877F2">
-                                <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z" />
-                            </svg>
-                            Facebook
-                        </button>
-                    </div>
+                                <button
+                                    type="button"
+                                    aria-label="Continuar con Google"
+                                    style={{
+                                        flex: 1, border: '1px solid var(--line)', borderRadius: 10,
+                                        padding: '11px 0', background: 'transparent', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        gap: 8, color: 'var(--text-dim)', fontSize: 12,
+                                        transition: 'border-color .2s',
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--line)')}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24">
+                                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                                    </svg>
+                                    Google
+                                </button>
+                                <button
+                                    type="button"
+                                    aria-label="Continuar con Facebook"
+                                    style={{
+                                        flex: 1, border: '1px solid var(--line)', borderRadius: 10,
+                                        padding: '11px 0', background: 'transparent', cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        gap: 8, color: 'var(--text-dim)', fontSize: 12,
+                                        transition: 'border-color .2s',
+                                    }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--line)')}
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#1877F2">
+                                        <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z" />
+                                    </svg>
+                                    Facebook
+                                </button>
+                            </div>
                         </>
                     )}
 

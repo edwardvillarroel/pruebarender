@@ -17,6 +17,7 @@ export default function HeroEstatico() {
         aspectRatio: '1536 / 900',
         display: 'flex',
         alignItems: 'flex-start',
+        marginBottom: -40
       }}
     >
       <img
@@ -94,7 +95,7 @@ export default function HeroEstatico() {
                 textDecoration: 'none',
               }}
             >
-              Explorar catálogo →
+              Explorar catálogo
             </Link>
             <Link
               to="/cotizar"

@@ -27,7 +27,7 @@ export default function ProductCard({ producto, index = 0 }) {
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '0 4px 12px rgba(253, 137, 3, 0.86)',
+        boxShadow: '0 2px 4px rgba(253, 137, 3, 0.86)',
         transition: 'transform .2s, box-shadow .2s'
       }}
     >
@@ -118,32 +118,77 @@ export default function ProductCard({ producto, index = 0 }) {
               {producto.badge}
             </span>
           ) : null}
+
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 55,
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0), var(--surface))',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }}
+          />
         </div>
       </Link>
 
-      <div style={{ padding: '18px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>{producto.nombre}</h4>
-        {producto.sinStock ? (
-          <span
-            style={{
-              display: 'inline-block',
-              background: COLOR_SIN_STOCK,
-              color: '#FFFFFF',
-              fontSize: 11,
-              fontWeight: 600,
-              padding: '2px 8px',
-              borderRadius: 999,
-              width: 'fit-content',
-            }}
-          >
-            AGOTADO
+      <div style={{ padding: '10px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', flex: 1, minWidth: 0 }}>{producto.nombre}</h4>
+          {categoria && (
+            <span
+              style={{
+                display: 'inline-block',
+                flexShrink: 0,
+                background: 'transparent',
+                border: '1px solid var(--accent)',
+                color: 'var(--accent)',
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '3px 10px',
+                borderRadius: 999,
+              }}
+            >
+              {categoria.nombre}
+            </span>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
+            ${producto.precio.toLocaleString('es-CL')}
           </span>
-        ) : null}
-        {categoria && (
-          <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>
-            {categoria.nombre}
-          </span>
-        )}
+          {producto.precio_original && (
+            <span
+              style={{
+                fontSize: 12,
+                color: 'var(--text-dim)',
+                textDecoration: 'line-through',
+              }}
+            >
+              ${producto.precio_original.toLocaleString('es-CL')}
+            </span>
+          )}
+          {producto.sinStock ? (
+            <span
+              style={{
+                display: 'inline-block',
+                background: COLOR_SIN_STOCK,
+                color: '#FFFFFF',
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '2px 8px',
+                borderRadius: 999,
+                width: 'fit-content',
+              }}
+            >
+              AGOTADO
+            </span>
+          ) : null}
+        </div>
+
         {producto.rating && (
           <div style={{ display: 'flex', gap: 2 }}>
             {Array.from({ length: 5 }).map((_, i) => (
@@ -157,64 +202,37 @@ export default function ProductCard({ producto, index = 0 }) {
           </div>
         )}
 
-        <div
+        <button
+          onClick={() => agregarProducto(producto)}
+          disabled={producto.sinStock}
+          aria-label="Agregar al carrito"
           style={{
             marginTop: 'auto',
+            background: producto.sinStock ? 'var(--surface-2)' : COLOR_BUTTON,
+            color: producto.sinStock ? 'var(--text-dim)' : 'var(--text)',
+            border: 'none',
+            borderRadius: 12,
+            width: '100%',
+            height: 40,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
+            justifyContent: 'center',
+            gap: 8,
+            cursor: producto.sinStock ? 'not-allowed' : 'pointer',
+            transition: 'opacity .2s',
           }}
-        >
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
-              ${producto.precio.toLocaleString('es-CL')}
-            </span>
-            {producto.precio_original && (
-              <span
-                style={{
-                  fontSize: 12,
-                  color: 'var(--text-dim)',
-                  textDecoration: 'line-through',
-                }}
-              >
-                ${producto.precio_original.toLocaleString('es-CL')}
-              </span>
-            )}
-          </div>
-
-          <button
-            onClick={() => agregarProducto(producto)}
-            disabled={producto.sinStock}
-            aria-label="Agregar al carrito"
+          onMouseEnter={(e) => !producto.sinStock && (e.currentTarget.style.opacity = '.85')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+        > Agregar
+          <img
+            src={mediaPath('cart.png')}
+            alt=""
             style={{
-              background: producto.sinStock ? 'var(--surface-2)' : COLOR_BUTTON,
-              color: producto.sinStock ? 'var(--text-dim)' : 'var(--text)',
-              border: 'none',
-              borderRadius: 12,
-              width: 100,
-              height: 35,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: producto.sinStock ? 'not-allowed' : 'pointer',
-              transition: 'opacity .2s',
-              flexShrink: 0,
-              position: 'relative',
+              width: 25, height: 25, filter: 'brightness(0) invert(1)',
+              opacity: producto.sinStock ? 0.5 : 1,
             }}
-            onMouseEnter={(e) => !producto.sinStock && (e.currentTarget.style.opacity = '.85')}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-          > Agregar
-            <img
-              src={mediaPath('cart.png')}
-              alt=""
-              style={{
-                width: 25, height: 25, filter: 'brightness(0) invert(1)',
-                opacity: producto.sinStock ? 0.5 : 1,
-              }}
-            />
-          </button>
-        </div>
+          />
+        </button>
       </div>
     </div>
   )

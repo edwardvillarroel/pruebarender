@@ -5,11 +5,13 @@ import { Trash2, Minus, Plus, ShoppingCart, Truck, ArrowRight } from 'lucide-rea
 import { useState } from 'react'
 import { carritoApi } from '../services/cart.js'
 import { useCart } from '../context/CartContext.jsx'
+import { useProductos } from '../context/ProductContext.jsx'
 
 const ENVIO_GRATIS_DESDE = 50000
 
 export default function Carrito() {
   const { items, quitarItem, actualizarCantidadItem, vaciarCarrito, cargarCarrito, error, total, requiereLogin, abrirLogin } = useCart()
+  const { recargar } = useProductos()
   const navigate = useNavigate()
   const [finalizando, setFinalizando] = useState(false)
   const [errorFinalizar, setErrorFinalizar] = useState(null)
@@ -25,6 +27,7 @@ export default function Carrito() {
     try {
       await carritoApi.finalizarCompra()
       await cargarCarrito()
+      await recargar()
       navigate('/compra-exitosa')
     } catch (err) {
       setErrorFinalizar(err.message)
@@ -227,8 +230,8 @@ export default function Carrito() {
               <span>{envioGratis ? 'Gratis' : 'Se calcula al pagar'}</span>
             </div>
 
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 600, color: 'var(--text)', paddingTop: 14, borderTop: '1px solid var(--surface-3)', marginBottom: 20
+            <div className="separador-suave" style={{
+              display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 600, color: 'var(--text)', paddingTop: 14, marginBottom: 20
             }}
             >
               <span style={{ color: 'var(--surface-2)' }}>Total</span>
@@ -253,7 +256,7 @@ export default function Carrito() {
             <p style={{ fontSize: 11, color: 'var(--text-dim)', textAlign: 'center', margin: '0 0 20px' }}>
               Pago simulado: al confirmar se descuenta el stock y se vacía el carrito.
             </p>
-            <div style={{ paddingTop: 16, borderTop: '1px solid var(--surface-3)' }}>
+            <div className="separador-suave" style={{ paddingTop: 16 }}>
               <p style={{
                 fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--text-dim)', margin: '0 0 10px',
               }}>

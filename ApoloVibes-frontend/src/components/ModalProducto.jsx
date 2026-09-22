@@ -5,13 +5,13 @@ import SelectOpciones from './SelectOpciones.jsx'
 import { Upload } from 'lucide-react'
 
 const overlayStyle = {
-    position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.88)',
+    position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.49)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     zIndex: 9999, backdropFilter: 'blur(4px)', padding: 20,
 }
 
 const modalStyle = {
-    background: 'var(--surface-3)', borderRadius: 20,
+    background: 'var(--surface)', borderRadius: 20,
     width: '100%', maxWidth: 520, maxHeight: '90vh',
     boxShadow: '0 20px 60px rgba(0,0,0,.3)', position: 'relative',
     display: 'flex', flexDirection: 'column', overflow: 'hidden',

@@ -23,13 +23,11 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', alScrollear)
   }, [])
 
-  // Lock body scroll when mobile menu is open
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [mobileOpen])
 
-  // Close user menu on click outside
   useEffect(() => {
     if (!userMenuOpen) return
     function handleClick(e) {

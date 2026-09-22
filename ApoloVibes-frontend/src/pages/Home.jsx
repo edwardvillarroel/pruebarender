@@ -62,8 +62,8 @@ export default function Home() {
       `}</style>
       <HeroVideo />
 
-      <section className="wrap section-py-mobile" style={{ paddingTop: '80px', paddingBottom: '80px' }}>
-        <hr style={{ border: 'none', borderTop: '1px solid var(--line)', marginBottom: 32 }} />
+      <section className="wrap section-py-mobile" style={{ paddingTop: '80px', paddingLeft: 64, paddingRight: 64 }}>
+        <hr className="separador" />
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Los más vendidos del mes</h2>
         {cargando ? (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Cargando productos…</p>
@@ -117,13 +117,13 @@ export default function Home() {
         )}
       </section>
 
-      <section className="wrap" style={{ paddingTop: 80 }}>
-        <hr style={{ border: 'none', borderTop: '1px solid var(--line)', marginBottom: 32 }} />
+      <section className="wrap" style={{ paddingTop: 32 }}>
+        <hr className="separador" />
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Lanzamientos</h2>
       </section>
 
-      <section className="wrap section-py-mobile" style={{ padding: '0 0 80px' }}>
-        <hr style={{ border: 'none', borderTop: '1px solid var(--line)', marginBottom: 32 }} />
+      <section className="wrap section-py-mobile" style={{ paddingBottom: '80px' }}>
+        <hr className="separador" />
         {cargando ? (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Cargando categorías…</p>
         ) : (

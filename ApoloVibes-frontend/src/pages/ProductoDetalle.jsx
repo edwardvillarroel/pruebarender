@@ -340,7 +340,7 @@ export default function ProductoDetalle() {
       {/*ACA MOSTRAR SOLO 4 PERO LO MAS VENDIDOS !!!*/}
       {recomendados.length > 0 && (
         <div style={{ marginTop: 64 }}>
-          <hr style={{ border: 'none', borderTop: '1px solid var(--line)', marginBottom: 32 }} />
+          <hr className="separador" />
           <h2 style={{
             fontSize: 22,
             fontWeight: 600,
