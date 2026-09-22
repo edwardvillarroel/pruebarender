@@ -3,38 +3,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
 import { Trash2, Minus, Plus, ShoppingCart, Truck, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
-import { carritoApi } from '../services/cart.js'
 import { useCart } from '../context/CartContext.jsx'
-import { useProductos } from '../context/ProductContext.jsx'
 
 const ENVIO_GRATIS_DESDE = 50000
 
 export default function Carrito() {
-  const { items, quitarItem, actualizarCantidadItem, vaciarCarrito, cargarCarrito, error, total, requiereLogin, abrirLogin } = useCart()
-  const { recargar } = useProductos()
+  const { items, quitarItem, actualizarCantidadItem, vaciarCarrito, error, total, requiereLogin, abrirLogin } = useCart()
   const navigate = useNavigate()
-  const [finalizando, setFinalizando] = useState(false)
-  const [errorFinalizar, setErrorFinalizar] = useState(null)
   const envioGratis = total >= ENVIO_GRATIS_DESDE
-
-  // TODO: mock temporal — "Ir a pagar" simula la compra completada (descuenta
-  // stock y vacía el carrito en el backend). Reemplazar por el flujo real
-  // (checkout → /pago/crear) cuando el sistema de pagos exista.
-  async function finalizarCompra() {
-    if (finalizando) return
-    setFinalizando(true)
-    setErrorFinalizar(null)
-    try {
-      await carritoApi.finalizarCompra()
-      await cargarCarrito()
-      await recargar()
-      navigate('/compra-exitosa')
-    } catch (err) {
-      setErrorFinalizar(err.message)
-    } finally {
-      setFinalizando(false)
-    }
-  }
 
   if (requiereLogin) {
     return (
@@ -241,20 +217,16 @@ export default function Carrito() {
             <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 20, marginTop: -15 }}>
               [IVA incluido ${Math.round(total * 0.19).toLocaleString('es-CL')}]
             </p>
-            {errorFinalizar && (
-              <p style={{ color: '#ef4444', fontSize: 13, margin: '0 0 12px', textAlign: 'center' }}>{errorFinalizar}</p>
-            )}
             <button
               type="button"
-              onClick={finalizarCompra}
-              disabled={finalizando}
+              onClick={() => navigate('/checkout')}
               className="btn btn-primary"
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', marginBottom: 12 }}>
-              {finalizando ? 'Finalizando compra…' : 'Ir a pagar'}
+              Ir a pagar
               <ArrowRight size={16} color='var(--text)' />
             </button>
             <p style={{ fontSize: 11, color: 'var(--text-dim)', textAlign: 'center', margin: '0 0 20px' }}>
-              Pago simulado: al confirmar se descuenta el stock y se vacía el carrito.
+              Pago procesado de forma segura por Tuu.
             </p>
             <div className="separador-suave" style={{ paddingTop: 16 }}>
               <p style={{

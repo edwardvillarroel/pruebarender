@@ -85,7 +85,7 @@ Los casos de uso se agrupan en 4 modulos autocontenidos:
 | Modulo                 | Responsabilidad |
 |------------------------|-----------------|
 | `catalogo_stock`       | CRUD de productos y categorias. |
-| `pedidos_pagos`        | Creacion/consulta de pedidos; procesamiento de pago (Transbank Webpay Plus). |
+| `pedidos_pagos`        | Creacion/consulta de pedidos; procesamiento de pago (TUU / Pago Online de Haulmer). |
 | `disenos_personalizados` | Solicitudes de cotizacion, aprobacion/rechazo, **sanitizacion de inputs** anti prompt-injection. |
 | `asistente_llm`        | Orquestacion de llamada al LLM para generacion de modelo 3D. |
 
@@ -134,8 +134,10 @@ GET    /api/categorias
 POST   /api/pedidos
 GET    /api/pedidos/:id
 
-POST   /api/pago/crear                 # body: { items, total, cliente } → { url, token }
-POST   /api/pago/confirmar             # body: { token }
+POST   /api/pago/crear                 # body: { items, entrega, cliente } → { url }
+GET    /api/pago/retorno               # TUU redirige aquí con los parámetros x_*
+POST   /api/pago/confirmar             # body: parámetros x_* (+ x_signature)
+POST   /api/pago/callback              # notificación server-to-server de TUU (form-urlencoded)
 
 POST   /api/cotizaciones               # multipart: nombre, email, telefono,
                                        #   material, descripcion, imagen, modeloUrl

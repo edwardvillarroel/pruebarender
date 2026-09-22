@@ -13,3 +13,9 @@ class PedidoModel(db.Model):
     total = db.Column(db.Integer, nullable=False, default=0)
     direccion_envio = db.Column(db.Text)
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    detalles = db.relationship(
+        "DetallePedidoModel",
+        back_populates="pedido",
+        cascade="all, delete-orphan",
+    )

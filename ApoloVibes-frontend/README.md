@@ -19,7 +19,7 @@ src/
   pages/admin/       AdminLayout, Dashboard, Pedidos, Productos,
                      Inventario, Cotizaciones
   context/          CartContext (estado global del carrito)
-  services/         api.js (cliente HTTP), payment.js (Webpay)
+  services/         api.js (cliente HTTP), payment.js (TUU)
   data/             products.js (datos mock, mientras no hay backend)
   styles/           global.css (tokens de diseño: color, tipografía)
 ```
@@ -33,7 +33,7 @@ src/
 | `/producto/:id` | Detalle de producto |
 | `/carrito` | Carrito de compras |
 | `/checkout` | Datos de envío + pago |
-| `/pago/retorno` | Confirmación tras Webpay |
+| `/pago/retorno` | Confirmación tras TUU |
 | `/cotizar` | Formulario de cotización con imagen |
 | `/admin` | Dashboard |
 | `/admin/pedidos` | Pedidos |
@@ -46,12 +46,15 @@ src/
 Este frontend está listo para conectarse a una API REST. Ninguna de estas
 piezas puede vivir solo en el navegador por seguridad:
 
-1. **Pago (Webpay Plus / Transbank)**
-   - `POST /api/pago/crear` → crea la transacción con la llave de comercio
-     (guardada en el servidor) y devuelve `{ url, token }`.
-   - `POST /api/pago/confirmar` → confirma el resultado con Transbank.
-   - Si prefieres otra pasarela (Flow, MercadoPago, Khipu) solo se
-     reemplaza `src/services/payment.js`; el resto de la app no cambia.
+1. **Pago (TUU / Pago Online de Haulmer)**
+   - `POST /api/pago/crear` → crea el pedido y el intento de pago con las
+     credenciales del comercio (guardadas en el servidor) y devuelve `{ url }`;
+     el navegador viaja a esa URL (`X-REDIRECT=false`).
+   - TUU notifica el resultado al `x_url_callback` del backend; al volver, el
+     navegador llega a `/pago/retorno` y el frontend llama
+     `POST /api/pago/confirmar` con los parámetros `x_*` (+ firma).
+   - Si prefieres otra pasarela (Flow, Khipu) solo se reemplaza
+     `src/services/payment.js`; el resto de la app no cambia.
 
 2. **Cotización con imagen**
    - `POST /api/cotizaciones` (multipart/form-data) → guarda la imagen

@@ -8,8 +8,6 @@ from app.application.carrito.gestionar_carrito import (
     GestionarCarrito,
     ItemCarritoNoEncontrado,
 )
-from app.application.catalogo_stock.gestionar_producto import GestionarProducto
-from app.application.common.dto import ActualizarProductoDTO
 
 cart_bp = Blueprint("carrito", __name__)
 
@@ -18,14 +16,6 @@ def _servicio() -> GestionarCarrito:
     """Servicio de carrito inyectado desde el punto de composición
     (`create_app`), para que esta capa no dependa de `infrastructure`."""
     return current_app.config["CARRITO_SERVICE"]
-
-
-def _servicio_producto() -> GestionarProducto:
-    """Servicio de catálogo (productos) inyectado desde `create_app`.
-
-    Lo usa la finalización de compra mock para validar y descontar stock,
-    respetando la capa Clean Architecture (api → application, nunca infra)."""
-    return current_app.config["PRODUCTO_SERVICE"]
 
 
 def _usuario_id() -> str:
@@ -129,48 +119,3 @@ def quitar_producto(item_id: UUID):
 def vaciar_carrito():
     carrito = _servicio().vaciar(_usuario_id())
     return jsonify(carrito=_a_publico(carrito))
-
-
-@cart_bp.post("/cart/finalizar-compra-mock")
-@requiere_sesion()
-def finalizar_compra_mock():
-    # TODO: MOCK TEMPORAL — simula la venta completada.
-    # Cuando aterricen los casos de uso de pedidos/pago este endpoint debe
-    # desaparecer y reemplazarse por `POST /api/pago/crear` + `confirmar`.
-    # Acá se valida el stock de TODOS los items antes de descontar nada
-    # (para no dejar un carrito a medias) y se vacía el carrito al final.
-    usuario = _usuario_id()
-    carrito = _servicio().obtener(usuario)
-    if not carrito.items:
-        return _error("No hay productos en el carrito para finalizar la compra", 400)
-
-    lineas = []
-    for item in carrito.items:
-        try:
-            producto_id = UUID(str(item.producto_id))
-        except ValueError:
-            return _error("El carrito contiene un producto inválido", 400)
-        producto = _servicio_producto().consultar(producto_id)
-        if producto is None:
-            return _error("Uno de los productos del carrito ya no existe", 409)
-        if producto.stock < item.cantidad:
-            return _error(
-                f"No hay stock suficiente de «{producto.nombre}» "
-                f"(disponible: {producto.stock})",
-                409,
-            )
-        lineas.append((producto, item.cantidad))
-
-    for producto, cantidad in lineas:
-        _servicio_producto().actualizar(
-            ActualizarProductoDTO(id=producto.id, stock=producto.stock - cantidad)
-        )
-
-    _servicio().vaciar(usuario)
-    return jsonify(
-        mensaje="Compra finalizada con éxito",
-        items=[
-            {"producto_id": str(p.id), "nombre": p.nombre, "cantidad": c}
-            for p, c in lineas
-        ],
-    )
