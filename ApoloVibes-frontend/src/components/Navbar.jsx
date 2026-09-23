@@ -4,12 +4,12 @@ import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
-import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck } from 'lucide-react'
+import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck, ClipboardList } from 'lucide-react'
 import LoginModal from './LoginModal.jsx'
 
 export default function Navbar() {
   const { cantidadTotal, solicitarLogin, abrirLogin, cerrarLogin } = useCart()
-  const { isLoggedIn, logout, user } = useAuth()
+  const { isLoggedIn, isAdmin, logout, user } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -151,8 +151,25 @@ export default function Navbar() {
                     </span>
                   </div>
                 </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/admin') }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '12px 16px', border: 'none', background: 'none',
+                      color: 'var(--text)', fontSize: 13, cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background .15s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                  >
+                    <LayoutDashboard size={16} color="var(--text)" />
+                    Panel Administrador
+                  </button>
+                )}
                 <button
-                  onClick={() => { setUserMenuOpen(false); navigate('/admin') }}
+                  onClick={() => { setUserMenuOpen(false); navigate('/mis-pedidos') }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                     padding: '12px 16px', border: 'none', background: 'none',
@@ -163,8 +180,8 @@ export default function Navbar() {
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                 >
-                  <LayoutDashboard size={16} color="var(--text)" />
-                  Panel Administrador
+                  <ClipboardList size={16} color="var(--text)" />
+                  Mis pedidos
                 </button>
                 <button
                   onClick={() => { setUserMenuOpen(false); logout(); navigate('/') }}
@@ -213,7 +230,8 @@ export default function Navbar() {
           <button onClick={() => handleMobileNav('/carrito')}>Carrito ({cantidadTotal})</button>
           {isLoggedIn ? (
             <>
-              <button onClick={() => handleMobileNav('/admin')}>Panel admin</button>
+              <button onClick={() => handleMobileNav('/mis-pedidos')}>Mis pedidos</button>
+              {isAdmin && <button onClick={() => handleMobileNav('/admin')}>Panel admin</button>}
               <button onClick={() => { logout(); setMobileOpen(false); navigate('/') }} style={{ color: '#b60303' }}>
                 Cerrar sesión
               </button>

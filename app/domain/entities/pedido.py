@@ -12,6 +12,9 @@ class Pedido:
     estado: EstadoPedido = EstadoPedido.PENDIENTE
     total: int = 0
     direccion_envio: str | None = None
+    codigo_seguimiento: str | None = None
+    estado_seguimiento: str | None = None
+    seguimiento_actualizado_en: datetime | None = None
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=datetime.utcnow)
     detalles: list[DetallePedido] = field(default_factory=list)

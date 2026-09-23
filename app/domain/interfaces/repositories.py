@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from uuid import UUID
 
 from app.domain.entities.categoria import Categoria
@@ -43,6 +44,11 @@ class PedidoRepository(RepositoryBase[Pedido], ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def list_todos(self) -> list[Pedido]:
+        """Todos los pedidos, más recientes primero (vista admin con seguimiento)."""
+        raise NotImplementedError
+
+    @abstractmethod
     def crear_con_detalles(
         self, pedido: Pedido, detalles: list[DetallePedido]
     ) -> Pedido:
@@ -53,6 +59,17 @@ class PedidoRepository(RepositoryBase[Pedido], ABC):
     def actualizar_estado(
         self, pedido_id: UUID, estado: EstadoPedido
     ) -> Pedido | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def actualizar_seguimiento(
+        self,
+        pedido_id: UUID,
+        codigo_seguimiento: str | None,
+        estado_seguimiento: str | None,
+        actualizado_en: datetime | None,
+    ) -> Pedido | None:
+        """Guarda el código de seguimiento (OF) y el último estado sincronizado."""
         raise NotImplementedError
 
 

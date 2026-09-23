@@ -66,6 +66,16 @@ class Config:
     )
     TUU_URL_CANCEL = os.getenv("TUU_URL_CANCEL", "http://localhost:5173/checkout")
 
+    # Seguimiento Starken (portal developers.starken.cl). Credenciales de la
+    # cuenta de la PYME; sin STARKEN_API_KEY el seguimiento queda deshabilitado.
+    STARKEN_API_URL = os.getenv("STARKEN_API_URL", "https://gateway.starken.cl")
+    STARKEN_API_KEY = os.getenv("STARKEN_API_KEY", "")
+    STARKEN_SEGUIMIENTO_RUTA = os.getenv("STARKEN_SEGUIMIENTO_RUTA", "/orden-flete/of/")
+    STARKEN_TIMEOUT = int(os.getenv("STARKEN_TIMEOUT", "10"))
+    # Modo desarrollador: con STARKEN_MODO_SIMULACION activo se inyecta un
+    # cliente simulado (estados deterministas por código) en vez del real.
+    STARKEN_MODO_SIMULACION = os.getenv("STARKEN_MODO_SIMULACION", "")
+
     MAX_UPLOAD_SIZE = 10 * 1024 * 1024
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "glb", "stl"}
     UPLOAD_FOLDER = BASE_DIR / "uploads"
