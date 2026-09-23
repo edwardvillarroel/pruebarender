@@ -11,11 +11,14 @@ from uuid import UUID
 
 from flask import Blueprint, current_app, jsonify, request
 
-from app.api.middleware.auth import requiere_sesion, usuario_actual
+from app.api.middleware.auth import requiere_sesion, rol_requerido, usuario_actual
 from app.application.common.dto import CrearPedidoDTO, IniciarPagoDTO, ItemPedidoDTO
 from app.application.pedidos_pagos.crear_pedido import CrearPedido
 from app.application.pedidos_pagos.consultar_pedido import ConsultarPedido
 from app.application.pedidos_pagos.procesar_pago import ProcesarPago
+from app.application.pedidos_pagos.seguimiento_starken import (
+    GestionarSeguimientoStarken,
+)
 from app.domain.interfaces.pasarela_pago import ErrorPasarela
 
 pedido_bp = Blueprint("pedidos", __name__)
@@ -31,6 +34,10 @@ def _servicio_consulta() -> ConsultarPedido:
 
 def _servicio_pago() -> ProcesarPago:
     return current_app.config["PAGO_SERVICE"]
+
+
+def _servicio_seguimiento() -> GestionarSeguimientoStarken:
+    return current_app.config["SEGUIMIENTO_STARKEN_SERVICE"]
 
 
 def _error(msg: str, estado: int):
@@ -63,12 +70,19 @@ def _items(datos: dict) -> list[ItemPedidoDTO]:
     return items
 
 
-def _a_publico_pedido(pedido) -> dict:
-    return {
+def _a_publico_pedido(pedido, admin: bool = False) -> dict:
+    datos = {
         "id": str(pedido.id),
         "estado": pedido.estado.value,
         "total": pedido.total,
         "fecha": pedido.creado_en.isoformat() if pedido.creado_en else None,
+        "codigo_seguimiento": pedido.codigo_seguimiento,
+        "estado_seguimiento": pedido.estado_seguimiento,
+        "seguimiento_actualizado_en": (
+            pedido.seguimiento_actualizado_en.isoformat()
+            if pedido.seguimiento_actualizado_en
+            else None
+        ),
         "items": [
             {
                 "producto_id": str(detalle.producto_id),
@@ -78,6 +92,9 @@ def _a_publico_pedido(pedido) -> dict:
             for detalle in pedido.detalles
         ],
     }
+    if admin:
+        datos["usuario_id"] = str(pedido.usuario_id)
+    return datos
 
 
 def _es_dueno(pedido) -> bool:
@@ -127,6 +144,86 @@ def detalle_pedido(pedido_id: UUID):
     if not _es_dueno(pedido):
         return _error("No autorizado", 403)
     return jsonify(_a_publico_pedido(pedido))
+
+
+@pedido_bp.get("/pedidos/admin")
+@requiere_sesion()
+@rol_requerido("admin")
+def listar_pedidos_admin():
+    """Todos los pedidos con su estado de seguimiento (solo admin)."""
+    pedidos = _servicio_seguimiento().listar_todos()
+    return jsonify(pedidos=[_a_publico_pedido(p, admin=True) for p in pedidos])
+
+
+@pedido_bp.post("/pedidos/<uuid:pedido_id>/seguimiento")
+@requiere_sesion()
+@rol_requerido("admin")
+def registrar_seguimiento(pedido_id: UUID):
+    """Registra el código de seguimiento (orden de flete) del pedido. Solo admin."""
+    datos = request.get_json(silent=True) or {}
+    try:
+        pedido = _servicio_seguimiento().registrar_codigo(
+            pedido_id, datos.get("codigo")
+        )
+    except ValueError as exc:
+        estado = 404 if "no encontrado" in str(exc) else 400
+        return _error(str(exc), estado)
+    return jsonify(_a_publico_pedido(pedido, admin=True))
+
+
+def _a_publico_seguimiento(pedido, seguimiento) -> dict:
+    return {
+        "id": str(pedido.id),
+        "codigo_seguimiento": pedido.codigo_seguimiento,
+        "estado_seguimiento": pedido.estado_seguimiento,
+        "seguimiento_actualizado_en": (
+            pedido.seguimiento_actualizado_en.isoformat()
+            if pedido.seguimiento_actualizado_en
+            else None
+        ),
+        "seguimiento": (
+            {
+                "estado": seguimiento.estado,
+                "descripcion": seguimiento.descripcion,
+                "consultado_en": (
+                    seguimiento.consultado_en.isoformat()
+                    if seguimiento.consultado_en
+                    else None
+                ),
+                "historial": [
+                    {
+                        "fecha": evento.fecha.isoformat() if evento.fecha else None,
+                        "descripcion": evento.descripcion,
+                        "sucursal": evento.sucursal,
+                        "ciudad": evento.ciudad,
+                        "estado": evento.estado,
+                    }
+                    for evento in seguimiento.historial
+                ],
+            }
+            if seguimiento
+            else None
+        ),
+    }
+
+
+@pedido_bp.get("/pedidos/<uuid:pedido_id>/seguimiento")
+@requiere_sesion()
+def consultar_seguimiento(pedido_id: UUID):
+    """Consulta en vivo el estado Starken. Dueño del pedido o admin.
+
+    Devuelve 403 si el usuario no es dueño del pedido ni admin.
+    """
+    pedido = _servicio_consulta().por_id(pedido_id)
+    if pedido is None:
+        return _error("Pedido no encontrado", 404)
+    if not _es_dueno(pedido):
+        return _error("No autorizado", 403)
+    try:
+        pedido_actual, seguimiento = _servicio_seguimiento().sincronizar(pedido_id)
+    except ValueError as exc:
+        return _error(str(exc), 400)
+    return jsonify(_a_publico_seguimiento(pedido_actual, seguimiento))
 
 
 @pedido_bp.post("/pago/crear")

@@ -80,7 +80,14 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     from app.application.pedidos_pagos.consultar_pedido import ConsultarPedido
     from app.application.pedidos_pagos.crear_pedido import CrearPedido
     from app.application.pedidos_pagos.procesar_pago import ProcesarPago
+    from app.application.pedidos_pagos.seguimiento_starken import (
+        GestionarSeguimientoStarken,
+    )
     from app.infrastructure.pagos.tuu_client import TuuCliente
+    from app.infrastructure.starken.starken_cliente import StarkenCliente
+    from app.infrastructure.starken.starken_cliente_simulado import (
+        StarkenClienteSimulado,
+    )
     from app.infrastructure.database.models.usuario_model import UsuarioModel  # noqa: F401 (registra "usuarios" para la FK de pedidos)
     from app.infrastructure.repositories.carrito_repository_bd import (
         CarritoRepositoryBd,
@@ -103,6 +110,13 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
         productos,
         TuuCliente(app.config),
         CarritoRepositoryBd(),
+    )
+    if str(app.config.get("STARKEN_MODO_SIMULACION", "")).strip().lower() in ("1", "true", "si", "yes"):
+        cliente_starken = StarkenClienteSimulado(app.config)
+    else:
+        cliente_starken = StarkenCliente(app.config)
+    app.config["SEGUIMIENTO_STARKEN_SERVICE"] = GestionarSeguimientoStarken(
+        pedidos, cliente_starken
     )
 
 

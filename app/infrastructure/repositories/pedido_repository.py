@@ -8,6 +8,7 @@ en la misma transacción que el pedido (`crear_con_detalles`).
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -53,6 +54,14 @@ class PedidoRepository(PedidoRepositoryInterface):
         ).scalars().all()
         return [_a_entidad(m) for m in modelos]
 
+    def list_todos(self) -> list[Pedido]:
+        modelos = db.session.execute(
+            select(self.model)
+            .options(selectinload(self.model.detalles))
+            .order_by(self.model.creado_en.desc())
+        ).scalars().all()
+        return [_a_entidad(m) for m in modelos]
+
     def crear_con_detalles(
         self, pedido: Pedido, detalles: list[DetallePedido]
     ) -> Pedido:
@@ -62,6 +71,9 @@ class PedidoRepository(PedidoRepositoryInterface):
             estado=pedido.estado.value,
             total=pedido.total,
             direccion_envio=pedido.direccion_envio,
+            codigo_seguimiento=pedido.codigo_seguimiento,
+            estado_seguimiento=pedido.estado_seguimiento,
+            seguimiento_actualizado_en=pedido.seguimiento_actualizado_en,
             creado_en=pedido.creado_en,
         )
         for detalle in detalles:
@@ -87,6 +99,22 @@ class PedidoRepository(PedidoRepositoryInterface):
         db.session.commit()
         return _a_entidad(modelo)
 
+    def actualizar_seguimiento(
+        self,
+        pedido_id: UUID,
+        codigo_seguimiento: str | None,
+        estado_seguimiento: str | None,
+        actualizado_en: datetime | None,
+    ) -> Pedido | None:
+        modelo = db.session.get(self.model, pedido_id)
+        if modelo is None:
+            return None
+        modelo.codigo_seguimiento = codigo_seguimiento
+        modelo.estado_seguimiento = estado_seguimiento
+        modelo.seguimiento_actualizado_en = actualizado_en
+        db.session.commit()
+        return _a_entidad(modelo)
+
     def add(self, entidad: Pedido) -> Pedido:
         db.session.add(_a_modelo(entidad))
         db.session.commit()
@@ -100,6 +128,9 @@ class PedidoRepository(PedidoRepositoryInterface):
         modelo.estado = entidad.estado.value
         modelo.total = entidad.total
         modelo.direccion_envio = entidad.direccion_envio
+        modelo.codigo_seguimiento = entidad.codigo_seguimiento
+        modelo.estado_seguimiento = entidad.estado_seguimiento
+        modelo.seguimiento_actualizado_en = entidad.seguimiento_actualizado_en
         db.session.commit()
         return entidad
 
@@ -118,6 +149,9 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
         estado=EstadoPedido(modelo.estado),
         total=modelo.total,
         direccion_envio=modelo.direccion_envio,
+        codigo_seguimiento=modelo.codigo_seguimiento,
+        estado_seguimiento=modelo.estado_seguimiento,
+        seguimiento_actualizado_en=modelo.seguimiento_actualizado_en,
         creado_en=modelo.creado_en,
         detalles=[
             DetallePedido(
@@ -139,6 +173,9 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
         estado=entidad.estado.value,
         total=entidad.total,
         direccion_envio=entidad.direccion_envio,
+        codigo_seguimiento=entidad.codigo_seguimiento,
+        estado_seguimiento=entidad.estado_seguimiento,
+        seguimiento_actualizado_en=entidad.seguimiento_actualizado_en,
         creado_en=entidad.creado_en,
     )
     modelo.detalles = [
