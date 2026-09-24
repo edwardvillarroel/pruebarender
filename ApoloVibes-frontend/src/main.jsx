@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import App from './App.jsx'
+import { ToastProvider } from './context/ToastContext.jsx'
 import { CartProvider } from './context/CartContext.jsx'
 import { ProductProvider } from './context/ProductContext.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
@@ -13,11 +14,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <HashRouter>
       <ThemeProvider>
         <AuthProvider>
-          <ProductProvider>
-            <CartProvider>
-              <App />
-            </CartProvider>
-          </ProductProvider>
+          <ToastProvider>
+            <ProductProvider>
+              <CartProvider>
+                <App />
+              </CartProvider>
+            </ProductProvider>
+          </ToastProvider>
         </AuthProvider>
       </ThemeProvider>
     </HashRouter>
