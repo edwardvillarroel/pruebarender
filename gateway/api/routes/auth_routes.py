@@ -18,7 +18,6 @@ from gateway.application.auth import (
     despachar_codigo_verificacion,
     iniciar_sesion,
     obtener_perfil,
-    registrar_usuario,
     restablecer_contrasena,
     rotar_refresh,
     validar_codigo_recuperacion,
@@ -95,18 +94,16 @@ def crear_codigo_verificacion():
     datos = request.get_json(silent=True) or {}
     email = datos.get("email", "")
     try:
-        codigo = despachar_codigo_verificacion(email, _ip_cliente())
+        despachar_codigo_verificacion(email, _ip_cliente())
     except DatosInvalidos as e:
         return jsonify(mensaje=str(e)), 400
     except EmailRegistrado:
         return jsonify(mensaje="Ya existe una cuenta con ese correo electrónico"), 409
     except CodigoNoEnviado:
         return jsonify(mensaje="No se pudo enviar el correo de verificación. Intenta de nuevo"), 502
-    # Envío real (EmailJS configurado): `codigo` es None y no se expone en la respuesta.
-    # MOCK (sin credenciales): se devuelve `codigo` para poder probar el flujo.
-    if codigo is None:
-        return jsonify(mensaje="Código de verificación enviado a tu correo")
-    return jsonify(mensaje="Código de verificación enviado a tu correo", codigo=codigo)
+    # El código NO se devuelve ni se muestra: viaja solo por correo (o a la
+    # consola del servidor en modo simulación).
+    return jsonify(mensaje="Código de verificación enviado a tu correo")
 
 
 @auth_bp.post("/auth/registro/confirmar")
@@ -144,14 +141,14 @@ def crear_codigo_recuperacion():
     datos = request.get_json(silent=True) or {}
     email = datos.get("email", "")
     try:
-        codigo, expira_en = despachar_codigo_recuperacion(email, _ip_cliente())
+        _, expira_en = despachar_codigo_recuperacion(email, _ip_cliente())
     except DatosInvalidos as e:
         return jsonify(mensaje=str(e)), 400
     except CodigoNoEnviado:
         return jsonify(mensaje="No se pudo enviar el correo de verificación. Intenta de nuevo"), 502
-    if codigo is None:
-        return jsonify(mensaje="Código de recuperación enviado a tu correo", expira_en=expira_en.isoformat())
-    return jsonify(mensaje="Código de recuperación enviado a tu correo", codigo=codigo, expira_en=expira_en.isoformat())
+    # El código NO se devuelve ni se muestra: viaja solo por correo (o a la
+    # consola del servidor en modo simulación). `expira_en` va al countdown.
+    return jsonify(mensaje="Código de recuperación enviado a tu correo", expira_en=expira_en.isoformat())
 
 
 @auth_bp.post("/auth/recuperar/verificar-codigo")
@@ -190,30 +187,6 @@ def confirmar_recuperacion():
     except CodigoExpirado:
         return jsonify(mensaje="El código de verificación expiró. Solicita uno nuevo"), 400
     return jsonify(mensaje="Contraseña actualizada. Ya puedes iniciar sesión")
-
-
-@auth_bp.post("/auth/register")
-@limiter.limit("5 per minute")
-def registrar():
-    datos = request.get_json(silent=True) or {}
-    try:
-        sesion = registrar_usuario(
-            email=datos.get("email", ""),
-            password=datos.get("password", ""),
-            nombre=datos.get("nombre", ""),
-            apellido=datos.get("apellido", ""),
-            telefono=datos.get("telefono"),
-            ip=_ip_cliente(),
-            user_agent=_user_agent(),
-            fabrica_tokens=servicio_tokens,
-        )
-    except DatosInvalidos as e:
-        return jsonify(mensaje=str(e)), 400
-    except EmailRegistrado:
-        return jsonify(mensaje="Ya existe una cuenta con ese correo electrónico"), 409
-    return _responder_con_sesion(
-        {"access_token": sesion["access_token"], "user": sesion["user"]}, sesion
-    )
 
 
 @auth_bp.post("/auth/refresh")

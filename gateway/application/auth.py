@@ -1,3 +1,4 @@
+import logging
 from typing import Protocol
 
 from gateway.domain.seguridad import (
@@ -15,6 +16,12 @@ from gateway.infrastructure.correo import (
     configurado_emailjs,
     enviar_correo_codigo,
 )
+
+_log = logging.getLogger("gateway")
+
+# En modo simulación (sin credenciales EMAILJS_*) el código se imprime en la
+# consola del servidor para poder probar el flujo, pero NUNCA sale por la API
+# ni llega al frontend.
 
 
 class FabricaTokens(Protocol):
@@ -91,35 +98,13 @@ def _validar_registro(email, password, nombre, apellido):
     return email, (apellido or "").strip() or None, (nombre or "").strip()
 
 
-def registrar_usuario(email, password, nombre, apellido, telefono, ip, user_agent, fabrica_tokens):
-    """Registra un usuario con rol fijo `cliente` y lo deja con sesión iniciada.
-
-    El rol nunca se recibe del cliente: el registro público jamás crea admins.
-    """
-    email, apellido, nombre = _validar_registro(email, password, nombre, apellido)
-
-    if repositorios.buscar_usuario_por_email(email) is not None:
-        raise EmailRegistrado()
-
-    password_hash = crear_hash(password)
-    usuario = repositorios.crear_usuario(
-        email=email,
-        password_hash=password_hash,
-        nombre=nombre,
-        apellido=apellido,
-        telefono=(telefono or "").strip() or None,
-        rol="cliente",
-    )
-    repositorios.registrar_log("registro_ok", usuario["id"], ip, email)
-    return iniciar_sesion(email, password, ip, user_agent, fabrica_tokens)
-
-
 def despachar_codigo_verificacion(email, ip):
     """Genera y envía el código de confirmación de registro por correo.
 
     Con credenciales de EmailJS configuradas (`.env`) el envío es REAL y la
-    función devuelve None: el código NUNCA se expone en la respuesta.
-    Sin credenciales queda en MOCK: devuelve el código para poder probar.
+    función siempre devuelve None: el código nunca se expone en la respuesta.
+    Sin credenciales queda en modo simulación: el código se imprime en la
+    consola del gateway (solo servidor) para poder probar el flujo.
     """
     email = (email or "").strip().lower()
     if not email or "@" not in email or "." not in email.split("@")[-1]:
@@ -141,9 +126,16 @@ def despachar_codigo_verificacion(email, ip):
         except ErrorEnvioCorreo:
             repositorios.registrar_log("codigo_correo_fallo", None, ip, email)
             raise CodigoNoEnviado()
+    else:
+        _log.warning(
+            "MODO SIMULACIÓN: correo no configurado (EMAILJS_*). "
+            "Código de verificación de registro para %s: %s",
+            email,
+            codigo,
+        )
 
     repositorios.registrar_log("codigo_enviado", None, ip, email)
-    return None if con_correo else codigo
+    return None
 
 
 def confirmar_registro(email, codigo, password, nombre, apellido, telefono, ip, user_agent, fabrica_tokens):
@@ -177,9 +169,10 @@ def confirmar_registro(email, codigo, password, nombre, apellido, telefono, ip, 
 def despachar_codigo_recuperacion(email, ip):
     """Genera y envía el código para restablecer la contraseña de una cuenta EXISTENTE.
 
-    Mismo contrato mock→real que el código de registro: con EmailJS el envío es real
-    y devuelve None; sin credenciales devuelve el código para poder probar.
-    Devuelve (codigo, expira_en): la expiración viaja al frontend para el countdown.
+    Mismo contrato que el código de registro: con EmailJS el envío es real y el
+    código no sale del servidor; sin credenciales se imprime en la consola del
+    gateway (solo servidor). Devuelve (None, expira_en): la expiración viaja al
+    frontend para el countdown (el código nunca).
     """
     email = (email or "").strip().lower()
     if not email or "@" not in email or "." not in email.split("@")[-1]:
@@ -202,9 +195,16 @@ def despachar_codigo_recuperacion(email, ip):
         except ErrorEnvioCorreo:
             repositorios.registrar_log("codigo_correo_fallo", None, ip, email)
             raise CodigoNoEnviado()
+    else:
+        _log.warning(
+            "MODO SIMULACIÓN: correo no configurado (EMAILJS_*). "
+            "Código de recuperación para %s: %s",
+            email,
+            codigo,
+        )
 
     repositorios.registrar_log("codigo_recuperacion_enviado", None, ip, email)
-    return (None if con_correo else codigo), expira_en
+    return None, expira_en
 
 
 def validar_codigo_recuperacion(email, codigo):
