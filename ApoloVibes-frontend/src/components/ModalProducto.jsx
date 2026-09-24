@@ -20,7 +20,7 @@ const modalStyle = {
 const inputStyle = {
     width: '100%', padding: '11px 14px', borderRadius: 10,
     border: '1px solid var(--line)', background: 'var(--bg)',
-    color: 'var(--surface)', fontSize: 14, outline: 'none',
+    color: 'var(--input-text)', fontSize: 14, outline: 'none',
     boxSizing: 'border-box',
 }
 
@@ -267,7 +267,7 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                                         </div>
                                     ) : foto ? (
                                         <>
-                                            <span style={{ fontSize: 13, color: 'var(--surface)', fontWeight: 500 }}>
+                                            <span style={{ fontSize: 13, color: 'var(--input-text)', fontWeight: 500 }}>
                                                 {foto.name}
                                             </span>
                                             <span style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
@@ -277,7 +277,7 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                                     ) : (
                                         <>
                                             <Upload size={28} color="var(--text-dim)" strokeWidth={1.5} style={{ marginBottom: 8 }} />
-                                            <span style={{ fontSize: 13, color: 'var(--surface)', fontWeight: 500, marginBottom: 2 }}>
+                                            <span style={{ fontSize: 13, color: 'var(--input-text)', fontWeight: 500, marginBottom: 2 }}>
                                                 Haz clic para subir una imagen
                                             </span>
                                         </>

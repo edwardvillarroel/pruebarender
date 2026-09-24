@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { carritoApi } from '../services/cart.js'
 import { useAuth } from './AuthContext.jsx'
 import { useProductos } from './ProductContext.jsx'
+import { useToast } from './ToastContext.jsx'
 
 const CartContext = createContext(null)
 
@@ -26,15 +27,18 @@ function enrichCart(carrito, productos) {
 export function CartProvider({ children }) {
   const { isLoggedIn } = useAuth()
   const { productos } = useProductos()
+  const mostrarToast = useToast()
   const [items, setItems] = useState([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState(null)
   const [solicitarLogin, setSolicitarLogin] = useState(false)
   const carritoRef = useRef(null)
+  const itemsRef = useRef([])
+  const seqRef = useRef(0)
 
   const syncItems = useCallback((carrito) => {
     carritoRef.current = carrito
-    setItems(enrichCart(carrito, productos))
+    actualizarItems(enrichCart(carrito, productos))
   }, [productos])
 
   // El carrito vive por usuario real (JWT). Al entrar/salir de sesión se
@@ -53,7 +57,7 @@ export function CartProvider({ children }) {
   // líneas del carrito ya cargadas para mostrar nombre/precio correctos.
   useEffect(() => {
     if (carritoRef.current) {
-      setItems(enrichCart(carritoRef.current, productos))
+      syncItems(carritoRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productos])
@@ -72,6 +76,71 @@ export function CartProvider({ children }) {
     }
   }
 
+  function actualizarItems(actualizar) {
+    const next = typeof actualizar === 'function' ? actualizar(itemsRef.current) : actualizar
+    itemsRef.current = next
+    setItems(next)
+  }
+
+  function optimistaAgregar(producto, cantidad = 1) {
+    actualizarItems(prev => {
+      const existente = prev.find(i => i.id === producto.id)
+      if (existente) {
+        return prev.map(i => i.id === producto.id ? { ...i, cantidad: i.cantidad + cantidad } : i)
+      }
+      return [...prev, {
+        id: producto.id,
+        itemId: `temp-${producto.id}`,
+        productoId: producto.id,
+        cantidad,
+        nombre: producto.nombre,
+        precio: producto.precio ?? 0,
+        precio_original: producto.precio_original ?? null,
+        imagen: producto.imagen ?? null,
+      }]
+    })
+  }
+
+  function reversarAgregar(producto) {
+    actualizarItems(prev => {
+      const idx = prev.findIndex(i => i.id === producto.id)
+      if (idx === -1) return prev
+      const item = prev[idx]
+      if (item.cantidad > 1) {
+        return prev.map(i => i.id === producto.id ? { ...i, cantidad: i.cantidad - 1 } : i)
+      }
+      return prev.filter(i => i.id !== producto.id)
+    })
+  }
+
+  function optimistaQuitar(itemId) {
+    actualizarItems(prev => prev.filter(i => i.itemId !== itemId && i.id !== itemId))
+  }
+
+  function optimistaCantidad(itemId, cantidad) {
+    actualizarItems(prev => prev.map(i => (i.itemId === itemId || i.id === itemId) ? { ...i, cantidad } : i))
+  }
+
+  // Ejecuta la petición y reconcilia con el servidor solo si sigue siendo la
+  // mutación más reciente; así las respuestas encoladas/desordenadas no pisan
+  // el estado ya optimista de una operación más nueva.
+  function fireAndReconcile(fn) {
+    const op = ++seqRef.current
+    fn()
+      .then(({ carrito }) => {
+        if (op === seqRef.current) syncItems(carrito)
+      })
+      .catch(err => {
+        if (op !== seqRef.current) return
+        setError(err.message)
+        cargarCarrito()
+      })
+  }
+
+  function esTemp(itemId) {
+    return String(itemId).startsWith('temp-')
+  }
+
   function abrirLogin() {
     setError('Inicia sesión para usar el carrito')
     setSolicitarLogin(true)
@@ -81,48 +150,56 @@ export function CartProvider({ children }) {
     setSolicitarLogin(false)
   }
 
-  async function agregarProducto(producto, cantidad = 1) {
+  function agregarProducto(producto, cantidad = 1) {
     if (!isLoggedIn) return abrirLogin()
     setError(null)
-    try {
-      const { carrito } = await carritoApi.agregarProducto(producto.id, cantidad)
-      syncItems(carrito)
-    } catch (err) {
-      setError(err.message)
-    }
+    optimistaAgregar(producto, cantidad)
+
+    const op = ++seqRef.current
+    carritoApi.agregarProducto(producto.id, cantidad)
+      .then(({ carrito }) => {
+        if (op !== seqRef.current) return
+        // Si el producto se eliminó de la vista antes de que respondiera el
+        // servidor, borrar la línea recién creada para no dejarla huérfana.
+        const sigueEnVista = itemsRef.current.some(i => i.id === producto.id)
+        syncItems(carrito)
+        mostrarToast('Producto agregado exitosamente')
+        if (!sigueEnVista) {
+          const linea = carrito?.items?.find(i => i.producto_id === producto.id)
+          if (linea) carritoApi.eliminarItem(linea.id).catch(() => {})
+        }
+      })
+      .catch(err => {
+        if (op !== seqRef.current) return
+        setError(err.message)
+        reversarAgregar(producto)
+      })
   }
 
-  async function quitarItem(itemId) {
+  function quitarItem(itemId) {
     if (!isLoggedIn) return abrirLogin()
     setError(null)
-    try {
-      const { carrito } = await carritoApi.eliminarItem(itemId)
-      syncItems(carrito)
-    } catch (err) {
-      setError(err.message)
-    }
+    optimistaQuitar(itemId)
+    if (esTemp(itemId)) return
+    fireAndReconcile(() => carritoApi.eliminarItem(itemId))
   }
 
-  async function actualizarCantidadItem(itemId, cantidad) {
+  function actualizarCantidadItem(itemId, cantidad) {
     if (!isLoggedIn) return abrirLogin()
-    setError(null)
-    try {
-      const { carrito } = await carritoApi.actualizarCantidad(itemId, cantidad)
-      syncItems(carrito)
-    } catch (err) {
-      setError(err.message)
+    if (esTemp(itemId)) {
+      optimistaCantidad(itemId, cantidad)
+      return
     }
+    setError(null)
+    optimistaCantidad(itemId, cantidad)
+    fireAndReconcile(() => carritoApi.actualizarCantidad(itemId, cantidad))
   }
 
-  async function vaciarCarrito() {
+  function vaciarCarrito() {
     if (!isLoggedIn) return abrirLogin()
     setError(null)
-    try {
-      const { carrito } = await carritoApi.vaciar()
-      syncItems(carrito)
-    } catch (err) {
-      setError(err.message)
-    }
+    actualizarItems([])
+    fireAndReconcile(() => carritoApi.vaciar())
   }
 
   const total = useMemo(

@@ -21,7 +21,7 @@ const modalStyle = {
 const inputStyle = {
     width: '100%', padding: '11px 14px', borderRadius: 10,
     border: '1px solid var(--line)', background: 'var(--bg)',
-    color: 'var(--text)', fontSize: 14, outline: 'none',
+    color: 'var(--input-text)', fontSize: 14, outline: 'none',
     boxSizing: 'border-box',
 }
 
@@ -458,7 +458,7 @@ export default function LoginModal({ onClose }) {
                                         placeholder="tucorreo@correo.cl"
                                         value={olvidar.email}
                                         onChange={(e) => cambiarOlvidar('email', e.target.value)}
-                                        style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                        style={{ ...inputStyle, paddingLeft: 34, color: 'var(--input-text)' }}
                                     />
                                 </div>
                                 <p style={{ color: '#ef4444', fontSize: 12, margin: '5px 0 14px', minHeight: 16 }}>
@@ -505,7 +505,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                     placeholder="••••••"
                                     value={olvidar.codigo}
                                     onChange={(e) => cambiarOlvidar('codigo', e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                    style={{ ...inputStyle, color: 'var(--surface)', letterSpacing: 6, textAlign: 'center', fontSize: 18 }}
+                                    style={{ ...inputStyle, color: 'var(--input-text)', letterSpacing: 6, textAlign: 'center', fontSize: 18 }}
                                 />
                                 <p style={errorSlotStyle}>{erroresOlvidar.codigo || ''}</p>
                                 {errorRecup && (
@@ -546,7 +546,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                         placeholder="Ingresa tu nueva contraseña"
                                         value={olvidar.password}
                                         onChange={(e) => cambiarOlvidar('password', e.target.value)}
-                                        style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--surface)' }}
+                                        style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--input-text)' }}
                                     />
                                     <button
                                         type="button"
@@ -601,7 +601,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                         placeholder="Repite tu nueva contraseña"
                                         value={olvidar.confirmar}
                                         onChange={(e) => cambiarOlvidar('confirmar', e.target.value)}
-                                        style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--surface)' }}
+                                        style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--input-text)' }}
                                     />
                                     <button
                                         type="button"
@@ -656,7 +656,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                         placeholder="tucorreo@correo.cl"
                                         value={email}
                                         onChange={(e) => { setEmail(e.target.value); setErrores(prev => ({ ...prev, email: '' })) }}
-                                        style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                        style={{ ...inputStyle, paddingLeft: 34, color: 'var(--input-text)' }}
                                     />
                                 </div>
                                 <p style={{ color: '#ef4444', fontSize: 12, margin: '5px 0 0', height: 16 }}>
@@ -678,7 +678,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                         placeholder="••••••••"
                                         value={password}
                                         onChange={(e) => { setPassword(e.target.value); setErrores(prev => ({ ...prev, password: '' })) }}
-                                        style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--surface)' }}
+                                        style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--input-text)' }}
                                     />
                                     <button
                                         type="button"
@@ -781,7 +781,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                             placeholder="Tu nombre"
                                             value={registro.nombre}
                                             onChange={(e) => cambiarRegistro('nombre', e.target.value)}
-                                            style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                            style={{ ...inputStyle, paddingLeft: 34, color: 'var(--input-text)' }}
                                         />
                                     </div>
                                     <p style={errorSlotStyle}>{erroresPaso.nombre || ''}</p>
@@ -803,7 +803,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                             placeholder="Tu apellido"
                                             value={registro.apellido}
                                             onChange={(e) => cambiarRegistro('apellido', e.target.value)}
-                                            style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                            style={{ ...inputStyle, paddingLeft: 34, color: 'var(--input-text)' }}
                                         />
                                     </div>
                                     <p style={errorSlotStyle}>{erroresPaso.apellido || ''}</p>
@@ -825,7 +825,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                             placeholder="tucorreo@correo.cl"
                                             value={registro.email}
                                             onChange={(e) => cambiarRegistro('email', e.target.value)}
-                                            style={{ ...inputStyle, paddingLeft: 34, color: 'var(--surface)' }}
+                                            style={{ ...inputStyle, paddingLeft: 34, color: 'var(--input-text)' }}
                                         />
                                     </div>
                                     <p style={errorSlotStyle}>{erroresPaso.email || ''}</p>
@@ -890,7 +890,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                             placeholder="Ingresa tu contraseña"
                                             value={registro.password}
                                             onChange={(e) => cambiarRegistro('password', e.target.value)}
-                                            style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--surface)' }}
+                                            style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--input-text)' }}
                                         />
                                         <button
                                             type="button"
@@ -950,7 +950,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                             placeholder="Repite tu contraseña"
                                             value={registro.confirmar}
                                             onChange={(e) => cambiarRegistro('confirmar', e.target.value)}
-                                            style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--surface)' }}
+                                            style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34, color: 'var(--input-text)' }}
                                         />
                                         <button
                                             type="button"
@@ -1062,7 +1062,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                             setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))
                                             limpiarErrorCampo('codigo')
                                         }}
-                                        style={{ ...inputStyle, color: 'var(--surface)', letterSpacing: 6, textAlign: 'center', fontSize: 18 }}
+                                        style={{ ...inputStyle, color: 'var(--input-text)', letterSpacing: 6, textAlign: 'center', fontSize: 18 }}
                                     />
                                     <p style={errorSlotStyle}>{erroresPaso.codigo || ''}</p>
 

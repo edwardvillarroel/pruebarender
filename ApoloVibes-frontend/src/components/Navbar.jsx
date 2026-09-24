@@ -4,17 +4,19 @@ import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
-import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck, ClipboardList } from 'lucide-react'
+import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck, ClipboardList, Minus, Plus, Trash2, ArrowRight } from 'lucide-react'
 import LoginModal from './LoginModal.jsx'
 
 export default function Navbar() {
-  const { cantidadTotal, solicitarLogin, abrirLogin, cerrarLogin } = useCart()
+  const { items, cantidadTotal, solicitarLogin, abrirLogin, cerrarLogin, quitarItem, actualizarCantidadItem, total, requiereLogin } = useCart()
   const { isLoggedIn, isAdmin, logout, user } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [cartOpen, setCartOpen] = useState(false)
   const userMenuRef = useRef(null)
+  const cartMenuRef = useRef(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -38,6 +40,17 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [userMenuOpen])
+
+  useEffect(() => {
+    if (!cartOpen) return
+    function handleClick(e) {
+      if (cartMenuRef.current && !cartMenuRef.current.contains(e.target)) {
+        setCartOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [cartOpen])
 
   function handleMobileNav(path) {
     setMobileOpen(false)
@@ -75,7 +88,7 @@ export default function Navbar() {
 
         {/* Desktop nav */}
         <nav className="nav-links hide-mobile">
-          <Link to="/categorias">Categorías</Link>
+          <Link to="/categorias">Catálogo</Link>
           <Link to="/cotizar">Cotiza tu producto</Link>
           <Link to="/">Nosotros</Link>
         </nav>
@@ -100,12 +113,193 @@ export default function Navbar() {
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
-          <Link to="/carrito" className="cart-icon" aria-label="Carrito" style={{ color: '#FBF7EE' }}>
-            <ShoppingCart size={24} />
-            {cantidadTotal > 0 && (
-              <span className="cart-badge">{cantidadTotal}</span>
+          <div className="cart-icon" ref={cartMenuRef} style={{ position: 'relative', color: '#FBF7EE' }}>
+            <button
+              onClick={() => setCartOpen(v => !v)}
+              aria-label="Carrito"
+              aria-expanded={cartOpen}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                cursor: 'pointer',
+                color: '#FBF7EE',
+              }}
+            >
+              <ShoppingCart size={24} />
+              {cantidadTotal > 0 && (
+                <span className="cart-badge">{cantidadTotal}</span>
+              )}
+            </button>
+
+            {cartOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 8px)',
+                right: 0,
+                background: 'rgba(250,127,25,1)',
+                border: '1px solid var(--line)',
+                borderRadius: 12,
+                width: 380,
+                maxWidth: '92vw',
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.55)',
+                overflow: 'hidden',
+                zIndex: 200,
+                animation: 'toast-entrada 0.3s ease',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--bg)' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                    Tu carrito ({cantidadTotal} {cantidadTotal === 1 ? 'producto' : 'productos'})
+                  </span>
+                  <button
+                    onClick={() => setCartOpen(false)}
+                    aria-label="Cerrar carrito"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 2 }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                  {requiereLogin ? (
+                    <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+                      <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
+                        Inicia sesión para usar el carrito.
+                      </p>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => { setCartOpen(false); abrirLogin() }}
+                        style={{ color: 'var(--text)' }}
+                      >
+                        Iniciar sesión
+                      </button>
+                    </div>
+                  ) : items.length === 0 ? (
+                    <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+                      <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
+                        Tu carrito está vacío.
+                      </p>
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => { setCartOpen(false); navigate('/categorias') }}
+                        style={{ color: 'var(--text)' }}
+                      >
+                        Ver catálogo
+                      </button>
+                    </div>
+                  ) : (
+                    items.map(item => (
+                      <div
+                        key={item.id}
+                        style={{
+                          display: 'flex',
+                          gap: 12,
+                          padding: '12px 16px',
+                          borderBottom: '1px solid var(--bg)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 56,
+                            height: 56,
+                            borderRadius: 8,
+                            overflow: 'hidden',
+                            background: item.imagen ? '#FFFFFF' : 'var(--surface-2)',
+                            flexShrink: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {item.imagen && (
+                            <img
+                              src={item.imagen}
+                              alt={item.nombre}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          )}
+                        </div>
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                            <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {item.nombre}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => quitarItem(item.itemId)}
+                              aria-label={`Quitar ${item.nombre} del carrito`}
+                              title="Quitar producto"
+                              style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 2, flexShrink: 0 }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                          <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 8px' }}>
+                            ${item.precio.toLocaleString('es-CL')} c/u
+                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
+                              <button
+                                type="button"
+                                onClick={() => actualizarCantidadItem(item.itemId, Math.max(1, item.cantidad - 1))}
+                                aria-label={`Reducir cantidad de ${item.nombre}`}
+                                style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  width: 26, height: 26, border: 'none', background: 'transparent',
+                                  color: 'inherit', cursor: 'pointer',
+                                }}
+                              >
+                                <Minus size={13} style={{ color: 'var(--text)' }} />
+                              </button>
+                              <span style={{ minWidth: 26, textAlign: 'center', fontSize: 13, color: 'var(--text)' }}>
+                                {item.cantidad}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => actualizarCantidadItem(item.itemId, item.cantidad + 1)}
+                                aria-label={`Aumentar cantidad de ${item.nombre}`}
+                                style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  width: 26, height: 26, border: 'none', background: 'transparent',
+                                  color: 'inherit', cursor: 'pointer',
+                                }}
+                              >
+                                <Plus size={13} style={{ color: 'var(--text)' }} />
+                              </button>
+                            </div>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>
+                              ${(item.precio * item.cantidad).toLocaleString('es-CL')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {!requiereLogin && items.length > 0 && (
+                  <div style={{ padding: '14px 16px', borderTop: '1px solid var(--bg)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>
+                      <span>Total</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>${total.toLocaleString('es-CL')} CLP</span>
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => { setCartOpen(false); navigate('/carrito') }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)' }}
+                    >
+                      Continuar con la compra
+                      <ArrowRight size={16} color="var(--text)" />
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
-          </Link>
+          </div>
 
           {/* Desktop auth */}
           <div className="hide-mobile" style={{ position: 'relative' }} ref={userMenuRef}>
@@ -225,7 +419,7 @@ export default function Navbar() {
             </button>
           </div>
           <button onClick={() => handleMobileNav('/')}>Inicio</button>
-          <button onClick={() => handleMobileNav('/categorias')}>Categorías</button>
+          <button onClick={() => handleMobileNav('/categorias')}>Catálogo</button>
           <button onClick={() => handleMobileNav('/cotizar')}>Cotiza tu producto</button>
           <button onClick={() => handleMobileNav('/carrito')}>Carrito ({cantidadTotal})</button>
           {isLoggedIn ? (
