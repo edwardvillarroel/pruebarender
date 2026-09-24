@@ -85,7 +85,6 @@ export default function LoginModal({ onClose }) {
     const [erroresPaso, setErroresPaso] = useState({})
     const [enviandoCodigo, setEnviandoCodigo] = useState(false)
     const [codigoEnviado, setCodigoEnviado] = useState(false)
-    const [codigoDePrueba, setCodigoDePrueba] = useState('')
     const [codigo, setCodigo] = useState('')
     const [olvidar, setOlvidar] = useState({ email: '', codigo: '', password: '', confirmar: '' })
     const [erroresOlvidar, setErroresOlvidar] = useState({})
@@ -93,7 +92,6 @@ export default function LoginModal({ onClose }) {
     const [mostrarConfirmarNueva, setMostrarConfirmarNueva] = useState(false)
     const [enviandoCodigoRecup, setEnviandoCodigoRecup] = useState(false)
     const [codigoRecupEnviado, setCodigoRecupEnviado] = useState(false)
-    const [codigoRecupPrueba, setCodigoRecupPrueba] = useState('')
     const [errorRecup, setErrorRecup] = useState('')
     const [exitoRecup, setExitoRecup] = useState('')
     const [pasoRecup, setPasoRecup] = useState(1)
@@ -204,9 +202,8 @@ export default function LoginModal({ onClose }) {
         setError('')
         setCodigoEnviado(false)
         try {
-            const data = await api.post('/auth/registro/crear-codigo', { email: registro.email.trim() })
+            await api.post('/auth/registro/crear-codigo', { email: registro.email.trim() })
             setCodigoEnviado(true)
-            setCodigoDePrueba(data.codigo || '')
             setPaso(4)
         } catch (err) {
             if ((err.message || '').includes('cuenta con ese correo')) {
@@ -268,13 +265,11 @@ export default function LoginModal({ onClose }) {
         setPaso(1)
         setErroresPaso({})
         setCodigoEnviado(false)
-        setCodigoDePrueba('')
         setCodigo('')
         setErroresOlvidar({})
         setErrorRecup('')
         setExitoRecup('')
         setCodigoRecupEnviado(false)
-        setCodigoRecupPrueba('')
         setPasoRecup(1)
         setExpiraRecupEn('')
         setTiempoRestante(0)
@@ -309,7 +304,6 @@ export default function LoginModal({ onClose }) {
         try {
             const data = await api.post('/auth/recuperar/crear-codigo', { email: olvidar.email.trim() })
             setCodigoRecupEnviado(true)
-            setCodigoRecupPrueba(data.codigo || '')
             setExpiraRecupEn(data.expira_en || new Date(Date.now() + 5 * 60 * 1000).toISOString())
             setCodigoExpiradoRecup(false)
             setPasoRecup(2)
@@ -496,13 +490,8 @@ export default function LoginModal({ onClose }) {
                                             style={{ display: 'block', margin: '0 auto 8px' }}
                                         />
                                         <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: 0, textAlign: 'center', marginBottom: 20 }}>
-                                            Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvidar.email.trim())}</strong>
-                                            {codigoRecupPrueba && (
-                                                <span style={{ display: 'block', marginTop: 6, padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 8, color: 'var(--text)' }}>
-                                                    Simulación (correo aún no configurado): tu código es <strong>{codigoRecupPrueba}</strong>
-                                                </span>
-                                            )}
-                                        </p>
+Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvidar.email.trim())}</strong>
+                                </p>
                                     </div>
                                 )}
                                 <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', margin: '14px 0 6px' }}>
@@ -1018,11 +1007,6 @@ export default function LoginModal({ onClose }) {
                                     {codigoEnviado && (
                                         <p style={{ color: '#22c55e', fontSize: 12, margin: '0 0 14px' }}>
                                             Código enviado. Revisa tu correo.
-                                            {codigoDePrueba && (
-                                                <span style={{ display: 'block', marginTop: 6, padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 8, color: 'var(--text)' }}>
-                                                    Simulación (correo aún no configurado): tu código es <strong>{codigoDePrueba}</strong>
-                                                </span>
-                                            )}
                                         </p>
                                     )}
                                     {error && (
@@ -1061,11 +1045,6 @@ export default function LoginModal({ onClose }) {
                                             />
                                             <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: 0, textAlign: 'center' }}>
                                                 Código enviado a <strong style={{ color: 'var(--accent)' }}>{registro.email.trim()}</strong>
-                                                {codigoDePrueba && (
-                                                    <span style={{ display: 'block', marginTop: 6, padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 8, color: 'var(--text)' }}>
-                                                        Simulación (correo aún no configurado): tu código es <strong>{codigoDePrueba}</strong>
-                                                    </span>
-                                                )}
                                             </p>
                                         </div>
                                     )}
