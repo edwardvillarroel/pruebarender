@@ -15,4 +15,8 @@ class UsuarioModel(db.Model):
     telefono = db.Column(db.String(30))
     rol = db.Column(db.String(20), nullable=False, default="cliente")
     activo = db.Column(db.Boolean, nullable=False, default=True)
+    auth_provider = db.Column(db.String(20), nullable=False, default="local")
+    google_sub = db.Column(db.String(255))
+    mfa_secret = db.Column(db.String(64))
+    mfa_activo = db.Column(db.Boolean, nullable=False, default=False)
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)

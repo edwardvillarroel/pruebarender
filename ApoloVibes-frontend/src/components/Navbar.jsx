@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
-import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck, ClipboardList, Minus, Plus, Trash2, ArrowRight } from 'lucide-react'
+import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck, ClipboardList, Minus, Plus, Trash2, ArrowRight, ShieldCheck } from 'lucide-react'
 import LoginModal from './LoginModal.jsx'
+import SeguridadModal from './SeguridadModal.jsx'
 
 export default function Navbar() {
   const { items, cantidadTotal, solicitarLogin, abrirLogin, cerrarLogin, quitarItem, actualizarCantidadItem, total, requiereLogin } = useCart()
@@ -15,6 +16,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
+  const [seguridadOpen, setSeguridadOpen] = useState(false)
   const userMenuRef = useRef(null)
   const cartMenuRef = useRef(null)
   const navigate = useNavigate()
@@ -51,6 +53,14 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [cartOpen])
+
+  // Google OAuth con MFA pendiente: el usuario vuelve con ?login=google&mfa=1
+  // y hay que reabrir el modal en el paso de código.
+  useEffect(() => {
+    const abrirGoogleMfa = () => abrirLogin()
+    window.addEventListener('apolovibes:google-mfa', abrirGoogleMfa)
+    return () => window.removeEventListener('apolovibes:google-mfa', abrirGoogleMfa)
+  }, [abrirLogin])
 
   function handleMobileNav(path) {
     setMobileOpen(false)
@@ -378,6 +388,21 @@ export default function Navbar() {
                   Mis pedidos
                 </button>
                 <button
+                  onClick={() => { setUserMenuOpen(false); setSeguridadOpen(true) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                    padding: '12px 16px', border: 'none', background: 'none',
+                    color: 'var(--text)', fontSize: 13, cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background .15s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                >
+                  <ShieldCheck size={16} color="var(--text)" />
+                  Seguridad
+                </button>
+                <button
                   onClick={() => { setUserMenuOpen(false); logout(); navigate('/') }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, width: '100%',
@@ -443,6 +468,10 @@ export default function Navbar() {
 
       {solicitarLogin && (
         <LoginModal onClose={cerrarLogin} />
+      )}
+
+      {seguridadOpen && (
+        <SeguridadModal onClose={() => setSeguridadOpen(false)} />
       )}
     </header>
   )

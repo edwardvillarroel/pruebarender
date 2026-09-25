@@ -23,3 +23,17 @@ class Config:
     EMAILJS_PRIVATE_KEY = os.getenv("EMAILJS_PRIVATE_KEY", "")
     EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID", "")
     EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID", "")
+    # Plantilla dedicada para alertas de seguridad (5º fallo de login, etc.)
+    EMAILJS_TEMPLATE_ALERTA = os.getenv("EMAILJS_TEMPLATE_ALERTA", "")
+
+    # --- Google OAuth ---
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "")
+
+    # --- reCAPTCHA v2 (anti fuerza bruta) ---
+    RECAPTCHA_SITE_KEY = os.getenv("RECAPTCHA_SITE_KEY", "")
+    RECAPTCHA_SECRET_KEY = os.getenv("RECAPTCHA_SECRET_KEY", "")
+
+    # --- URL del frontend (callback de Google redirige aquí) ---
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
