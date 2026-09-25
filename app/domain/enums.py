@@ -39,3 +39,13 @@ class EstadoTarea(str, Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class MedioPago(str, Enum):
+    EFECTIVO = "efectivo"
+    TUU = "tuu"
+
+
+class EstadoSesionVenta(str, Enum):
+    ABIERTA = "abierta"
+    CERRADA = "cerrada"

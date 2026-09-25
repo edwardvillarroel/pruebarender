@@ -17,6 +17,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     _configurar_carrito(app)
     _configurar_catalogo(app)
     _configurar_pedidos_pagos(app)
+    _configurar_ventas(app)
 
     from app.api import register_blueprints
 
@@ -117,6 +118,23 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
         cliente_starken = StarkenCliente(app.config)
     app.config["SEGUIMIENTO_STARKEN_SERVICE"] = GestionarSeguimientoStarken(
         pedidos, cliente_starken
+    )
+
+
+def _configurar_ventas(app: Flask) -> None:
+    """Punto de composición de la venta local (inyección de dependencias).
+
+    La ruta de ventas lee el servicio desde `app.config`; así la capa API no
+    depende de `infrastructure`. Importar los repositorios registra los modelos
+    ORM de venta local con Flask-SQLAlchemy.
+    """
+    from app.application.venta_local.gestionar_venta_local import GestionarVentaLocal
+    from app.infrastructure.database.models.usuario_model import UsuarioModel  # noqa: F401  (registra "usuarios" para el FK de sesiones_venta)
+    from app.infrastructure.repositories.producto_repository import ProductoRepository
+    from app.infrastructure.repositories.venta_local_repository import VentaLocalRepository
+
+    app.config["VENTA_SERVICE"] = GestionarVentaLocal(
+        VentaLocalRepository(), ProductoRepository()
     )
 
 
