@@ -2,7 +2,25 @@
 const BASE_URL = '/api'
 const AUTH_STORAGE_KEY = 'apolovibes_auth'
 
-const EXCLUDE_RETRY = ['/auth/login', '/auth/refresh', '/auth/logout']
+const EXCLUDE_RETRY = ['/auth/login', '/auth/refresh', '/auth/logout', '/auth/mfa/verificar', '/auth/mfa/activar', '/auth/mfa/desactivar', '/auth/cambiar-contrasena']
+
+// Convierte un fetch Response en Error que conserva el body JSON del servidor
+// (err.datos) para que el UI pueda leer campos extra (captcha_requerido, etc.).
+function errorDeRespuesta(res, path) {
+  return res.clone().json()
+    .then(body => {
+      const e = new Error(body.mensaje || `Error ${res.status} al llamar ${path}`)
+      e.datos = body
+      e.status = res.status
+      return e
+    })
+    .catch(() => {
+      const e = new Error(`Error ${res.status} al llamar ${path}`)
+      e.datos = null
+      e.status = res.status
+      return e
+    })
+}
 
 // Rutas públicas que NO deben causar logout si el token expira
 const PUBLIC_PATHS = ['/productos', '/categorias', '/productos/']
@@ -75,8 +93,7 @@ async function request(path, options = {}, _retry = false) {
         },
       })
       if (!retryRes.ok) {
-        const err = await retryRes.json().catch(() => ({}))
-        throw new Error(err.mensaje || `Error ${retryRes.status} al llamar ${path}`)
+        throw await errorDeRespuesta(retryRes, path)
       }
       return retryRes.json()
     }
@@ -87,8 +104,7 @@ async function request(path, options = {}, _retry = false) {
   }
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.mensaje || `Error ${res.status} al llamar ${path}`)
+    throw await errorDeRespuesta(res, path)
   }
   return res.json()
 }
