@@ -5,7 +5,7 @@ import { productoApi } from '../../services/products.js';
 import ModalProducto from '../../components/ModalProducto.jsx';
 import SelectOpciones from '../../components/SelectOpciones.jsx';
 
-const FILAS_POR_PAGINA = 10;
+const FILAS_POR_PAGINA = 6;
 
 function ConfirmEliminarModal({ producto, onConfirm, onCancel }) {
   return (
