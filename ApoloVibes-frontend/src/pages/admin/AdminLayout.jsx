@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { Menu, LogOut, LayoutDashboard, ClipboardList, Package, FileText, ShoppingCart, User } from 'lucide-react'
 
@@ -92,9 +92,14 @@ function SidebarContent({ onLogout, user }) {
 
   return (
     <>
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, padding: '6px 10px 28px' }}>
+      <Link
+        to="/"
+        style={{
+          fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, padding: '6px 10px 28px',
+          display: 'block', color: 'inherit', textDecoration: 'none', cursor: 'pointer',
+        }}>
         Apolo Vibes 3D
-      </div>
+      </Link>
       <nav style={{ flex: 1 }}>
         {navItems.map(({ to, end, label, icon: Icon }) => (
           <NavLink key={to} to={to} end={end} style={itemStyle}>

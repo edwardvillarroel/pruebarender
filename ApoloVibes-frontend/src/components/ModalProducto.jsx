@@ -185,7 +185,7 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
 
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                             <div style={fieldGroup}>
-                                <label style={labelStyle}>Precio (CLP) *</label>
+                                <label style={labelStyle}>Precio neto (CLP) *</label>
                                 <input type="number" value={form.precio} onChange={set('precio')} style={inputStyle} />
                             </div>
                             <div style={fieldGroup}>

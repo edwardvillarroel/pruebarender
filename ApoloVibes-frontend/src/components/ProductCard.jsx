@@ -188,6 +188,7 @@ export default function ProductCard({ producto, index = 0 }) {
             </span>
           ) : null}
         </div>
+        <p style={{ color: 'var(--text-dim)', fontWeight: 600, fontSize: 10, marginTop: -10 }}>IVA incluido</p>
 
         {producto.rating && (
           <div style={{ display: 'flex', gap: 2 }}>
