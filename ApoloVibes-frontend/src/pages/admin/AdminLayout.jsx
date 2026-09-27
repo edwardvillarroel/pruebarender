@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { Menu, LogOut, LayoutDashboard, ClipboardList, Package, FileText, ShoppingCart, User } from 'lucide-react'
+import Apolovibeslogo from '../../../public/media/apolo-vibes-logo.png'
 
 const navItems = [
   { to: '/admin', end: true, label: 'Dashboard', icon: LayoutDashboard },
@@ -53,6 +54,9 @@ function ConfirmModal({ onConfirm, onCancel }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ fontSize: 36, marginBottom: 12 }}></div>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
+          <img src={Apolovibeslogo} alt="Logo" style={{ width: 60, height: 60 }} />
+        </div>
         <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>
           Cerrar sesión
         </h3>
@@ -215,7 +219,7 @@ export default function AdminLayout() {
         <Menu size={20} />
       </button>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <main style={{ padding: '28px 34px', flex: 1 }}>
+        <main style={{ padding: '28px 34px', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Outlet />
         </main>
       </div>
