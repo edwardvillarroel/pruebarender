@@ -26,12 +26,14 @@ import ReportesVentas from './pages/admin/ReportesVentas.jsx'
 
 function TiendaLayout({ children }) {
   return (
-    <>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <TopBar />
       <Navbar />
-      {children}
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {children}
+      </main>
       <Footer />
-    </>
+    </div>
   )
 }
 
