@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { carritoApi } from '../services/cart.js'
+import { imagenDeColor } from '../services/products.js'
 import { useAuth } from './AuthContext.jsx'
 import { useProductos } from './ProductContext.jsx'
 import { useToast } from './ToastContext.jsx'
@@ -8,15 +9,19 @@ const CartContext = createContext(null)
 
 function enrichItem(linea, productos) {
   const prod = productos.find(p => p.id === linea.producto_id)
+  // La foto de la linea es la del color elegido; la principal del producto es
+  // solo el fallback para productos sin variantes.
+  const imagen = imagenDeColor(linea.producto_id, linea.color) ?? prod?.imagen ?? null
   return {
     id: linea.producto_id,
     itemId: linea.id,
     productoId: linea.producto_id,
     cantidad: linea.cantidad,
+    color: linea.color ?? null,
     nombre: prod?.nombre ?? 'Producto',
     precio: prod?.precio ?? 0,
     precio_original: prod?.precio_original ?? null,
-    imagen: prod?.imagen ?? null,
+    imagen,
   }
 }
 
@@ -82,36 +87,45 @@ export function CartProvider({ children }) {
     setItems(next)
   }
 
-  function optimistaAgregar(producto, cantidad = 1) {
-    actualizarItems(prev => {
-      const existente = prev.find(i => i.id === producto.id)
-      if (existente) {
-        return prev.map(i => i.id === producto.id ? { ...i, cantidad: i.cantidad + cantidad } : i)
-      }
-      return [...prev, {
-        id: producto.id,
-        itemId: `temp-${producto.id}`,
-        productoId: producto.id,
-        cantidad,
-        nombre: producto.nombre,
-        precio: producto.precio ?? 0,
-        precio_original: producto.precio_original ?? null,
-        imagen: producto.imagen ?? null,
-      }]
-    })
-  }
+// Dos lineas son la misma solo si comparten producto Y color: el mismo
+// producto en blanco y en negro se imprime distinto, asi que van separadas.
+function mismaLinea(a, producto, color) {
+  return a.id === producto.id && (a.color ?? null) === (color ?? null)
+}
 
-  function reversarAgregar(producto) {
-    actualizarItems(prev => {
-      const idx = prev.findIndex(i => i.id === producto.id)
-      if (idx === -1) return prev
-      const item = prev[idx]
-      if (item.cantidad > 1) {
-        return prev.map(i => i.id === producto.id ? { ...i, cantidad: i.cantidad - 1 } : i)
-      }
-      return prev.filter(i => i.id !== producto.id)
-    })
-  }
+function optimistaAgregar(producto, cantidad = 1) {
+  const color = producto.color ?? null
+  actualizarItems(prev => {
+    const existente = prev.find(i => mismaLinea(i, producto, color))
+    if (existente) {
+      return prev.map(i => i === existente ? { ...i, cantidad: i.cantidad + cantidad } : i)
+    }
+    return [...prev, {
+      id: producto.id,
+      itemId: `temp-${producto.id}-${color || 'sin-color'}`,
+      productoId: producto.id,
+      cantidad,
+      color,
+      nombre: producto.nombre,
+      precio: producto.precio ?? 0,
+      precio_original: producto.precio_original ?? null,
+      imagen: producto.imagen ?? null,
+    }]
+  })
+}
+
+function reversarAgregar(producto) {
+  const color = producto.color ?? null
+  actualizarItems(prev => {
+    const idx = prev.findIndex(i => mismaLinea(i, producto, color))
+    if (idx === -1) return prev
+    const item = prev[idx]
+    if (item.cantidad > 1) {
+      return prev.map(i => i === item ? { ...i, cantidad: i.cantidad - 1 } : i)
+    }
+    return prev.filter(i => i !== item)
+  })
+}
 
   function optimistaQuitar(itemId) {
     actualizarItems(prev => prev.filter(i => i.itemId !== itemId && i.id !== itemId))
@@ -153,19 +167,22 @@ export function CartProvider({ children }) {
   function agregarProducto(producto, cantidad = 1) {
     if (!isLoggedIn) return abrirLogin()
     setError(null)
+    const color = producto.color ?? null
     optimistaAgregar(producto, cantidad)
 
     const op = ++seqRef.current
-    carritoApi.agregarProducto(producto.id, cantidad)
+    carritoApi.agregarProducto(producto.id, cantidad, color)
       .then(({ carrito }) => {
         if (op !== seqRef.current) return
-        // Si el producto se eliminó de la vista antes de que respondiera el
-        // servidor, borrar la línea recién creada para no dejarla huérfana.
-        const sigueEnVista = itemsRef.current.some(i => i.id === producto.id)
+        // Si la linea se elimino de la vista antes de que respondiera el
+        // servidor, borrar la recien creada para no dejarla huerfana.
+        const sigueEnVista = itemsRef.current.some(i => mismaLinea(i, producto, color))
         syncItems(carrito)
         mostrarToast('Producto agregado exitosamente')
         if (!sigueEnVista) {
-          const linea = carrito?.items?.find(i => i.producto_id === producto.id)
+          const linea = carrito?.items?.find(
+            i => i.producto_id === producto.id && (i.color ?? null) === color
+          )
           if (linea) carritoApi.eliminarItem(linea.id).catch(() => {})
         }
       })

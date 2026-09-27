@@ -121,6 +121,11 @@ export default function Carrito() {
                   <p style={{ fontWeight: 600, color: 'var(--text)', margin: '0 0 6px', fontSize: 15, color: 'var(--surface)' }}>
                     {item.nombre}
                   </p>
+                  {item.color && (
+                    <p style={{ margin: '0 0 6px', fontSize: 12, color: 'var(--text-dim)' }}>
+                      Color: {item.color}
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={() => quitarItem(item.itemId)}
