@@ -174,9 +174,12 @@ export default function Navbar() {
                   </button>
                 </div>
 
-                <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 5, marginTop: -15, marginLeft: 15 }}>
-                  (Los Productos en tu carrito no están reservados).
-                </p>
+                {!requiereLogin && items.length > 0 && (
+                  <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 5, marginTop: -15, marginLeft: 15 }}>
+                    (Los Productos en tu carrito no están reservados).
+                  </p>
+                )}
+
                 <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)' }}></div>
 
                 <div style={{ maxHeight: 320, overflowY: 'auto' }}>
@@ -195,6 +198,7 @@ export default function Navbar() {
                     </div>
                   ) : items.length === 0 ? (
                     <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+                      <ShoppingCart size={40} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 12px', color: 'var(--text-dim)' }} />
                       <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
                         Tu carrito está vacío.
                       </p>

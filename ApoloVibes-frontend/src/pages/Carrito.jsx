@@ -25,8 +25,8 @@ export default function Carrito() {
 
   if (requiereLogin) {
     return (
-      <div className="wrap" style={{ paddingTop: '80px', paddingBottom: '80px', textAlign: 'center' }} >
-        <ShoppingCart size={64} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 20px', color: 'var(--text-dim)' }}
+      <div className="wrap" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center' }} >
+        <ShoppingCart size={64} strokeWidth={1.5} style={{ marginBottom: 20, color: 'var(--text-dim)' }}
         />
         <p style={{ color: 'var(--text-dim)', marginBottom: 20 }}>
           Inicia sesión para ver tu carrito y seguir comprando.
@@ -40,9 +40,8 @@ export default function Carrito() {
 
   if (items.length === 0) {
     return (
-      <div className="wrap" style={{ paddingTop: '80px', paddingBottom: '80px', textAlign: 'center' }} >
-        <ShoppingCart size={64} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 20px', color: 'var(--text-dim)' }}
-        />
+      <div className="wrap" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center' }} >
+        <ShoppingCart size={64} strokeWidth={1.5} style={{ marginBottom: 20, color: 'var(--text-dim)' }} />
         <p style={{ color: 'var(--text-dim)', marginBottom: 20 }}> Tu carrito está vacío. </p>
         <Link to="/categorias" className="btn btn-primary"> Ver catálogo
         </Link>
