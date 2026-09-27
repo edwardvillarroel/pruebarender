@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { api } from '../services/api.js'
 import { Eye, EyeOff, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react'
+import Apolovibeslogo from '../../public/media/apolo-vibes-logo.png'
 
 const overlayStyle = {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)',
@@ -197,10 +198,14 @@ export default function SeguridadModal({ onClose }) {
                     &times;
                 </button>
 
-                <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', margin: '0 0 6px' }}>
-                    <ShieldCheck size={22} color="var(--accent)" /> Seguridad
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
+                    <img src={Apolovibeslogo} alt="Logo" style={{ width: 60, height: 60, marginBottom: -10 }} />
+                </div>
+
+                <h2 style={{ display: 'flex', justifyContent: 'center', gap: 8, fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', margin: '0 0 6px' }}>
+                    Seguridad
                 </h2>
-                <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 20px' }}>
+                <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 20px', textAlign: 'center' }}>
                     Protege tu cuenta con autenticación de dos factores y gestiona tu contraseña.
                 </p>
 

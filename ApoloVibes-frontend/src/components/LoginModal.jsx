@@ -80,6 +80,9 @@ export default function LoginModal({ onClose }) {
     const [error, setError] = useState('')
     const [exito, setExito] = useState('')
     const [cargando, setCargando] = useState(false)
+    // El flujo OAuth de Google redirige el navegador: lleva su propio estado para
+    // que el botón "Entrar" (correo/contraseña) no mienta mostrando "Entrando...".
+    const [conectandoGoogle, setConectandoGoogle] = useState(false)
     const tiempoCierre = useRef(null)
     const [errores, setErrores] = useState({ email: '', password: '' })
     const [paso, setPaso] = useState(1)
@@ -127,7 +130,7 @@ export default function LoginModal({ onClose }) {
     }, [])
 
     const iniciarGoogle = async () => {
-        setCargando(true)
+        setConectandoGoogle(true)
         setError('')
         try {
             const data = await api.get('/auth/google/url')
@@ -135,7 +138,7 @@ export default function LoginModal({ onClose }) {
             window.location.href = data.url
         } catch (err) {
             setError(err.message || 'No se pudo iniciar sesión con Google')
-            setCargando(false)
+            setConectandoGoogle(false)
         }
     }
 
@@ -353,6 +356,10 @@ export default function LoginModal({ onClose }) {
         setEsperaBlanqueoMfa(0)
         setCaptchaRequerido(false)
         setCaptchaToken('')
+        // Sin esto, un submit en vuelo (o el redirect de Google) deja el boton
+        // del nuevo modo mostrando "Entrando..."/"Verificando..." sin estar envoyando nada.
+        setCargando(false)
+        setConectandoGoogle(false)
     }
 
     // ---- Recuperación de contraseña ----
@@ -1255,19 +1262,20 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                 <button
                                     type="button"
                                     aria-label="Continuar con Google"
-                                    disabled={cargando}
+                                    aria-busy={conectandoGoogle}
+                                    disabled={conectandoGoogle}
                                     onClick={iniciarGoogle}
                                     style={{
                                         flex: 1, border: '1px solid var(--line)', borderRadius: 10,
-                                        padding: '11px 0', background: 'transparent', cursor: cargando ? 'default' : 'pointer',
+                                        padding: '11px 0', background: 'transparent', cursor: conectandoGoogle ? 'default' : 'pointer',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        gap: 8, color: 'var(--text-dim)', fontSize: 12, opacity: cargando ? .6 : 1,
+                                        gap: 8, color: 'var(--text-dim)', fontSize: 12, opacity: conectandoGoogle ? .6 : 1,
                                         transition: 'border-color .2s',
                                     }}
-                                    onMouseEnter={(e) => { if (!cargando) e.currentTarget.style.borderColor = 'var(--accent)' }}
-                                    onMouseLeave={(e) => { if (!cargando) e.currentTarget.style.borderColor = 'var(--line)' }}
+                                    onMouseEnter={(e) => { if (!conectandoGoogle) e.currentTarget.style.borderColor = 'var(--accent)' }}
+                                    onMouseLeave={(e) => { if (!conectandoGoogle) e.currentTarget.style.borderColor = 'var(--line)' }}
                                 >
-                                    {cargando ? 'Conectando...' : (
+                                    {conectandoGoogle ? 'Conectando...' : (
                                         <>
                                             <svg width="16" height="16" viewBox="0 0 24 24">
                                                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
