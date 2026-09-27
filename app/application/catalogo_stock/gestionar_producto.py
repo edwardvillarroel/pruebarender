@@ -1,10 +1,17 @@
 import math
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID
 
 from app.application.common.dto import ActualizarProductoDTO, CrearProductoDTO
-from app.domain.entities.producto import ImagenProducto, Producto
+from app.domain.entities.producto import (
+    ColorProducto,
+    ImagenProducto,
+    Producto,
+)
 from app.domain.interfaces.repositories import ProductoRepository
+
+
+IVA_PORCENTAJE = 19
 
 
 def _calcular_precio_original(precio: int, descuento: int) -> int:
@@ -14,20 +21,39 @@ def _calcular_precio_original(precio: int, descuento: int) -> int:
     return math.ceil(precio / (1 - descuento / 100))
 
 
-class GestionarProducto:
-    """Caso de uso: CRUD de productos del catálogo."""
+def _aplicar_iva(precio_neto: int) -> int:
+    """Precio final con IVA incluido, redondeado hacia arriba a pesos enteros."""
+    if precio_neto <= 0:
+        return precio_neto
+    return (precio_neto * (100 + IVA_PORCENTAJE) + 99) // 100
 
-    def __init__(self, repositorio: ProductoRepository) -> None:
+
+class GestionarProducto:
+    """Caso de uso: CRUD de productos del catálogo.
+
+    `generador_thumb` es la funcion de infraestructura que reduce una foto a un
+    thumbnail (Pillow). Se recibe inyectada porque `application` no puede
+    importar `infrastructure`; si es `None` no hay thumbnails y las rutas
+    sirven siempre la imagen original.
+    """
+
+    def __init__(
+        self,
+        repositorio: ProductoRepository,
+        generador_thumb: Callable[[bytes, str], tuple[bytes, str] | None] | None = None,
+    ) -> None:
         self._repositorio = repositorio
+        self._generador_thumb = generador_thumb
 
     def crear(self, dto: CrearProductoDTO) -> Producto:
+        precio_final = _aplicar_iva(dto.precio)
         precio_original = None
         if dto.descuento and dto.descuento > 0:
-            precio_original = _calcular_precio_original(dto.precio, dto.descuento)
+            precio_original = _calcular_precio_original(precio_final, dto.descuento)
         producto = Producto(
             nombre=dto.nombre,
             categoria_id=dto.categoria_id,
-            precio=dto.precio,
+            precio=precio_final,
             stock=dto.stock,
             descripcion=dto.descripcion,
             imagen=dto.imagen,
@@ -46,8 +72,86 @@ class GestionarProducto:
     def consultar_imagen(self, producto_id: UUID) -> ImagenProducto | None:
         return self._repositorio.get_imagen_by_id(producto_id)
 
+    def obtener_thumb(self, producto_id: UUID) -> ImagenProducto | None:
+        """Thumbnail del producto, generandolo la primera vez.
+
+        El catalogo pedia 43 MB para 18 productos porque cada tarjeta
+        descargaba la foto completa. Aqui se devuelve la version reducida: si ya
+        esta cacheada se lee de la BD, y si no se genera desde el original y se
+        guarda para las proximas peticiones.
+
+        Devuelve `None` cuando el producto no tiene foto, cuando no hay
+        generador (Pillow ausente), cuando Pillow no puede decodificar la foto o
+        cuando la original ya es chica. En todos esos casos la ruta debe servir
+        la imagen original.
+        """
+        thumb = self._repositorio.get_thumb_by_id(producto_id)
+        if thumb is not None:
+            return thumb
+
+        if self._generador_thumb is None:
+            return None
+
+        original = self._repositorio.get_imagen_by_id(producto_id)
+        if original is None or not original.bytes:
+            return None
+
+        generado = self._generador_thumb(original.bytes, original.content_type)
+        if generado is None:
+            return None
+
+        thumb = ImagenProducto(bytes=generado[0], content_type=generado[1])
+        self._repositorio.guardar_thumb(producto_id, thumb)
+        return thumb
+
+    def obtener_thumb_color(self, color_id: UUID) -> ImagenProducto | None:
+        """Thumbnail de un color, con la misma generacion perezosa y cache."""
+        thumb = self._repositorio.get_color_thumb_by_id(color_id)
+        if thumb is not None:
+            return thumb
+
+        if self._generador_thumb is None:
+            return None
+
+        original = self._repositorio.get_color_imagen_by_id(color_id)
+        if original is None or not original.bytes:
+            return None
+
+        generado = self._generador_thumb(original.bytes, original.content_type)
+        if generado is None:
+            return None
+
+        thumb = ImagenProducto(bytes=generado[0], content_type=generado[1])
+        self._repositorio.guardar_color_thumb(color_id, thumb)
+        return thumb
+
     def listar(self) -> list[Producto]:
         return self._repositorio.list_activos()
+
+    def listar_con_foto_de_color(self) -> list[Producto]:
+        """Catalogo para el listado, con una foto garantizada por producto.
+
+        Un producto puede no tener foto principal y tener solo fotos de color
+        (por ejemplo al crearlo con variantes y sin foto general). En ese caso
+        se completa con la del primer color para que la tarjeta no quede vacia,
+        junto con su thumbnail si ya fue generado.
+        """
+        productos = self._repositorio.list_activos()
+        sin_foto = [p for p in productos if not p.imagen]
+        if not sin_foto:
+            return productos
+
+        por_producto = self._repositorio.primera_imagen_color_por_producto(
+            [p.id for p in sin_foto]
+        )
+        for producto in sin_foto:
+            foto = por_producto.get(producto.id)
+            if foto:
+                producto.imagen = foto.imagen_url
+                # Solo si ese color ya tiene thumbnail cacheado: la URL se
+                # expone para que la tarjeta no baje la foto completa.
+                producto.imagen_thumb = foto.imagen_thumb_url
+        return productos
 
     def actualizar(self, dto: ActualizarProductoDTO) -> Producto:
         producto = self._repositorio.get_by_id(dto.id)
@@ -89,3 +193,28 @@ class GestionarProducto:
 
     def guardar_imagen(self, producto_id: UUID, imagen: ImagenProducto) -> None:
         self._repositorio.guardar_imagen(producto_id, imagen)
+
+    def listar_colores(self, producto_id: UUID) -> list[ColorProducto]:
+        """Colores del producto. Lista vacia = producto de una sola foto."""
+        return self._repositorio.list_colores(producto_id)
+
+    def consultar_color(self, color_id: UUID) -> ColorProducto | None:
+        return self._repositorio.get_color_by_id(color_id)
+
+    def consultar_imagen_color(self, color_id: UUID) -> ImagenProducto | None:
+        return self._repositorio.get_color_imagen_by_id(color_id)
+
+    def guardar_color(
+        self, producto_id: UUID, nombre: str, imagen: ImagenProducto
+    ) -> ColorProducto:
+        """Crea o reemplaza un color del producto con su foto."""
+        producto = self._repositorio.get_by_id(producto_id)
+        if producto is None:
+            raise ValueError("Producto no encontrado")
+        nombre = (nombre or "").strip()
+        if not nombre:
+            raise ValueError("El nombre del color es obligatorio")
+        return self._repositorio.guardar_color(producto_id, nombre, imagen)
+
+    def eliminar_color(self, color_id: UUID) -> None:
+        self._repositorio.eliminar_color(color_id)
