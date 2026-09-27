@@ -21,6 +21,12 @@ def _servicio_categoria() -> GestionarCategoria:
     return current_app.config["CATEGORIA_SERVICE"]
 
 
+def _conversor_imagen():
+    """Conversor de imágenes inyectado desde `create_app` (convierte RAW de
+    cámara a JPEG; la capa API no depende de `infrastructure`)."""
+    return current_app.config["CONVERSOR_IMAGEN"]
+
+
 def _a_publico_producto(producto) -> dict:
     return {
         "id": str(producto.id),
@@ -29,6 +35,7 @@ def _a_publico_producto(producto) -> dict:
         "precio": producto.precio,
         "stock": producto.stock,
         "imagen": producto.imagen,
+        "imagen_thumb": producto.imagen_thumb,
         "activo": producto.activo,
         "categoria_id": str(producto.categoria_id),
         "specs": producto.specs,
@@ -37,6 +44,17 @@ def _a_publico_producto(producto) -> dict:
         "material": producto.material,
         "tamano": producto.tamano,
         "color": producto.color,
+    }
+
+
+def _a_publico_color(color) -> dict:
+    return {
+        "id": str(color.id),
+        "producto_id": str(color.producto_id),
+        "nombre": color.nombre,
+        "orden": color.orden,
+        "imagen": color.imagen_url,
+        "imagen_thumb": color.imagen_thumb_url,
     }
 
 
@@ -50,7 +68,7 @@ def _a_publico_categoria(categoria) -> dict:
 
 @catalogo_bp.get("/productos")
 def listar_productos():
-    productos = _servicio_producto().listar()
+    productos = _servicio_producto().listar_con_foto_de_color()
     return jsonify(productos=[_a_publico_producto(p) for p in productos])
 
 
@@ -66,6 +84,27 @@ def detalle_producto(producto_id):
 def imagen_producto(producto_id):
     """Sirve la imagen almacenada como BLOB en la base de datos."""
     imagen = _servicio_producto().consultar_imagen(producto_id)
+    if imagen is None:
+        return jsonify(mensaje="Imagen no encontrada"), 404
+    return send_file(
+        BytesIO(imagen.bytes),
+        mimetype=imagen.content_type or "application/octet-stream",
+    )
+
+
+@catalogo_bp.get("/productos/<uuid:producto_id>/thumb")
+def thumb_producto(producto_id):
+    """Thumbnail del producto para la tarjeta del catalogo.
+
+    Se genera en la primera peticion y queda cacheado en la BD. Si no se puede
+    generar (foto ya chica, Pillow ausente, archivo ilegible) se sirve la
+    imagen original: es preferible descargar la foto grande que dejar la
+    tarjeta rota.
+    """
+    servicio = _servicio_producto()
+    imagen = servicio.obtener_thumb(producto_id)
+    if imagen is None:
+        imagen = servicio.consultar_imagen(producto_id)
     if imagen is None:
         return jsonify(mensaje="Imagen no encontrada"), 404
     return send_file(
@@ -161,10 +200,106 @@ def subir_imagen(producto_id):
     archivo = request.files['imagen']
     if not archivo.filename:
         return jsonify(mensaje="Archivo vacio"), 400
+    datos = archivo.read()
+    try:
+        datos, content_type = _conversor_imagen()(
+            datos, archivo.content_type, archivo.filename
+        )
+    except ValueError as e:
+        return jsonify(mensaje=str(e)), 400
     from app.domain.entities.producto import ImagenProducto
-    imagen = ImagenProducto(bytes=archivo.read(), content_type=archivo.content_type)
+    imagen = ImagenProducto(bytes=datos, content_type=content_type)
     try:
         _servicio_producto().guardar_imagen(producto_id, imagen)
     except Exception as e:
         return jsonify(mensaje=f"Error al guardar imagen: {e}"), 500
     return jsonify(mensaje="Imagen subida correctamente"), 201
+
+
+@catalogo_bp.get("/productos/<uuid:producto_id>/colores")
+def listar_colores(producto_id):
+    """Colores del producto. Lista vacia = producto de una sola foto."""
+    if _servicio_producto().consultar(producto_id) is None:
+        return jsonify(mensaje="Producto no encontrado"), 404
+    colores = _servicio_producto().listar_colores(producto_id)
+    return jsonify(colores=[_a_publico_color(c) for c in colores])
+
+
+@catalogo_bp.get("/productos/colores/<uuid:color_id>/imagen")
+def imagen_color(color_id):
+    """Sirve la imagen de una variante de color como BLOB."""
+    imagen = _servicio_producto().consultar_imagen_color(color_id)
+    if imagen is None:
+        return jsonify(mensaje="Imagen no encontrada"), 404
+    return send_file(
+        BytesIO(imagen.bytes),
+        mimetype=imagen.content_type or "application/octet-stream",
+    )
+
+
+@catalogo_bp.get("/productos/colores/<uuid:color_id>/thumb")
+def thumb_color(color_id):
+    """Thumbnail de un color para las miniaturas del selector de color.
+
+    Misma generacion perezosa y mismo fallback a la original que el thumbnail
+    del producto.
+    """
+    servicio = _servicio_producto()
+    imagen = servicio.obtener_thumb_color(color_id)
+    if imagen is None:
+        imagen = servicio.consultar_imagen_color(color_id)
+    if imagen is None:
+        return jsonify(mensaje="Imagen no encontrada"), 404
+    return send_file(
+        BytesIO(imagen.bytes),
+        mimetype=imagen.content_type or "application/octet-stream",
+    )
+
+
+@catalogo_bp.post("/productos/<uuid:producto_id>/colores")
+@requiere_sesion()
+@rol_requerido("admin")
+def guardar_color(producto_id):
+    """Crea o reemplaza un color del producto con su foto (multipart).
+
+    Campo `color`: nombre del color. Campo `imagen`: la foto (acepta RAW de
+    camara, se convierte a JPEG igual que la imagen principal).
+    """
+    if "imagen" not in request.files:
+        return jsonify(mensaje="Campo 'imagen' requerido"), 400
+    archivo = request.files["imagen"]
+    if not archivo.filename:
+        return jsonify(mensaje="Archivo vacio"), 400
+    nombre = (request.form.get("color") or "").strip()
+    if not nombre:
+        return jsonify(mensaje="Campo 'color' requerido"), 400
+    try:
+        datos, content_type = _conversor_imagen()(
+            archivo.read(), archivo.content_type, archivo.filename
+        )
+    except ValueError as e:
+        return jsonify(mensaje=str(e)), 400
+    from app.domain.entities.producto import ImagenProducto
+
+    imagen = ImagenProducto(bytes=datos, content_type=content_type)
+    try:
+        color = _servicio_producto().guardar_color(producto_id, nombre, imagen)
+    except ValueError as e:
+        mensaje = str(e)
+        if "no encontrado" in mensaje.lower():
+            return jsonify(mensaje=mensaje), 404
+        return jsonify(mensaje=mensaje), 400
+    except Exception as e:
+        return jsonify(mensaje=f"Error al guardar color: {e}"), 500
+    return jsonify(_a_publico_color(color)), 201
+
+
+@catalogo_bp.delete("/productos/colores/<uuid:color_id>")
+@requiere_sesion()
+@rol_requerido("admin")
+def eliminar_color(color_id):
+    try:
+        _servicio_producto().eliminar_color(color_id)
+    except ValueError as e:
+        return jsonify(mensaje=str(e)), 404
+    return jsonify(mensaje="Color eliminado correctamente")

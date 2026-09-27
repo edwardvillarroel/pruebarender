@@ -24,6 +24,10 @@ bcrypt==4.3.0
 pyotp==2.9.0
 qrcode==8.0
 pillow==11.1.0
+# Lectura de fotos RAW (.CR2/.NEF/...) para convertirlas a JPEG al subirlas.
+# Si no se instala, el conversor degrada con un error claro y el resto de la
+# app sigue funcionando con JPEG/PNG.
+rawpy==0.27.1
 authlib==1.4.1
 
 # --- Cache, colas y tareas en background ---

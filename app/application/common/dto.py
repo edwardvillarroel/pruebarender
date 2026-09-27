@@ -43,6 +43,7 @@ class CrearCategoriaDTO:
 class ItemPedidoDTO:
     producto_id: UUID
     cantidad: int
+    color: str | None = None
 
 
 @dataclass

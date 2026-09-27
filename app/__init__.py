@@ -53,12 +53,16 @@ def _configurar_catalogo(app: Flask) -> None:
     Las rutas de catálogo leen los servicios desde `app.config`; así la capa
     API no depende de `infrastructure`. El catálogo se lee desde la base de
     datos (tablas `productos`/`categorias`). Importar los repositorios registra
-    los modelos ORM con Flask-SQLAlchemy (productos y categorias).
+    los modelos ORM con Flask-SQLAlchemy (productos y categorias). El conversor
+    de imágenes (`CONVERSOR_IMAGEN`, convierte RAW de cámara a JPEG) también
+    se inyecta aquí por la misma razón.
     """
     from app.application.catalogo_stock.gestionar_categoria import (
         GestionarCategoria,
     )
     from app.application.catalogo_stock.gestionar_producto import GestionarProducto
+    from app.infrastructure.imagenes.conversor_raw import normalizar_imagen
+    from app.infrastructure.imagenes.thumbnail import generar_thumbnail
     from app.infrastructure.repositories.categoria_repository import (
         CategoriaRepository,
     )
@@ -66,8 +70,11 @@ def _configurar_catalogo(app: Flask) -> None:
         ProductoRepository,
     )
 
-    app.config["PRODUCTO_SERVICE"] = GestionarProducto(ProductoRepository())
+    app.config["PRODUCTO_SERVICE"] = GestionarProducto(
+        ProductoRepository(), generador_thumb=generar_thumbnail
+    )
     app.config["CATEGORIA_SERVICE"] = GestionarCategoria(CategoriaRepository())
+    app.config["CONVERSOR_IMAGEN"] = normalizar_imagen
 
 
 def _configurar_pedidos_pagos(app: Flask) -> None:

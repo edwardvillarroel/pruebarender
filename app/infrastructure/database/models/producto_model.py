@@ -20,6 +20,10 @@ class ProductoModel(db.Model):
     imagen = db.Column(db.String(500))
     imagen_bytes = deferred(db.Column(LargeBinary))
     imagen_content_type = db.Column(db.String(50))
+    # Thumbnail generado perezosamente desde `imagen_bytes` para el catalogo.
+    # `imagen_bytes` sigue siendo la foto en resolucion completa.
+    imagen_thumb_bytes = deferred(db.Column(LargeBinary))
+    imagen_thumb_content_type = db.Column(db.String(50))
     activo = db.Column(db.Boolean, nullable=False, default=True)
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     specs_raw = db.Column("specs", db.Text)

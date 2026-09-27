@@ -22,6 +22,10 @@ class Producto:
     material: str | None = None
     tamano: str | None = None
     color: str | None = None
+    # URL del thumbnail para la grilla del catalogo. Es None cuando el producto
+    # no tiene foto o cuando su foto ya es chica y no necesita reduccion: en
+    # ese caso el consumidor debe usar `imagen`.
+    imagen_thumb: str | None = None
 
 
 @dataclass
@@ -29,3 +33,35 @@ class ImagenProducto:
     """Imagen de un producto almacenada como BLOB (RGBA no; bytes crudos)."""
     bytes: bytes
     content_type: str
+
+
+@dataclass
+class FotoColorCatalogo:
+    """Foto del primer color de un producto, para la tarjeta del catalogo.
+
+    `imagen_thumb_url` es `None` cuando ese color todavia no tiene thumbnail
+    generado (se hace perezoso en su primer request), y el consumidor debe usar
+    `imagen_url` en ese caso.
+    """
+
+    imagen_url: str
+    imagen_thumb_url: str | None = None
+
+
+@dataclass
+class ColorProducto:
+    """Variante de color de un producto, con su propia imagen.
+
+    Un producto puede tener N colores (por ejemplo Hyrule blanco y negro). En el
+    detalle el cliente elige el color y se muestra la imagen de ese color. Si el
+    producto no declara colores se usa la imagen unica de `Producto.imagen`.
+    """
+
+    producto_id: UUID
+    nombre: str
+    id: UUID = field(default_factory=uuid4)
+    orden: int = 0
+    imagen_url: str | None = None
+    # URL del thumbnail del color. None si la foto ya es chica: se usa `imagen_url`.
+    imagen_thumb_url: str | None = None
+    creado_en: datetime = field(default_factory=datetime.utcnow)
