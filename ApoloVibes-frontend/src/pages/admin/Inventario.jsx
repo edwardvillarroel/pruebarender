@@ -4,8 +4,7 @@ import { useProductos } from '../../context/ProductContext.jsx';
 import { productoApi } from '../../services/products.js';
 import ModalProducto from '../../components/ModalProducto.jsx';
 import SelectOpciones from '../../components/SelectOpciones.jsx';
-
-const FILAS_POR_PAGINA = 6;
+import Apolovibeslogo from '../../../public/media/apolo-vibes-logo.png'
 
 function ConfirmEliminarModal({ producto, onConfirm, onCancel }) {
   return (
@@ -25,6 +24,9 @@ function ConfirmEliminarModal({ producto, onConfirm, onCancel }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
+          <img src={Apolovibeslogo} alt="Logo" style={{ width: 60, height: 60, marginBottom: -5 }} />
+        </div>
         <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>
           Eliminar producto
         </h3>
@@ -65,11 +67,24 @@ export default function Inventario() {
   const [eliminandoId, setEliminandoId] = useState(null);
   const [mensaje, setMensaje] = useState(null);
   const [pagina, setPagina] = useState(1);
+  const [filasPorPagina, setFilasPorPagina] = useState(6);
   const [productoEliminar, setProductoEliminar] = useState(null);
 
   useEffect(() => {
     recargar()
   }, [])
+
+  useEffect(() => {
+    const calcularFilas = () => {
+      const disponible = window.innerHeight - 320;
+      const base = Math.floor(disponible / 45);
+      const maximo = window.innerWidth < 768 ? 6 : 10;
+      setFilasPorPagina(Math.max(3, Math.min(base, maximo)));
+    };
+    calcularFilas();
+    window.addEventListener('resize', calcularFilas);
+    return () => window.removeEventListener('resize', calcularFilas);
+  }, []);
 
   const productosFiltrados = useMemo(() => {
     if (!filtroCat) return productos;
@@ -80,16 +95,16 @@ export default function Inventario() {
     setPagina(1);
   }, [filtroCat]);
 
-  const totalPaginas = Math.max(1, Math.ceil(productosFiltrados.length / FILAS_POR_PAGINA));
+  const totalPaginas = Math.max(1, Math.ceil(productosFiltrados.length / filasPorPagina));
 
   useEffect(() => {
     if (pagina > totalPaginas) setPagina(totalPaginas);
   }, [totalPaginas, pagina]);
 
   const productosPagina = useMemo(() => {
-    const inicio = (pagina - 1) * FILAS_POR_PAGINA;
-    return productosFiltrados.slice(inicio, inicio + FILAS_POR_PAGINA);
-  }, [productosFiltrados, pagina])
+    const inicio = (pagina - 1) * filasPorPagina;
+    return productosFiltrados.slice(inicio, inicio + filasPorPagina);
+  }, [productosFiltrados, pagina, filasPorPagina])
 
   const nombreCategoria = (catId) => {
     const cat = categorias.find(c => c.id === catId);
@@ -139,59 +154,68 @@ export default function Inventario() {
               {mensaje.texto}
             </p>
           )}
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ color: 'var(--surface)', textAlign: 'left', fontSize: 11, textTransform: 'uppercase' }}>
-                <th style={{ padding: '0 10px 12px' }}>#</th>
-                <th style={{ padding: '0 10px 12px' }}>Categoría</th>
-                <th style={{ padding: '0 10px 12px' }}>Nombre</th>
-                <th style={{ padding: '0 10px 12px' }}>Descripción</th>
-                <th style={{ padding: '0 10px 12px' }}>Material</th>
-                <th style={{ padding: '0 10px 12px' }}>Tamaño</th>
-                <th style={{ padding: '0 10px 12px' }}>Color</th>
-                <th style={{ padding: '0 10px 12px' }}>Precio</th>
-                <th style={{ padding: '0 10px 12px' }}>Descuento</th>
-                <th style={{ padding: '0 10px 12px' }}>Stock</th>
-                <th style={{ padding: '0 10px 12px' }}></th>
-                <th style={{ padding: '0 10px 12px' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {productosPagina.map((p) => (
-                <tr key={p.id} style={{ borderTop: '1px solid var(--surface-3)' }}>
-                  <td style={{ padding: '13px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', fontSize: 11 }}>{p.id?.slice(0, 8)}</td>
-                  <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{nombreCategoria(p.categoria_id)}</td>
-                  <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.nombre}</td>
-                  <td style={{ padding: '13px 10px', color: 'var(--text-dim)', maxWidth: 200 }}>
-                    <div style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {p.descripcion || '—'}
-                    </div>
-                  </td>
-                  <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.material || '—'}</td>
-                  <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.tamano || '—'}</td>
-                  <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.color || '—'}</td>
-                  <td style={{ padding: '13px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>${p.precio.toLocaleString('es-CL')}</td>
-                  <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.descuento || 0}%</td>
-                  <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.stock}</td>
-                  <td style={{ padding: '13px 10px', color: 'var(--text-dim)', cursor: 'pointer' }} onClick={() => setModal(p)}>
-                    <Pencil size={16} color='var(--green)' />
-                  </td>
-                  <td
-                    style={{ padding: '13px 10px', color: 'var(--text-dim)', cursor: eliminandoId === p.id ? 'wait' : 'pointer' }}
-                    onClick={() => !eliminandoId && setProductoEliminar(p)}
-                    title="Eliminar producto"
-                  >
-                    <Trash2 size={16} color='var(--red)' />
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ color: 'var(--surface)', textAlign: 'left', fontSize: 11, textTransform: 'uppercase' }}>
+                  <th style={{ padding: '0 10px 12px' }}>#</th>
+                  <th style={{ padding: '0 10px 12px' }}>Categoría</th>
+                  <th style={{ padding: '0 10px 12px' }}>Nombre</th>
+                  <th style={{ padding: '0 10px 12px' }}>Descripción</th>
+                  <th style={{ padding: '0 10px 12px' }}>Material</th>
+                  <th style={{ padding: '0 10px 12px' }}>Tamaño</th>
+                  <th style={{ padding: '0 10px 12px' }}>Color</th>
+                  <th style={{ padding: '0 10px 12px' }}>Precio</th>
+                  <th style={{ padding: '0 10px 12px' }}>Descuento</th>
+                  <th style={{ padding: '0 10px 12px' }}>Stock</th>
+                  <th style={{ padding: '0 10px 12px' }}></th>
+                  <th style={{ padding: '0 10px 12px' }}></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {productosPagina.map((p) => (
+                  <tr key={p.id} style={{ borderTop: '1px solid var(--surface-3)' }}>
+                    <td style={{ padding: '13px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', fontSize: 11 }}>{p.id?.slice(0, 8)}</td>
+                    <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{nombreCategoria(p.categoria_id)}</td>
+                    <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.nombre}</td>
+                    <td style={{ padding: '13px 10px', color: 'var(--text-dim)', maxWidth: 200 }}>
+                      <div style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {p.descripcion || '—'}
+                      </div>
+                    </td>
+                    <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.material || '—'}</td>
+                    <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.tamano || '—'}</td>
+                    <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.color || '—'}</td>
+                    <td style={{ padding: '13px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>${p.precio.toLocaleString('es-CL')}</td>
+                    <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.descuento || 0}%</td>
+                    <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.stock}</td>
+                    <td style={{ padding: '13px 10px', color: 'var(--text-dim)', cursor: 'pointer' }} onClick={() => setModal(p)}>
+                      <Pencil size={16} color='var(--green)' />
+                    </td>
+                    <td
+                      style={{ padding: '13px 10px', color: 'var(--text-dim)', cursor: eliminandoId === p.id ? 'wait' : 'pointer' }}
+                      onClick={() => !eliminandoId && setProductoEliminar(p)}
+                      title="Eliminar producto"
+                    >
+                      <Trash2 size={16} color='var(--red)' />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </>
       )}
 
       {productosFiltrados.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 20, gap: 8 }}>
+        <div
+          style={{
+            position: 'sticky', bottom: 0, zIndex: 10,
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            marginTop: 'auto', gap: 8, padding: '20px 16px 12px',
+            background: 'var(--bg)', borderTop: '1px solid var(--surface-3)',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-dim)' }}>
             <button
               onClick={() => setPagina(p => Math.max(1, p - 1))}
@@ -229,8 +253,8 @@ export default function Inventario() {
           </div>
 
           <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
-            Mostrando {(pagina - 1) * FILAS_POR_PAGINA + 1}
-            –{Math.min(pagina * FILAS_POR_PAGINA, productosFiltrados.length)} de {productosFiltrados.length}
+            Mostrando {(pagina - 1) * filasPorPagina + 1}
+            –{Math.min(pagina * filasPorPagina, productosFiltrados.length)} de {productosFiltrados.length}
           </span>
         </div>
       )}

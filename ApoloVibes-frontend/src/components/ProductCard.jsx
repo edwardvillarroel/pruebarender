@@ -18,6 +18,13 @@ export default function ProductCard({ producto, index = 0 }) {
   const acento = ACENTOS[index % ACENTOS.length]
   const categoria = categorias.find(c => c.id === producto.categoria_id)
 
+  // La tarjeta se dibuja a ~240px, asi que alcanza con el thumbnail (600px):
+  // la foto original pesa 2,4 MB en promedio y 43 MB el catálogo completo.
+  // `imagen_thumb` llega null hasta que el backend genera el primero, y para
+  // los productos cuya foto viene de un color puede no existir nunca: en ambos
+  // casos se cae a la imagen completa.
+  const imagenTarjeta = producto.imagen_thumb || producto.imagen
+
   return (
     <div
       style={{
@@ -37,17 +44,22 @@ export default function ProductCard({ producto, index = 0 }) {
             position: 'relative',
             width: '100%',
             aspectRatio: '1 / 1',
-            background: producto.imagen ? '#FFFFFF' : 'var(--surface-2)',
+            background: imagenTarjeta ? '#FFFFFF' : 'var(--surface-2)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             overflow: 'hidden',
           }}
         >
-          {producto.imagen ? (
+          {imagenTarjeta ? (
             <img
-              src={producto.imagen}
+              src={imagenTarjeta}
               alt={producto.nombre}
+              // Sin lazy el catalogo pedia las ~14 fotos completas de una (varias
+              // son PNG de 700 KB) y saturaba la conexion: se veian bloques
+              // blancos al scrollear mientras la imagen downloadaba y decodificaba.
+              loading="lazy"
+              decoding="async"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
