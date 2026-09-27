@@ -54,8 +54,6 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [cartOpen])
 
-  // Google OAuth con MFA pendiente: el usuario vuelve con ?login=google&mfa=1
-  // y hay que reabrir el modal en el paso de código.
   useEffect(() => {
     const abrirGoogleMfa = () => abrirLogin()
     window.addEventListener('apolovibes:google-mfa', abrirGoogleMfa)
@@ -150,20 +148,23 @@ export default function Navbar() {
                 position: 'absolute',
                 top: 'calc(100% + 8px)',
                 right: 0,
-                background: 'rgba(250,127,25,1)',
+                background: 'var(--bg)',
                 border: '1px solid var(--line)',
                 borderRadius: 12,
                 width: 380,
                 maxWidth: '92vw',
-                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.55)',
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.25)',
                 overflow: 'hidden',
                 zIndex: 200,
                 animation: 'toast-entrada 0.3s ease',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--bg)' }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-                    Tu carrito ({cantidadTotal} {cantidadTotal === 1 ? 'producto' : 'productos'})
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--surface)' }}> Tu carrito</h1>
+                    <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+                      ({cantidadTotal} {cantidadTotal === 1 ? 'producto' : 'productos'})
+                    </span>
+                  </div>
                   <button
                     onClick={() => setCartOpen(false)}
                     aria-label="Cerrar carrito"
@@ -172,6 +173,11 @@ export default function Navbar() {
                     <X size={18} />
                   </button>
                 </div>
+
+                <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 5, marginTop: -15, marginLeft: 15 }}>
+                  (Los Productos en tu carrito no están reservados).
+                </p>
+                <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)' }}></div>
 
                 <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                   {requiereLogin ? (
@@ -235,7 +241,7 @@ export default function Navbar() {
 
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                            <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--surface)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {item.nombre}
                             </p>
                             <button
@@ -252,20 +258,20 @@ export default function Navbar() {
                             ${item.precio.toLocaleString('es-CL')} c/u
                           </p>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', background: 'var(--bg)', alignItems: 'center', border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
                               <button
                                 type="button"
                                 onClick={() => actualizarCantidadItem(item.itemId, Math.max(1, item.cantidad - 1))}
                                 aria-label={`Reducir cantidad de ${item.nombre}`}
                                 style={{
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  width: 26, height: 26, border: 'none', background: 'transparent',
+                                  width: 26, height: 26, border: 'none', background: 'var(--surface-3)',
                                   color: 'inherit', cursor: 'pointer',
                                 }}
                               >
-                                <Minus size={13} style={{ color: 'var(--text)' }} />
+                                <Minus size={13} style={{ color: 'var(--surface)' }} />
                               </button>
-                              <span style={{ minWidth: 26, textAlign: 'center', fontSize: 13, color: 'var(--text)' }}>
+                              <span style={{ minWidth: 26, textAlign: 'center', fontSize: 13, color: 'var(--surface)' }}>
                                 {item.cantidad}
                               </span>
                               <button
@@ -274,14 +280,14 @@ export default function Navbar() {
                                 aria-label={`Aumentar cantidad de ${item.nombre}`}
                                 style={{
                                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  width: 26, height: 26, border: 'none', background: 'transparent',
+                                  width: 26, height: 26, border: 'none', background: 'var(--surface-3)',
                                   color: 'inherit', cursor: 'pointer',
                                 }}
                               >
-                                <Plus size={13} style={{ color: 'var(--text)' }} />
+                                <Plus size={13} style={{ color: 'var(--surface)' }} />
                               </button>
                             </div>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--gold)' }}>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 800, color: 'var(--surface-2)' }}>
                               ${(item.precio * item.cantidad).toLocaleString('es-CL')}
                             </span>
                           </div>
@@ -290,17 +296,17 @@ export default function Navbar() {
                     ))
                   )}
                 </div>
-
+                <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)' }}></div>
                 {!requiereLogin && items.length > 0 && (
                   <div style={{ padding: '14px 16px', borderTop: '1px solid var(--bg)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, color: 'var(--surface)', marginBottom: 12 }}>
                       <span>Total</span>
                       <span style={{ fontFamily: 'var(--font-mono)' }}>${total.toLocaleString('es-CL')} CLP</span>
                     </div>
                     <button
                       className="btn btn-primary"
                       onClick={() => { setCartOpen(false); navigate('/carrito') }}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)' }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', background: 'var(--surface)' }}
                     >
                       Continuar con la compra
                       <ArrowRight size={16} color="var(--text)" />
@@ -372,21 +378,23 @@ export default function Navbar() {
                     Panel Administrador
                   </button>
                 )}
-                <button
-                  onClick={() => { setUserMenuOpen(false); navigate('/mis-pedidos') }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                    padding: '12px 16px', border: 'none', background: 'none',
-                    color: 'var(--text)', fontSize: 13, cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'background .15s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-                >
-                  <ClipboardList size={16} color="var(--text)" />
-                  Mis pedidos
-                </button>
+                {!isAdmin && (
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/mis-pedidos') }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '12px 16px', border: 'none', background: 'none',
+                      color: 'var(--text)', fontSize: 13, cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background .15s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                  >
+                    <ClipboardList size={16} color="var(--text)" />
+                    Mis pedidos
+                  </button>
+                )}
                 <button
                   onClick={() => { setUserMenuOpen(false); setSeguridadOpen(true) }}
                   style={{
