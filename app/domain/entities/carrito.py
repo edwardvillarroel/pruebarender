@@ -14,6 +14,7 @@ class ItemCarrito:
 
     producto_id: str
     cantidad: int
+    color: str | None = None
     id: UUID = field(default_factory=uuid4)
     agregado_en: datetime = field(default_factory=datetime.utcnow)
 

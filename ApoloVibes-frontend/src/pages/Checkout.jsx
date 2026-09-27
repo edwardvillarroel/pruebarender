@@ -630,6 +630,11 @@ export default function Checkout() {
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--surface)' }}>{item.nombre}</p>
+                  {item.color && (
+                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 4px' }}>
+                      Color: {item.color}
+                    </p>
+                  )}
                   <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 4px' }}>
                     ${item.precio.toLocaleString('es-CL')}
                   </p>

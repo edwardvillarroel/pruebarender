@@ -83,6 +83,7 @@ class PedidoRepository(PedidoRepositoryInterface):
                     producto_id=detalle.producto_id,
                     cantidad=detalle.cantidad,
                     precio_unitario=detalle.precio_unitario,
+                    color=detalle.color,
                 )
             )
         db.session.add(modelo)
@@ -160,6 +161,7 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
                 producto_id=d.producto_id,
                 cantidad=d.cantidad,
                 precio_unitario=d.precio_unitario,
+                color=d.color,
             )
             for d in modelo.detalles
         ],
@@ -184,6 +186,7 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
             producto_id=d.producto_id,
             cantidad=d.cantidad,
             precio_unitario=d.precio_unitario,
+            color=d.color,
         )
         for d in entidad.detalles
     ]

@@ -5,7 +5,11 @@ import { api } from './api.js'
 // viaja directo a esa URL (window.location), no se hace POST manual.
 export async function iniciarPago({ items, total, cliente, entrega }) {
   const pedido = {
-    items: items.map(i => ({ id: i.id, cantidad: i.cantidad })),
+    items: items.map(i => ({
+      id: i.id,
+      cantidad: i.cantidad,
+      ...(i.color ? { color: i.color } : {}),
+    })),
     total,
     entrega,
     cliente,

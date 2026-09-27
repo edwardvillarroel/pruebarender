@@ -167,6 +167,7 @@ class ProcesarPago:
                     producto_id=item.producto_id,
                     cantidad=item.cantidad,
                     precio_unitario=producto.precio,
+                    color=getattr(item, "color", None),
                 )
             )
             subtotal += producto.precio * item.cantidad

@@ -11,5 +11,6 @@ class DetallePedidoModel(db.Model):
     producto_id = db.Column(UuidRaw, db.ForeignKey("productos.id"), nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
     precio_unitario = db.Column(db.Integer, nullable=False)
+    color = db.Column(db.String(50))
 
     pedido = db.relationship("PedidoModel", back_populates="detalles")
