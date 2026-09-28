@@ -4,7 +4,7 @@ import { api } from '../services/api.js'
 import { productoApi } from '../services/products.js'
 import SelectOpciones from './SelectOpciones.jsx'
 import { Upload, Trash2 } from 'lucide-react'
-import Apolovibeslogo from '../../public/media/apolo-vibes-logo.png'
+import { mediaPath } from '../utils/media.js'
 
 
 const overlayStyle = {
@@ -388,7 +388,7 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                         padding: '15px 52px 13px', background: 'var(--surface)',
                         borderBottom: '1px solid var(--line)',
                     }}>
-                        <img src={Apolovibeslogo} alt="Logo" style={{ height: 60, width: 'auto', marginBottom: -10 }} />
+                        <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ height: 60, width: 'auto', marginBottom: -10 }} />
                         <h2 style={{
                             margin: 0, fontSize: 18, fontWeight: 700,
                             color: 'var(--text)', fontFamily: 'var(--font-display)',

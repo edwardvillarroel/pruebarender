@@ -4,7 +4,7 @@ import { useProductos } from '../../context/ProductContext.jsx';
 import { productoApi } from '../../services/products.js';
 import ModalProducto from '../../components/ModalProducto.jsx';
 import SelectOpciones from '../../components/SelectOpciones.jsx';
-import Apolovibeslogo from '../../../public/media/apolo-vibes-logo.png'
+import { mediaPath } from '../../utils/media.js';
 
 function ConfirmEliminarModal({ producto, onConfirm, onCancel }) {
   return (
@@ -25,7 +25,7 @@ function ConfirmEliminarModal({ producto, onConfirm, onCancel }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
-          <img src={Apolovibeslogo} alt="Logo" style={{ width: 60, height: 60, marginBottom: -5 }} />
+          <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ width: 60, height: 60, marginBottom: -5 }} />
         </div>
         <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>
           Eliminar producto

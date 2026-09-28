@@ -59,10 +59,34 @@ export default function Home() {
     <>
       <style>{`
         .carousel-hide::-webkit-scrollbar { display: none; }
+        /* Las cards se reparten en un número ENTERO de columnas por breakpoint, con
+           el ancho solvedo para que N cards + N-1 gaps entren justas. Un porcentaje
+           fijo (25%) deja una card partida al borde y la flecha parada sobre el
+           corte. Las flechas avisan que hay más, así no hace falta asomar un pedazo. */
+        .carousel-hide { --carousel-cols: 4; }
+        .carousel-item {
+          flex: 0 0 calc((100% - (var(--carousel-cols) - 1) * 20px) / var(--carousel-cols));
+          scroll-snap-align: start;
+        }
+        @media (max-width: 1199px) { .carousel-hide { --carousel-cols: 3; } }
+        @media (max-width: 899px)  { .carousel-hide { --carousel-cols: 2; } }
+        /* 1 sola columna y sin piso de ancho: la card ocupa el track completo, así
+           no queda una segunda partida asomando al borde. */
+        @media (max-width: 520px)  { .carousel-hide { --carousel-cols: 1; } }
+        /* Las flechas van fuera de las cards, no encima: el gutter se reserva con
+           padding en el contenedor, así nunca se superponen y tampoco hay que
+           empujarlas con left/right negativo (que escapaba de la página). */
+        .carousel-nav { position: relative; padding-left: 52px; padding-right: 52px; }
+        .carousel-flecha { position: absolute; top: 50%; transform: translateY(-50%); }
+        .carousel-flecha-izq { left: 0; }
+        .carousel-flecha-der { right: 0; }
+        @media (max-width: 768px) {
+          .carousel-nav { padding-left: 44px; padding-right: 44px; }
+        }
       `}</style>
       <HeroVideo />
 
-      <section className="wrap section-py-mobile" style={{ paddingTop: '80px', paddingLeft: 64, paddingRight: 64 }}>
+      <section className="wrap section-py-mobile" style={{ paddingTop: '80px' }}>
         <hr className="separador" />
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Los más vendidos del mes</h2>
         {cargando ? (
@@ -72,12 +96,13 @@ export default function Home() {
         ) : productos.length === 0 ? (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Aún no hay productos en el catálogo.</p>
         ) : (
-          <div style={{ position: 'relative' }}>
+          <div className="carousel-nav">
             {/* Flecha izquierda */}
             {!enInicio && (
               <button
                 onClick={() => scroll(-1)}
-                style={{ ...btnFlecha, position: 'absolute', left: -50, top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}
+                className="carousel-flecha carousel-flecha-izq"
+                style={{ ...btnFlecha, zIndex: 2 }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
                 onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--line)'}
               >
@@ -96,7 +121,11 @@ export default function Home() {
               }}
             >
               {productos.map((p, i) => (
-                <div key={p.id} style={{ flex: '0 0 calc(25% - 15px)', scrollSnapAlign: 'start', minWidth: 220 }}>
+                <div
+                  key={p.id}
+                  className="carousel-item"
+                  style={{ minWidth: 0 }}
+                >
                   <ProductCard producto={p} index={i} />
                 </div>
               ))}
@@ -106,7 +135,8 @@ export default function Home() {
             {!enFinal && (
               <button
                 onClick={() => scroll(1)}
-                style={{ ...btnFlecha, position: 'absolute', right: -50, top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}
+                className="carousel-flecha carousel-flecha-der"
+                style={{ ...btnFlecha, zIndex: 2 }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
                 onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--line)'}
               >

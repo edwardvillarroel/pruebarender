@@ -5,6 +5,7 @@
   --surface-3: #065bc417;
   --line: #e8853e6c;
   --text: #EDEDE5;
+  --text-on-bg: #002A5E;
   --text-dim: #959aa1;
   --price: #002A5E;
   --accent: #E8863E;
@@ -36,6 +37,7 @@
   --surface-2: #23272F;
   --line: #272C34;
   --text: #EDEDE5;
+  --text-on-bg: #EDEDE5;
   --text-dim: #8A9099;
   --accent: #E8863E;
   --accent-soft: rgba(232, 134, 62, 0.12);
@@ -53,7 +55,7 @@
 
 body {
   background: var(--bg);
-  color: var(--text);
+  color: var(--text-on-bg);
   font-family: var(--font-body);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -70,10 +72,22 @@ video {
   display: block;
 }
 
+/* width:100% es obligatorio, no cosmético: .wrap vive dentro de main (flex column)
+   y sus márgenes auto impiden el align-items:stretch, así que sin width explícito
+   el ancho cae a fit-content y el carousel de productos estira la página a 1380px
+   en cualquier viewport más angosto, generando scroll horizontal. */
 .wrap {
+  width: 100%;
   max-width: 1380px;
   margin: 0 auto;
   padding: 0 32px;
+}
+
+/* Banner de envíos: en una línea salvo que no entre, donde pasa a dos.
+   El alto fijo de 40px aguanta las dos (12.5px * 1.5 * 2 = 37.5px), así que la
+   lógica de ocultar la barra al scrollear no se entera del cambio. */
+.topbar-inner {
+  white-space: nowrap;
 }
 
 /* Líneas separadoras: centralizadas para ajustar grosor/color/margen desde acá */
@@ -417,6 +431,42 @@ label {
   }
 }
 
+/* Hero en pantallas angostas: recién acá se reduce el bloque de texto. En pantalla
+   completa conserva su tamaño original (h1 46px, p 16px, bloque 460px) porque esos
+   valores van en style inline y ganarle a un clamp los dejaba reducidos en todas
+   las pantallas. Los !important son obligatorios por eso. Este bloque tiene que
+   quedar FUERA del @media de 768px: anidado, un @media exige AMBAS condiciones y
+   terminaba aplicándose recién a <=768px. */
+@media (max-width: 1024px) {
+  .hero-eyebrow {
+    font-size: 11px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .hero-texto {
+    max-width: 420px !important;
+  }
+
+  .hero-content {
+    padding-top: 64px !important;
+  }
+
+  .hero-content h1 {
+    font-size: 30px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .hero-content p {
+    font-size: 14px !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Baja los botones para que no queden pegados al párrafo ni tapen el logo. */
+  .hero-buttons {
+    margin-top: 20px !important;
+  }
+}
+
 /* Mobile: ≤ 768px */
 @media (max-width: 768px) {
   .grid-4 {
@@ -441,6 +491,10 @@ label {
 
   .wrap {
     padding: 0 16px;
+  }
+
+  .topbar-inner {
+    white-space: normal;
   }
 
   /* Navbar collapses to hamburger */
@@ -637,13 +691,9 @@ label {
     padding: 50px 16px 0 !important;
   }
 
-  .hero-content h1 {
-    font-size: 28px !important;
-  }
-
-  .hero-content p {
-    font-size: 14px !important;
-  }
+  /* h1 y p usan clamp() en HeroVideo.jsx: el tamaño escala solo entre 22 y 34px
+     (h1) y 13 y 15px (p), así que acá ya no hacen falta overrides !important
+     que aparte el tamaño en dos fuentes de verdad. */
 
   .hero-buttons {
     flex-direction: column !important;
