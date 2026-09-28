@@ -9,13 +9,18 @@ const CATEGORY_BACKGROUNDS = {
   animales: mediaPath('Animales.png'),
   llaveros: mediaPath('banerllaveros.png'),
   diseno: mediaPath('banerdiseño.png'),
+  accesorios: mediaPath('AccesoriosBaner.png'),
+  articulados: mediaPath('ArticuladosBaner.png')
+
 }
 
 function fondoDeCategoria(nombre) {
   const n = (nombre || '').toLowerCase()
   if (n.includes('videojuego') || n.includes('cine')) return CATEGORY_BACKGROUNDS.videoJuegos
-  if (n.includes('animal')) return CATEGORY_BACKGROUNDS.animales
+  if (n.includes('animales')) return CATEGORY_BACKGROUNDS.animales
   if (n.includes('llavero')) return CATEGORY_BACKGROUNDS.llaveros
+  if (n.includes('accesorios')) return CATEGORY_BACKGROUNDS.accesorios
+  if (n.includes('articulados')) return CATEGORY_BACKGROUNDS.articulados
   if (n.includes('diseno') || n.includes('diseno') || n.includes('medida'))
     return CATEGORY_BACKGROUNDS.diseno
   return null
@@ -41,7 +46,7 @@ export default function Home() {
 
       <section className="wrap section-py-mobile" style={{ paddingTop: '80px' }}>
         <hr className="separador" />
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Los más vendidos del mes</h2>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Los más vendidos de la semana</h2>
         {cargando ? (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Cargando productos…</p>
         ) : error ? (
@@ -53,6 +58,32 @@ export default function Home() {
         )}
       </section>
 
+      <section className="wrap" style={{ paddingTop: 32, paddingBottom: 32 }}>
+        <hr className="separador" />
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Destacados</h2>
+        <div className="grid-destacados">
+          {['DesDragon.png', 'DesCubone.png', 'destacados.png'].map(f => (
+            <div key={f} className="destacado-card">
+              <img src={mediaPath(f)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </div>
+          ))}
+        </div>
+        <style>{`
+          .grid-destacados { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+          .destacado-card {
+            aspect-ratio: 6 / 8;
+            min-height: 130px;
+            border-radius: 0px;
+            background: transparent;
+            border: 1px solid var(--line);
+            overflow: hidden;
+          }
+          @media (max-width: 768px) {
+            .grid-destacados { grid-template-columns: 1fr; }
+          }
+        `}</style>
+      </section>
+
       {lanzamientos.length > 0 && (
         <section className="wrap" style={{ paddingTop: 32, paddingBottom: 32 }}>
           <hr className="separador" />
@@ -60,6 +91,7 @@ export default function Home() {
           <ProductCarousel productos={lanzamientos} />
         </section>
       )}
+
 
       <section className="wrap section-py-mobile" style={{ paddingBottom: '80px' }}>
         <hr className="separador" />
