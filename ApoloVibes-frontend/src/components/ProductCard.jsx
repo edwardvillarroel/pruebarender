@@ -17,12 +17,6 @@ export default function ProductCard({ producto, index = 0 }) {
   const { categorias } = useProductos()
   const acento = ACENTOS[index % ACENTOS.length]
   const categoria = categorias.find(c => c.id === producto.categoria_id)
-
-  // La tarjeta se dibuja a ~240px, asi que alcanza con el thumbnail (600px):
-  // la foto original pesa 2,4 MB en promedio y 43 MB el catálogo completo.
-  // `imagen_thumb` llega null hasta que el backend genera el primero, y para
-  // los productos cuya foto viene de un color puede no existir nunca: en ambos
-  // casos se cae a la imagen completa.
   const imagenTarjeta = producto.imagen_thumb || producto.imagen
 
   return (
@@ -55,9 +49,6 @@ export default function ProductCard({ producto, index = 0 }) {
             <img
               src={imagenTarjeta}
               alt={producto.nombre}
-              // Sin lazy el catalogo pedia las ~14 fotos completas de una (varias
-              // son PNG de 700 KB) y saturaba la conexion: se veian bloques
-              // blancos al scrollear mientras la imagen downloadaba y decodificaba.
               loading="lazy"
               decoding="async"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -147,8 +138,6 @@ export default function ProductCard({ producto, index = 0 }) {
       </Link>
 
       <div style={{ padding: '10px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {/* flex-wrap: en pantallas angostas el nombre y la categoría bajan a filas
-           propias en vez de quedar el texto encima de la pastilla. */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
           <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', flex: 1, minWidth: 0 }}>{producto.nombre}</h4>
           {categoria && (
@@ -193,8 +182,8 @@ export default function ProductCard({ producto, index = 0 }) {
             <span
               style={{
                 display: 'inline-block',
-                background: COLOR_SIN_STOCK,
-                color: '#FFFFFF',
+                background: 'var(--surface-3)',
+                color: 'var(--text-dim)',
                 fontSize: 11,
                 fontWeight: 600,
                 padding: '2px 8px',
@@ -227,7 +216,7 @@ export default function ProductCard({ producto, index = 0 }) {
           aria-label="Agregar al carrito"
           style={{
             marginTop: 'auto',
-            background: producto.sinStock ? 'var(--surface-2)' : COLOR_BUTTON,
+            background: producto.sinStock ? 'var(--surface-3)' : COLOR_BUTTON,
             color: producto.sinStock ? 'var(--text-dim)' : 'var(--text)',
             border: 'none',
             borderRadius: 12,

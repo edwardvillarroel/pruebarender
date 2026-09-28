@@ -22,6 +22,10 @@ class Producto:
     material: str | None = None
     tamano: str | None = None
     color: str | None = None
+    # Lo marca el admin como destacado. No es lo mismo que `activo` (que es el
+    # borrado logico): un producto puede estar activo y aun asi no ser un
+    # lanzamiento. La seccion "Lanzamientos" de la home filtra por este flag.
+    nuevo_lanzamiento: bool = False
     # URL del thumbnail para la grilla del catalogo. Es None cuando el producto
     # no tiene foto o cuando su foto ya es chica y no necesita reduccion: en
     # ese caso el consumidor debe usar `imagen`.

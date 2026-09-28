@@ -2,6 +2,7 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 from app.application.catalogo_stock.gestionar_producto import GestionarProducto
+from app.application.common.dto import ActualizarProductoDTO, CrearProductoDTO
 from app.domain.entities.producto import ImagenProducto, Producto
 from app.infrastructure.database.connection import db
 from app.infrastructure.database.models.producto_color_model import ProductoColorModel
@@ -277,3 +278,88 @@ def test_obtener_producto_tambien_ignora_la_url_sin_blob(monkeypatch):
 
     assert resultado is not None
     assert resultado.imagen is None
+
+
+# --- Flag de nuevo lanzamiento -----------------------------------------------
+#
+# `nuevo_lanzamiento` decide si el producto sale en la seccion "Lanzamientos" de
+# la home. No es lo mismo que `activo` (que es el borrado logico): un producto
+# puede estar activo y no ser un lanzamiento.
+#
+# El punto delicate es el apagado: la etiqueta "Nuevo" se DERIVA en el mapper de
+# la API, no se persiste (ver `test_catalogo_routes.py`). Si alguna vez se
+# guardara, apagar el flag dejaria el "Nuevo" pegado en la fila para siempre,
+# porque el repositorio volveria a leer su propio valor derivado. Estos tests
+# fijan el flag como un campo booleano normal que hace round-trip.
+
+
+def test_el_flag_de_lanzamiento_llega_del_modelo_a_la_entidad(monkeypatch):
+    producto, modelo = _preparar_producto(activo=True)
+    modelo.nuevo_lanzamiento = True
+    _preparar_sesion(monkeypatch, modelo)
+
+    resultado = ProductoRepository().get_by_id(producto.id)
+
+    assert resultado.nuevo_lanzamiento is True
+
+
+def test_el_flag_de_lanzamiento_se_persiste_al_actualizar(monkeypatch):
+    producto, modelo = _preparar_producto(activo=True)
+    _preparar_sesion(monkeypatch, modelo)
+    producto.nuevo_lanzamiento = True
+
+    GestionarProducto(ProductoRepository()).actualizar(
+        ActualizarProductoDTO(id=producto.id, nuevo_lanzamiento=True)
+    )
+
+    assert modelo.nuevo_lanzamiento is True
+
+
+def test_se_puede_apagar_el_flag_de_lanzamiento(monkeypatch):
+    """Apagar tiene que escribir `False`, no "no hacer nada".
+
+    Es la asercion que distingue `if dto.nuevo_lanzamiento` (truthy: el False
+    nunca se aplica y el producto queda marcado para siempre) de
+    `if dto.nuevo_lanzamiento is not None`.
+    """
+    producto, modelo = _preparar_producto(activo=True)
+    modelo.nuevo_lanzamiento = True
+    _preparar_sesion(monkeypatch, modelo)
+
+    GestionarProducto(ProductoRepository()).actualizar(
+        ActualizarProductoDTO(id=producto.id, nuevo_lanzamiento=False)
+    )
+
+    assert modelo.nuevo_lanzamiento is False
+
+
+def test_un_update_sin_el_flag_no_lo_toca(monkeypatch):
+    """PATCH parcial (p.ej. solo el stock) no puede apagar un lanzamiento."""
+    producto, modelo = _preparar_producto(activo=True)
+    modelo.nuevo_lanzamiento = True
+    _preparar_sesion(monkeypatch, modelo)
+
+    GestionarProducto(ProductoRepository()).actualizar(
+        ActualizarProductoDTO(id=producto.id, stock=7)
+    )
+
+    assert modelo.nuevo_lanzamiento is True
+
+
+def test_crear_honora_el_flag_de_lanzamiento(monkeypatch):
+    producto, modelo = _preparar_producto(activo=True)
+    modelo.nuevo_lanzamiento = True
+    _preparar_sesion(monkeypatch, modelo)
+
+    GestionarProducto(ProductoRepository()).crear(
+        CrearProductoDTO(
+            nombre="Producto nuevo",
+            categoria_id=producto.categoria_id,
+            precio=100,
+            nuevo_lanzamiento=True,
+        )
+    )
+
+    # `crear` arma un modelo nuevo: el flag tiene que haber llegado al `add`.
+    agregado = db.session.add.call_args[0][0]
+    assert agregado.nuevo_lanzamiento is True
