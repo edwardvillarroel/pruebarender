@@ -2,22 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { Truck } from 'lucide-react'
 
 const ALTO_BARRA = 40
-
-// Debe ser MAYOR que ALTO_BARRA. La barra vive en el flujo del documento
-// (position: relative), asi que al ocultarse le saca ALTO_BARRA px de alto a
-// toda la pagina. Cerca del final, el navegador recorta scrollY para compensar
-// y eso vuelve como un evento de scroll con el signo invertido: la barra cree
-// que el usuario subio, se vuelve a mostrar, el documento crece, se recorta
-// otra vez... y la pagina rebota sola, indefinidamente. Con el umbral por
-// encima de ALTO_BARRA, ningun scroll puede ser rechazado por ser el eco de
-// nuestra propia animacion, y el lazo no puede arrancar.
 const UMBRAL_SCROLL = 60
 
 export default function TopBar() {
   const [oculto, setOculto] = useState(false)
   const ultimaPos = useRef(0)
-  // Espejo del estado en un ref: el listener de scroll se registra una sola vez
-  // y asi no depende de un closure con el valor viejo de `oculto`.
   const ocultoRef = useRef(false)
 
   useEffect(() => {
@@ -59,7 +48,7 @@ export default function TopBar() {
       }}
     >
       <div
-        className="wrap"
+        className="wrap topbar-inner"
         style={{
           height: ALTO_BARRA,
           display: 'flex',
@@ -67,12 +56,11 @@ export default function TopBar() {
           justifyContent: 'center',
           gap: 8,
           textAlign: 'center',
-          whiteSpace: 'nowrap',
         }}
       >
         <Truck size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
         <p style={{ fontSize: 12.5, letterSpacing: '.02em', margin: 0 }}>
-          <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Envíos a todo Chile</span> en compras sobre $50.000 | Retiro en lugar de entrega acordado
+          <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Envíos a todo Chile</span> en compras sobre $50.000
         </p>
       </div>
     </div>

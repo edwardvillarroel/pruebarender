@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { Menu, LogOut, LayoutDashboard, ClipboardList, Package, FileText, ShoppingCart, User } from 'lucide-react'
-import Apolovibeslogo from '../../../public/media/apolo-vibes-logo.png'
+import { mediaPath } from '../../utils/media.js'
 
 const navItems = [
   { to: '/admin', end: true, label: 'Dashboard', icon: LayoutDashboard },
@@ -55,7 +55,7 @@ function ConfirmModal({ onConfirm, onCancel }) {
       >
         <div style={{ fontSize: 36, marginBottom: 12 }}></div>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
-          <img src={Apolovibeslogo} alt="Logo" style={{ width: 60, height: 60 }} />
+          <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ width: 60, height: 60 }} />
         </div>
         <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>
           Cerrar sesión
