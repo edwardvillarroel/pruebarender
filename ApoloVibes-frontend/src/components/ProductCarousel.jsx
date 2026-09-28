@@ -16,8 +16,6 @@ export default function ProductCarousel({ productos }) {
         setEnFinal(el.scrollLeft + el.clientWidth >= el.scrollWidth - 5)
     }, [])
 
-    // Se recalcula al cambiar la lista y al redimensionar: con otra cantidad de
-    // cards cambia si hay overflow, y sin esto las flechas quedan desfasadas.
     useEffect(() => {
         actualizarFlechas()
         window.addEventListener('resize', actualizarFlechas)

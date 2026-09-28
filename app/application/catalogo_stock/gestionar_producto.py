@@ -211,7 +211,42 @@ class GestionarProducto:
         self._repositorio.delete(producto)
 
     def guardar_imagen(self, producto_id: UUID, imagen: ImagenProducto) -> None:
+        """Guarda la foto del producto y genera su thumbnail en el mismo acto.
+
+        El repositorio invalida el thumbnail cacheado al reemplazar la foto
+        (la vieja ya no corresponde). Aprovechar que los bytes de la nueva foto
+        estan ahi para generarlo ahora evita que el primer `GET /thumb` que
+        llegue pague el trabajo de Pillow en la respuesta: la tarjeta del
+        catalogo ya sale con su `imagen_thumb` desde el primer listado.
+        """
         self._repositorio.guardar_imagen(producto_id, imagen)
+        self._regenerar_thumb(producto_id, imagen, self._repositorio.guardar_thumb)
+
+    def _regenerar_thumb(
+        self,
+        imagen_id: UUID,
+        imagen: ImagenProducto,
+        guardar: Callable[[UUID, ImagenProducto], None],
+    ) -> None:
+        """Genera y persiste el thumbnail de la foto que se acaba de guardar.
+
+        `guardar` es inyectado para no repetir el codigo entre producto y
+        color, cuyos metodos del repositorio se llaman distinto. Un `None` del
+        generador no es un error (foto ya chica, Pillow ausente, archivo
+        ilegible): en ese caso no se guarda nada y las rutas siguen cayendo a la
+        imagen original.
+        """
+        if self._generador_thumb is None or not imagen.bytes:
+            return
+
+        generado = self._generador_thumb(imagen.bytes, imagen.content_type)
+        if generado is None:
+            return
+
+        guardar(
+            imagen_id,
+            ImagenProducto(bytes=generado[0], content_type=generado[1]),
+        )
 
     def listar_colores(self, producto_id: UUID) -> list[ColorProducto]:
         """Colores del producto. Lista vacia = producto de una sola foto."""
@@ -226,14 +261,21 @@ class GestionarProducto:
     def guardar_color(
         self, producto_id: UUID, nombre: str, imagen: ImagenProducto
     ) -> ColorProducto:
-        """Crea o reemplaza un color del producto con su foto."""
+        """Crea o reemplaza un color del producto con su foto.
+
+        Igual que la foto principal, el thumbnail se genera en el acto: el
+        selector de color lo muestra en swatches de 24px y asi no espera a que
+        alguien pida `GET /productos/colores/<id>/thumb`.
+        """
         producto = self._repositorio.get_by_id(producto_id)
         if producto is None:
             raise ValueError("Producto no encontrado")
         nombre = (nombre or "").strip()
         if not nombre:
             raise ValueError("El nombre del color es obligatorio")
-        return self._repositorio.guardar_color(producto_id, nombre, imagen)
+        color = self._repositorio.guardar_color(producto_id, nombre, imagen)
+        self._regenerar_thumb(color.id, imagen, self._repositorio.guardar_color_thumb)
+        return color
 
     def eliminar_color(self, color_id: UUID) -> None:
         self._repositorio.eliminar_color(color_id)

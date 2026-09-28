@@ -1,7 +1,7 @@
 from io import BytesIO
 from uuid import UUID
 
-from flask import Blueprint, current_app, jsonify, request, send_file
+from flask import Blueprint, Response, current_app, jsonify, request, send_file
 
 from app.api.middleware.auth import requiere_sesion, rol_requerido
 from app.application.catalogo_stock.gestionar_categoria import GestionarCategoria
@@ -75,6 +75,35 @@ def _a_publico_categoria(categoria) -> dict:
     }
 
 
+CACHE_IMAGENES_SEGUNDOS = 604800  # 7 dias
+
+
+def _enviar_imagen(imagen) -> Response:
+    """Sirve un BLOB de imagen como respuesta cacheable.
+
+    Siete dias de cache porque una foto de producto cambia muy pocas veces, y el
+    navegador deja de volver a bajarla en cada visita al catalogo. Al reemplazar
+    la foto se regenera el thumbnail en el mismo alta, asi que la unica
+    ventana de cache viejo es la que dura el nombre del archivo; si hace falta,
+    un CDN con purge resuelve eso sin tocar estos endpoints.
+    """
+    respuesta = send_file(
+        BytesIO(imagen.bytes),
+        mimetype=imagen.content_type or "application/octet-stream",
+    )
+    # El `Cache-Control` se setea sobre la respuesta: `send_file` no tiene
+    # parametros de cache, y ademas manda `no-cache` por defecto (Werkzeug no
+    # quiere que se cachee un stream sin nombre). Hay que sacarlo de encima,
+    # porque `no-cache` + `max-age` se contradicen: `no-cache` obliga al
+    # navegador a revalidar en cada visita, que es justo lo que se vino a
+    # evitar. `public` habilita el cache compartido (gateway/CDN): estas fotos
+    # no dependen de quien las pida.
+    respuesta.cache_control.max_age = CACHE_IMAGENES_SEGUNDOS
+    respuesta.cache_control.no_cache = False
+    respuesta.cache_control.public = True
+    return respuesta
+
+
 @catalogo_bp.get("/productos")
 def listar_productos():
     productos = _servicio_producto().listar_con_foto_de_color()
@@ -95,10 +124,7 @@ def imagen_producto(producto_id):
     imagen = _servicio_producto().consultar_imagen(producto_id)
     if imagen is None:
         return jsonify(mensaje="Imagen no encontrada"), 404
-    return send_file(
-        BytesIO(imagen.bytes),
-        mimetype=imagen.content_type or "application/octet-stream",
-    )
+    return _enviar_imagen(imagen)
 
 
 @catalogo_bp.get("/productos/<uuid:producto_id>/thumb")
@@ -116,10 +142,7 @@ def thumb_producto(producto_id):
         imagen = servicio.consultar_imagen(producto_id)
     if imagen is None:
         return jsonify(mensaje="Imagen no encontrada"), 404
-    return send_file(
-        BytesIO(imagen.bytes),
-        mimetype=imagen.content_type or "application/octet-stream",
-    )
+    return _enviar_imagen(imagen)
 
 
 @catalogo_bp.post("/productos")
@@ -244,10 +267,7 @@ def imagen_color(color_id):
     imagen = _servicio_producto().consultar_imagen_color(color_id)
     if imagen is None:
         return jsonify(mensaje="Imagen no encontrada"), 404
-    return send_file(
-        BytesIO(imagen.bytes),
-        mimetype=imagen.content_type or "application/octet-stream",
-    )
+    return _enviar_imagen(imagen)
 
 
 @catalogo_bp.get("/productos/colores/<uuid:color_id>/thumb")
@@ -263,10 +283,7 @@ def thumb_color(color_id):
         imagen = servicio.consultar_imagen_color(color_id)
     if imagen is None:
         return jsonify(mensaje="Imagen no encontrada"), 404
-    return send_file(
-        BytesIO(imagen.bytes),
-        mimetype=imagen.content_type or "application/octet-stream",
-    )
+    return _enviar_imagen(imagen)
 
 
 @catalogo_bp.post("/productos/<uuid:producto_id>/colores")

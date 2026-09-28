@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { api } from '../services/api.js'
@@ -14,13 +14,13 @@ const overlayStyle = {
 const modalStyle = {
     background: 'var(--surface)', borderRadius: 20,
     width: '100%', maxWidth: 520, maxHeight: '90vh', boxShadow: '0 20px 60px rgba(0,0,0,.3)',
-    position: 'relative', padding: '28px 32px', overflowY: 'auto', boxSizing: 'border-box',
+    position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden',
 }
 
 const inputStyle = {
     width: '100%', padding: '11px 14px', borderRadius: 10,
     border: '1px solid var(--line)', background: 'var(--bg)',
-    color: 'var(--text)', fontSize: 14, outline: 'none',
+    color: 'var(--input-text)', fontSize: 14, outline: 'none',
     boxSizing: 'border-box',
 }
 
@@ -39,6 +39,20 @@ const botonFlecha = {
     transition: 'border-color .2s',
 }
 
+const analizarPassword = (pw) => {
+    const reqs = [
+        { id: 'largo', label: 'Mínimo 8 caracteres', ok: pw.length >= 8 },
+        { id: 'variedad', label: 'Mayúsculas y minúsculas', ok: /[a-z]/.test(pw) && /[A-Z]/.test(pw) },
+        { id: 'numero', label: 'Al menos un número', ok: /\d/.test(pw) },
+        { id: 'simbolo', label: 'Al menos un símbolo', ok: /[^A-Za-z0-9]/.test(pw) },
+    ]
+    const puntos = reqs.filter(r => r.ok).length
+    if (!pw) return { reqs, puntos, nivel: null, color: null }
+    const nivel = puntos <= 1 ? 'Insegura' : puntos === 2 ? 'Débil' : puntos === 3 ? 'Media' : 'Segura'
+    const color = puntos <= 1 ? '#ef4444' : puntos === 2 ? '#f59e0b' : puntos === 3 ? '#eab308' : '#22c55e'
+    return { reqs, puntos, nivel, color }
+}
+
 const seccionStyle = {
     border: '1px solid var(--line)', borderRadius: 12, padding: '16px 18px', marginBottom: 16, background: 'var(--surface-2)',
 }
@@ -53,7 +67,7 @@ export default function SeguridadModal({ onClose }) {
     const [cargandoPass, setCargandoPass] = useState(false)
 
     // ---- MFA ----
-    const [pasoMfa, setPasoMfa] = useState('idle') // idle | qr | listo
+    const [pasoMfa, setPasoMfa] = useState('idle')
     const [qrData, setQrData] = useState('')
     const [secreto, setSecreto] = useState('')
     const [codigoMfa, setCodigoMfa] = useState('')
@@ -64,6 +78,24 @@ export default function SeguridadModal({ onClose }) {
     const [mostrarPasswordDesactivar, setMostrarPasswordDesactivar] = useState(false)
 
     const mfaActivo = !!user?.mfa_activo
+
+    const fortaleza = analizarPassword(passForm.nueva)
+
+    // Bloquear el scroll de la pagina mientras el modal esta abierto (igual que LoginModal).
+    useLayoutEffect(() => {
+        const scrollY = window.scrollY
+        document.body.style.position = 'fixed'
+        document.body.style.top = `-${scrollY}px`
+        document.body.style.width = '100%'
+        document.body.style.overflow = 'hidden'
+        return () => {
+            document.body.style.position = ''
+            document.body.style.top = ''
+            document.body.style.width = ''
+            document.body.style.overflow = ''
+            window.scrollTo(0, scrollY)
+        }
+    }, [])
 
     const cambiarPassword = async (e) => {
         e.preventDefault()
@@ -192,181 +224,246 @@ export default function SeguridadModal({ onClose }) {
                     aria-label="Cerrar"
                     style={{
                         position: 'absolute', top: 16, right: 18, background: 'none',
-                        border: 'none', color: 'var(--text-dim)', fontSize: 20, cursor: 'pointer', zIndex: 2, lineHeight: 1,
+                        border: 'none', color: 'var(--text-dim)', fontSize: 20, cursor: 'pointer', zIndex: 5, lineHeight: 1,
                     }}
                 >
                     &times;
                 </button>
+                <style>{`
+                    .modal-scroll::-webkit-scrollbar { width: 6px; }
+                    .modal-scroll::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
+                    .modal-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+                    .modal-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+                    .modal-scroll { scrollbar-gutter: stable; }
+                `}</style>
 
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
-                    <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ width: 60, height: 60, marginBottom: -10 }} />
-                </div>
+                <div className="modal-scroll" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
+                    <div style={{
+                        position: 'sticky', top: 0, zIndex: 3,
+                        display: 'flex', flexDirection: 'column',
+                        alignItems: 'center', justifyContent: 'center', gap: 6,
+                        padding: '15px 52px 8px', background: 'var(--surface)',
+                        borderBottom: '1px solid var(--line)',
+                    }}>
+                        <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ height: 60, width: 'auto', marginBottom: -10 }} />
+                        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>
+                            Seguridad
+                        </h2>
+                        <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 8px', textAlign: 'center' }}>
+                            Protege tu cuenta con autenticación de dos factores y gestiona tu contraseña.
+                        </p>
+                    </div>
 
-                <h2 style={{ display: 'flex', justifyContent: 'center', gap: 8, fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)', margin: '0 0 6px' }}>
-                    Seguridad
-                </h2>
-                <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 20px', textAlign: 'center' }}>
-                    Protege tu cuenta con autenticación de dos factores y gestiona tu contraseña.
-                </p>
+                    <div style={{ padding: '20px 32px 28px' }}>
+                        {/* --- Cambio de contraseña --- */}
+                        <div style={seccionStyle}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 12px' }}>
+                                <KeyRound size={16} /> Cambiar contraseña
+                            </h3>
+                            <form onSubmit={cambiarPassword}>
+                                {inputPass('actual', 'Contraseña actual', <KeyRound size={16} />)}
+                                {inputPass('nueva', 'Nueva contraseña', <KeyRound size={16} />)}
+                                {/* Requisitos de contraseña segura + medidor en vivo */}
+                                <div style={{ marginTop: 2, background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px', marginBottom: 6 }}>
+                                    <div style={{ display: 'grid', gap: 3 }}>
+                                        {fortaleza.reqs.map(r => (
+                                            <div
+                                                key={r.id}
+                                                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: r.ok ? '#22c55e' : 'var(--text-dim)', transition: 'color .15s' }}
+                                            >
+                                                <span style={{ fontSize: 12 }}>{r.ok ? '✓' : '○'}</span>
+                                                {r.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                                        {[1, 2, 3, 4].map(i => (
+                                            <span
+                                                key={i}
+                                                style={{
+                                                    flex: 1, height: 4, borderRadius: 2, transition: 'background .15s',
+                                                    background: fortaleza.nivel && i <= fortaleza.puntos ? fortaleza.color : 'var(--line)',
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                    <p style={{ fontSize: 11, fontWeight: 600, color: fortaleza.color || 'var(--text-dim)', margin: '4px 0 0', minHeight: 14 }}>
+                                        {fortaleza.nivel || 'La fortaleza se actualiza mientras escribes'}
+                                    </p>
+                                </div>
+                                {inputPass('confirmar', 'Confirmar nueva contraseña', <KeyRound size={16} />)}
+                                {mensajePass.error && <p style={{ color: '#ef4444', fontSize: 12, margin: '4px 0 10px' }}>{mensajePass.error}</p>}
+                                {mensajePass.ok && <p style={{ color: '#22c55e', fontSize: 12, margin: '4px 0 10px' }}>{mensajePass.ok}</p>}
+                                <button
+                                    type="submit"
+                                    disabled={cargandoPass}
+                                    style={{ ...botonAccion, marginBottom: 0, opacity: cargandoPass ? .7 : 1, cursor: cargandoPass ? 'default' : 'pointer' }}
+                                >
+                                    {cargandoPass ? 'Guardando...' : 'Actualizar contraseña'}
+                                </button>
+                            </form>
+                        </div>
 
-                {/* --- Cambio de contraseña --- */}
-                <div style={seccionStyle}>
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 12px' }}>
-                        <KeyRound size={16} /> Cambiar contraseña
-                    </h3>
-                    <form onSubmit={cambiarPassword}>
-                        {inputPass('actual', 'Contraseña actual', <KeyRound size={16} />)}
-                        {inputPass('nueva', 'Nueva contraseña (8-72 caracteres)', <KeyRound size={16} />)}
-                        {inputPass('confirmar', 'Confirmar nueva contraseña', <KeyRound size={16} />)}
-                        {mensajePass.error && <p style={{ color: '#ef4444', fontSize: 12, margin: '4px 0 10px' }}>{mensajePass.error}</p>}
-                        {mensajePass.ok && <p style={{ color: '#22c55e', fontSize: 12, margin: '4px 0 10px' }}>{mensajePass.ok}</p>}
-                        <button
-                            type="submit"
-                            disabled={cargandoPass}
-                            style={{ ...botonAccion, marginBottom: 0, opacity: cargandoPass ? .7 : 1, cursor: cargandoPass ? 'default' : 'pointer' }}
-                        >
-                            {cargandoPass ? 'Guardando...' : 'Actualizar contraseña'}
-                        </button>
-                    </form>
-                </div>
-
-                {/* --- MFA --- */}
-                <div style={seccionStyle}>
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 4px' }}>
-                        <ShieldCheck size={16} /> Autenticación de dos factores
-                    </h3>
-                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 12px' }}>
-                        {mfaActivo
-                            ? 'Verificación en dos pasos activada. Se requiere el código de tu app en cada inicio de sesión.'
-                            : 'Añade una capa extra de seguridad con una app de autenticación (Google Authenticator, etc.).'}
-                    </p>
-
-                    {!mfaActivo && pasoMfa === 'idle' && (
-                        <button
-                            type="button"
-                            onClick={iniciarConfiguracionMfa}
-                            disabled={cargandoMfa}
-                            style={{ ...botonAccion, marginBottom: 0, opacity: cargandoMfa ? .7 : 1, cursor: cargandoMfa ? 'default' : 'pointer' }}
-                        >
-                            {cargandoMfa ? 'Preparando...' : 'Activar dos factores'}
-                        </button>
-                    )}
-
-                    {pasoMfa === 'qr' && (
-                        <>
-                            <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 10px', lineHeight: 1.5 }}>
-                                Escanea el código QR con tu app de autenticación. Si no puedes escanearlo,
-                                ingresa manualmente el secreto: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', wordBreak: 'break-all' }}>{secreto}</strong>
+                        {/* --- MFA --- */}
+                        <div style={seccionStyle}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 4px' }}>
+                                <ShieldCheck size={16} /> Autenticación de dos factores
+                            </h3>
+                            <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 12px' }}>
+                                {mfaActivo
+                                    ? 'Verificación en dos pasos activada. Se requiere el código de tu app en cada inicio de sesión.'
+                                    : 'Añade una capa extra de seguridad con una app de autenticación (Google Authenticator, etc.).'}
                             </p>
-                            {qrData && (
-                                <img
-                                    src={qrData}
-                                    alt="Código QR de autenticación"
-                                    style={{ width: 180, height: 180, display: 'block', margin: '0 auto 12px', borderRadius: 8, background: '#fff', padding: 8, boxSizing: 'border-box' }}
-                                />
-                            )}
-                            <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
-                                Código de la app
-                            </label>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={6}
-                                placeholder="••••••"
-                                value={codigoMfa}
-                                onChange={(e) => { setCodigoMfa(e.target.value.replace(/\D/g, '').slice(0, 6)); setMensajeMfa({ ok: '', error: '' }) }}
-                                style={{ ...inputStyle, letterSpacing: 6, textAlign: 'center', fontSize: 18, marginBottom: 10 }}
-                            />
-                            {mensajeMfa.error && <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 10px' }}>{mensajeMfa.error}</p>}
-                            <button
-                                type="button"
-                                onClick={activarMfa}
-                                disabled={cargandoMfa || !codigoMfa.trim()}
-                                style={{ ...botonAccion, opacity: (cargandoMfa || !codigoMfa.trim()) ? .7 : 1, cursor: (cargandoMfa || !codigoMfa.trim()) ? 'default' : 'pointer' }}
-                            >
-                                {cargandoMfa ? 'Activando...' : 'Confirmar y activar'}
-                            </button>
-                        </>
-                    )}
 
-                    {pasoMfa === 'listo' && (
-                        <>
-                            <p style={{ fontSize: 12, color: '#22c55e', margin: '0 0 10px', fontWeight: 600 }}>
-                                ✓ {mfaActivo ? 'Autenticación activa' : 'Listo'}
-                            </p>
-                            <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 10px', lineHeight: 1.5 }}>
-                                Guarda estos códigos de respaldo en un lugar seguro. Sirven solo una vez
-                                para entrar sin tu app de autenticación.
-                            </p>
-                            <div style={{
-                                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: '10px 12px',
-                                background: 'var(--bg)', borderRadius: 8, marginBottom: 12,
-                            }}>
-                                {codigosRespaldo.map(c => (
-                                    <span key={c} style={{
-                                        fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text)',
-                                        background: 'var(--surface-2)', borderRadius: 6, padding: '6px 8px', textAlign: 'center', margin: 0,
-                                    }}>
-                                        {c}
-                                    </span>
-                                ))}
-                            </div>
-                            <div style={{ display: 'flex', gap: 10 }}>
-                                {mfaActivo && (
-                                    <button type="button" onClick={regenerarCodigos} disabled={cargandoMfa} style={{ ...botonFlecha, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                                        <RefreshCw size={14} /> Regenerar
-                                    </button>
-                                )}
+                            {!mfaActivo && pasoMfa === 'idle' && (
                                 <button
                                     type="button"
-                                    onClick={() => { setPasoMfa('idle'); setCodigoMfa(''); }}
-                                    style={{ ...botonFlecha, flex: 1 }}
+                                    onClick={iniciarConfiguracionMfa}
+                                    disabled={cargandoMfa}
+                                    style={{ ...botonAccion, marginBottom: 0, opacity: cargandoMfa ? .7 : 1, cursor: cargandoMfa ? 'default' : 'pointer' }}
                                 >
-                                    Cerrar
+                                    {cargandoMfa ? 'Preparando...' : 'Activar dos factores'}
                                 </button>
-                            </div>
-                        </>
-                    )}
+                            )}
 
-                    {mfaActivo && pasoMfa === 'idle' && (
-                        <>
-                            <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                                <button type="button" onClick={regenerarCodigos} disabled={cargandoMfa} style={{ ...botonFlecha, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                                    <RefreshCw size={14} /> Nuevos códigos
-                                </button>
-                            </div>
-                            <input
-                                type="password"
-                                placeholder="Contraseña (para confirmar)"
-                                value={passwordDesactivar}
-                                onChange={(e) => { setPasswordDesactivar(e.target.value); setMensajeMfa({ ok: '', error: '' }) }}
-                                style={{ ...inputStyle, marginBottom: 6 }}
-                            />
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={6}
-                                placeholder="Código de tu app"
-                                value={codigoMfa}
-                                onChange={(e) => { setCodigoMfa(e.target.value.replace(/\D/g, '').slice(0, 6)); setMensajeMfa({ ok: '', error: '' }) }}
-                                style={{ ...inputStyle, letterSpacing: 6, textAlign: 'center', fontSize: 18, marginBottom: 10 }}
-                            />
-                            {mensajeMfa.error && <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 10px' }}>{mensajeMfa.error}</p>}
-                            <button
-                                type="button"
-                                onClick={desactivarMfa}
-                                disabled={cargandoMfa}
-                                style={{
-                                    width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid #b60303',
-                                    background: 'transparent', color: '#b60303', fontSize: 13, fontWeight: 600,
-                                    cursor: cargandoMfa ? 'default' : 'pointer', opacity: cargandoMfa ? .7 : 1,
-                                }}
-                            >
-                                {cargandoMfa ? 'Desactivando...' : 'Desactivar dos factores'}
-                            </button>
-                        </>
-                    )}
+                            {pasoMfa === 'qr' && (
+                                <>
+                                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 10px', lineHeight: 1.5 }}>
+                                        Escanea el código QR con tu app de autenticación. Si no puedes escanearlo,
+                                        ingresa manualmente el secreto: <strong style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', wordBreak: 'break-all' }}>{secreto}</strong>
+                                    </p>
+                                    {qrData && (
+                                        <img
+                                            src={qrData}
+                                            alt="Código QR de autenticación"
+                                            style={{ width: 180, height: 180, display: 'block', margin: '0 auto 12px', borderRadius: 8, background: '#fff', padding: 8, boxSizing: 'border-box' }}
+                                        />
+                                    )}
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
+                                        Código de la app
+                                    </label>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={6}
+                                        placeholder="••••••"
+                                        value={codigoMfa}
+                                        onChange={(e) => { setCodigoMfa(e.target.value.replace(/\D/g, '').slice(0, 6)); setMensajeMfa({ ok: '', error: '' }) }}
+                                        style={{ ...inputStyle, letterSpacing: 6, textAlign: 'center', fontSize: 18, marginBottom: 10 }}
+                                    />
+                                    {mensajeMfa.error && <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 10px' }}>{mensajeMfa.error}</p>}
+                                    <button
+                                        type="button"
+                                        onClick={activarMfa}
+                                        disabled={cargandoMfa || !codigoMfa.trim()}
+                                        style={{ ...botonAccion, opacity: (cargandoMfa || !codigoMfa.trim()) ? .7 : 1, cursor: (cargandoMfa || !codigoMfa.trim()) ? 'default' : 'pointer' }}
+                                    >
+                                        {cargandoMfa ? 'Activando...' : 'Confirmar y activar'}
+                                    </button>
+                                </>
+                            )}
+
+                            {pasoMfa === 'listo' && (
+                                <>
+                                    <p style={{ fontSize: 12, color: '#22c55e', margin: '0 0 10px', fontWeight: 600 }}>
+                                        ✓ {mfaActivo ? 'Autenticación activa' : 'Listo'}
+                                    </p>
+                                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 10px', lineHeight: 1.5 }}>
+                                        Guarda estos códigos de respaldo en un lugar seguro. Sirven solo una vez
+                                        para entrar sin tu app de autenticación.
+                                    </p>
+                                    <div style={{
+                                        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, padding: '10px 12px',
+                                        background: 'var(--bg)', borderRadius: 8, marginBottom: 12,
+                                    }}>
+                                        {codigosRespaldo.map(c => (
+                                            <span key={c} style={{
+                                                fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text)',
+                                                background: 'var(--surface-2)', borderRadius: 6, padding: '6px 8px', textAlign: 'center', margin: 0,
+                                            }}>
+                                                {c}
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 10 }}>
+                                        {mfaActivo && (
+                                            <button type="button" onClick={regenerarCodigos} disabled={cargandoMfa} style={{ ...botonFlecha, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                                <RefreshCw size={14} /> Regenerar
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => { setPasoMfa('idle'); setCodigoMfa(''); }}
+                                            style={{ ...botonFlecha, flex: 1 }}
+                                        >
+                                            Cerrar
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+
+                            {mfaActivo && pasoMfa === 'idle' && (
+                                <>
+                                    <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                                        <button type="button" onClick={regenerarCodigos} disabled={cargandoMfa} style={{ ...botonFlecha, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                            <RefreshCw size={14} /> Nuevos códigos
+                                        </button>
+                                    </div>
+                                    <div style={{ position: 'relative', marginBottom: 6 }}>
+                                        <span style={{
+                                            position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                                            zIndex: 1, color: 'var(--text-dim)', display: 'flex', pointerEvents: 'none',
+                                        }}>
+                                            <KeyRound size={16} />
+                                        </span>
+                                        <input
+                                            autoComplete="new-password"
+                                            type={mostrarPasswordDesactivar ? 'text' : 'password'}
+                                            placeholder="Contraseña (para confirmar)"
+                                            value={passwordDesactivar}
+                                            onChange={(e) => { setPasswordDesactivar(e.target.value); setMensajeMfa({ ok: '', error: '' }) }}
+                                            style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34 }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setMostrarPasswordDesactivar(v => !v)}
+                                            aria-label={mostrarPasswordDesactivar ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                            style={{
+                                                position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 1,
+                                                background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 4, display: 'flex',
+                                            }}
+                                        >
+                                            {mostrarPasswordDesactivar ? <Eye size={16} /> : <EyeOff size={16} />}
+                                        </button>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        maxLength={6}
+                                        placeholder="Código de tu app"
+                                        value={codigoMfa}
+                                        onChange={(e) => { setCodigoMfa(e.target.value.replace(/\D/g, '').slice(0, 6)); setMensajeMfa({ ok: '', error: '' }) }}
+                                        style={{ ...inputStyle, letterSpacing: 6, textAlign: 'center', fontSize: 18, marginBottom: 10 }}
+                                    />
+                                    {mensajeMfa.error && <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 10px' }}>{mensajeMfa.error}</p>}
+                                    <button
+                                        type="button"
+                                        onClick={desactivarMfa}
+                                        disabled={cargandoMfa}
+                                        style={{
+                                            width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid #b60303',
+                                            background: '#db363636', color: '#b60303', fontSize: 13, fontWeight: 600,
+                                            cursor: cargandoMfa ? 'default' : 'pointer', opacity: cargandoMfa ? .7 : 1,
+                                        }}
+                                    >
+                                        {cargandoMfa ? 'Desactivando...' : 'Desactivar dos factores'}
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
                 </div>
+                <div style={{ padding: '20px 32px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }} />
             </div>
         </div>,
         document.body
