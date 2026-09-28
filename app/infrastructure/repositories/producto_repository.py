@@ -109,6 +109,7 @@ class ProductoRepository(ProductoRepositoryInterface):
         modelo.badge = entidad.badge
         modelo.precio_original = entidad.precio_original
         modelo.rating = entidad.rating
+        modelo.nuevo_lanzamiento = entidad.nuevo_lanzamiento
         db.session.commit()
         return entidad
 
@@ -402,6 +403,7 @@ def _a_entidad(
         material=modelo.material,
         tamano=modelo.tamano,
         color=modelo.color,
+        nuevo_lanzamiento=bool(modelo.nuevo_lanzamiento),
         imagen_thumb=(
             RUTA_THUMB_PRODUCTO.format(producto_id=modelo.id) if tiene_thumb else None
         ),
@@ -427,4 +429,5 @@ def _a_modelo(entidad: Producto) -> ProductoModel:
         badge=entidad.badge,
         precio_original=entidad.precio_original,
         rating=entidad.rating,
+        nuevo_lanzamiento=entidad.nuevo_lanzamiento,
     )

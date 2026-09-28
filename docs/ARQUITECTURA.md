@@ -172,6 +172,31 @@ viven en `infrastructure/database/models/` y mapean a las mismas tablas.
 > thumbnail no exista. El script `generar_thumbnails.py` (raíz, fuera de git)
 > permite adelantarlo si se quiere, con `--what-if` para ensayo.
 
+> **Nota de desviación (2026-09-28):** `productos` gana la columna
+> `nuevo_lanzamiento` (`NUMBER(1) DEFAULT 0 NOT NULL`), un flag que el admin
+> prende desde el modal de producto y que decide si el producto sale en la
+> sección **«Lanzamientos»** de la home. No es lo mismo que `activo`, que es el
+> borrado lógico: un producto puede estar activo y no ser un lanzamiento.
+> Migración: `migrations/agregar_nuevo_lanzamiento.sql`.
+>
+> El flag es un booleano y **no** se deriva de la fecha ni de la etiqueta. La
+> home ordena los lanzamientos del más nuevo al más viejo, así que el JSON de
+> `GET /api/productos` ahora incluye `creado_en` (ISO 8601) además de
+> `nuevo_lanzamiento`: sin la fecha en la respuesta la sección no se puede
+> ordenar, porque la API ordena por `nombre`.
+>
+> La etiqueta que ve la tarjeta (`badge`) se **deriva en `_a_publico_producto`**
+> y no se persiste nunca. La columna `productos.badge` queda reservada para
+> valores manuales (hay productos con «Best Seller») y así conviven «Nuevo» y
+> «Best Seller» sin pisarse. Derivarla y guardarla en la misma columna es un
+> error: el repositorio volvería a leer su propio valor derivado, y apagar el
+> flag dejaría el «Nuevo» pegado en la fila para siempre.
+>
+> `PATCH /api/productos/:id` distingue tres estados con `is not None`: ausente
+> = no tocar, `true` = marcar, `false` = desmarcar. Por eso el modal manda el
+> campo siempre, incluso en `false`: con un chequeo truthy el `false` nunca se
+> aplicaría y un lanzamiento no se podría apagar.
+
 ---
 
 ## 6. Contratos API (impuestos por el frontend)
@@ -189,7 +214,10 @@ GET    /api/auth/me                    # retorna usuario autenticado
 
 # --- Proxeados al backend interno (:8000) ---
 GET    /api/productos                  # catálogo público
-GET    /api/productos/:id              # detalle público
+                                       #   + nuevo_lanzamiento (bool), creado_en (ISO)
+                                       #   + badge: "Nuevo" si nuevo_lanzamiento,
+                                       #     si no el badge manual de la fila
+GET    /api/productos/:id              # detalle público (mismos campos)
 GET    /api/productos/:id/imagen       # imagen en BLOB (content-type real)
 GET    /api/productos/:id/thumb        # thumbnail del producto (600px, JPEG q82)
 GET    /api/productos/:id/colores      # variantes de color del producto

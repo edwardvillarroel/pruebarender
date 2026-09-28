@@ -44,6 +44,15 @@ def _a_publico_producto(producto) -> dict:
         "material": producto.material,
         "tamano": producto.tamano,
         "color": producto.color,
+        "nuevo_lanzamiento": bool(producto.nuevo_lanzamiento),
+        # Etiqueta de la card, derivada del flag en la frontera y NO persistida:
+        # la columna `badge` queda reservada para valores manuales (p.ej.
+        # "Best Seller") y asi conviven "Nuevo" y "Best Seller" sin pisarse.
+        # Si se guardara, apagar el flag dejaria el "Nuevo" pegado en la fila.
+        "badge": "Nuevo" if producto.nuevo_lanzamiento else producto.badge,
+        # La home ordena "Lanzamientos" del mas nuevo al mas viejo, asi que la
+        # fecha de alta tiene que viajar en el JSON: la API ordena por nombre.
+        "creado_en": producto.creado_en.isoformat() if producto.creado_en else None,
     }
 
 
@@ -133,6 +142,7 @@ def crear_producto():
             color=datos.get("color"),
             specs=datos.get("specs"),
             descuento=datos.get("descuento"),
+            nuevo_lanzamiento=bool(datos.get("nuevo_lanzamiento", False)),
         )
     except (KeyError, ValueError) as e:
         return jsonify(mensaje=f"Datos invalidos: {e}"), 400
@@ -161,6 +171,9 @@ def actualizar_producto(producto_id):
             color=datos.get("color"),
             specs=datos.get("specs"),
             descuento=datos.get("descuento"),
+            # Sin `.get(...) or False`: tiene que distinguir "no vino el campo"
+            # (None = no tocar) de "vino en False" (apagar el lanzamiento).
+            nuevo_lanzamiento=datos.get("nuevo_lanzamiento"),
         )
     except (ValueError) as e:
         return jsonify(mensaje=f"Datos invalidos: {e}"), 400

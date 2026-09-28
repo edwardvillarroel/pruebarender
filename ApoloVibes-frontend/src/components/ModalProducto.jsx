@@ -123,12 +123,17 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
         nombre: producto?.nombre || '',
         descripcion: producto?.descripcion || '',
         categoria_id: producto?.categoria_id || (categorias[0]?.id ?? ''),
-        precio: producto?.precio ?? '',
+        // En edición el precio base es `precio_original` (lo que vale sin
+        // descuento); `precio` hoy guarda el valor rebajado que paga el cliente.
+        precio: producto?.precio_original ?? producto?.precio ?? '',
         stock: producto?.stock ?? '',
         material: producto?.material || '',
         tamano: producto?.tamano || '',
         color: producto?.color || '',
         descuento: producto?.descuento ?? '',
+        // `??` y no `||`: el flag es booleano y tiene que preservar el `false`
+        // explicito de la API, no convertirlo en "sin valor".
+        nuevo_lanzamiento: producto?.nuevo_lanzamiento ?? false,
     })
     const [foto, setFoto] = useState(null)
     const [fotoPreview, setFotoPreview] = useState(null)
@@ -225,13 +230,21 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
     }, [foto])
 
     const precioNeto = Number(form.precio) || 0
-    const precioFinal = esEdicion ? precioNeto : aplicarIva(precioNeto)
+    const precioBase = esEdicion ? precioNeto : aplicarIva(precioNeto)
+    const desc = Number(form.descuento) || 0
 
+    // El descuento BAJA lo que paga el cliente (como el backend). Aritmetica
+    // de enteros para no heredar errores de punto flotante (11900*90/100).
+    const precioFinal = useMemo(() => {
+        if (precioBase <= 0 || desc <= 0 || desc >= 100) return precioBase
+        return Math.ceil((precioBase * (100 - desc)) / 100)
+    }, [precioBase, desc])
+
+    // Base ("antes de la oferta") para el precio tachado de la preview.
     const precioOriginalPreview = useMemo(() => {
-        const desc = Number(form.descuento) || 0
-        if (precioFinal <= 0 || desc <= 0 || desc >= 100) return null
-        return Math.ceil(precioFinal / (1 - desc / 100))
-    }, [precioFinal, form.descuento])
+        if (precioBase <= 0 || desc <= 0 || desc >= 100) return null
+        return precioBase
+    }, [precioBase, desc])
 
     useLayoutEffect(() => {
         const scrollY = window.scrollY
@@ -322,6 +335,9 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                     tamano: form.tamano?.trim() || null,
                     color: form.color?.trim() || null,
                     descuento: form.descuento ? Number(form.descuento) : null,
+                    // Se manda siempre, incluso en `false`: el PATCH usa
+                    // `is not None` para distinguir "no tocar" de "apagar".
+                    nuevo_lanzamiento: form.nuevo_lanzamiento,
                 }
                 if (esEdicion) {
                     resultado = await api.patch(`/productos/${producto.id}`, body)
@@ -418,7 +434,7 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                         {/* Fila 2: precio + descuento + stock */}
                         <div style={grid3}>
                             <div style={fieldGroup}>
-                                <label style={labelStyle}>{esEdicion ? 'Precio final (CLP) *' : 'Precio neto (CLP) *'}</label>
+                                <label style={labelStyle}>{esEdicion ? 'Precio base (CLP) *' : 'Precio neto (CLP) *'}</label>
                                 <input type="number" min={0} step="1" value={form.precio} onChange={set('precio')} style={inputStyle} />
                             </div>
                             <div style={fieldGroup}>
@@ -431,17 +447,28 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                             </div>
                         </div>
 
-                        {!esEdicion && precioNeto > 0 && (
+                        {precioNeto > 0 && (
                             <p style={{ fontSize: 11, color: 'var(--text-dim)', margin: '-4px 0 16px' }}>
-                                Con IVA (19%): ${precioFinal.toLocaleString('es-CL')} CLP - se guardará este total
-                            </p>
-                        )}
-
-                        {precioOriginalPreview && (
-                            <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 16px' }}>
-                                Precio original: <span style={{ textDecoration: 'line-through', color: 'var(--accent)' }}>
-                                    ${precioOriginalPreview.toLocaleString('es-CL')} CLP
-                                </span>
+                                {esEdicion && desc > 0 && desc < 100 && (
+                                    <>Con {desc}% de descuento: </>
+                                )}
+                                {!esEdicion && desc <= 0 && (
+                                    <>Con IVA (19%): ${precioBase.toLocaleString('es-CL')} CLP - se guardará este total</>
+                                )}
+                                {!esEdicion && desc > 0 && desc < 100 && (
+                                    <>Con IVA (19%) y {desc}% de descuento: </>
+                                )}
+                                {desc > 0 && desc < 100 && (
+                                    <>
+                                        se guardará{' '}
+                                        <span style={{ fontWeight: 700, color: 'var(--text)' }}>
+                                            ${precioFinal.toLocaleString('es-CL')} CLP
+                                        </span>{' '}
+                                        (antes <span style={{ textDecoration: 'line-through', color: 'var(--accent)' }}>
+                                            ${precioOriginalPreview.toLocaleString('es-CL')} CLP
+                                        </span>)
+                                    </>
+                                )}
                             </p>
                         )}
 
@@ -673,6 +700,53 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                                     {subiendoColor ? 'Subiendo...' : 'Agregar'}
                                 </button>
                             </div>
+                        </div>
+
+                        {/* Switch de lanzamiento. Va al final del form para que el
+                            bloque de colores y fotos, que es lo mas largo, no quede
+                            corrido hacia abajo. */}
+                        <div style={{ ...fieldGroup, marginTop: 18, marginBottom: 0 }}>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={form.nuevo_lanzamiento}
+                                onClick={() => setForm(f => ({ ...f, nuevo_lanzamiento: !f.nuevo_lanzamiento }))}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                                    padding: 12, borderRadius: 10, textAlign: 'left',
+                                    border: form.nuevo_lanzamiento ? '1px solid var(--accent)' : '1px solid var(--line)',
+                                    background: 'var(--bg)', cursor: 'pointer',
+                                    transition: 'border-color .2s',
+                                }}
+                            >
+                                {/* Track del switch. `aria-hidden` porque el estado
+                                    ya lo anuncia el aria-checked del boton. */}
+                                <span
+                                    aria-hidden="true"
+                                    style={{
+                                        position: 'relative', flexShrink: 0,
+                                        width: 42, height: 24, borderRadius: 20,
+                                        background: form.nuevo_lanzamiento ? 'var(--accent)' : 'var(--line)',
+                                        transition: 'background .2s',
+                                    }}
+                                >
+                                    <span style={{
+                                        position: 'absolute', top: 3,
+                                        left: form.nuevo_lanzamiento ? 21 : 3,
+                                        width: 18, height: 18, borderRadius: '50%',
+                                        background: '#fff',
+                                        transition: 'left .2s',
+                                    }} />
+                                </span>
+                                <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--input-text)' }}>
+                                        Nuevo lanzamiento
+                                    </span>
+                                    <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                                        Aparece en «Lanzamientos» en la portada, con la etiqueta «Nuevo».
+                                    </span>
+                                </span>
+                            </button>
                         </div>
                     </form>
                     <div style={{

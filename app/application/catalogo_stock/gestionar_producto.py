@@ -1,4 +1,3 @@
-import math
 from typing import Any, Callable
 from uuid import UUID
 
@@ -14,11 +13,16 @@ from app.domain.interfaces.repositories import ProductoRepository
 IVA_PORCENTAJE = 19
 
 
-def _calcular_precio_original(precio: int, descuento: int) -> int:
-    """Calcula el precio original a partir del precio con descuento."""
-    if descuento <= 0 or descuento >= 100:
+def _aplicar_descuento(precio: int, descuento: int | None) -> int:
+    """Precio final restando el descuento sobre el precio base.
+
+    El descuento BAJA lo que paga el cliente: `precio * (1 - descuento/100)`.
+    Se usa aritmetica de enteros (como `_aplicar_iva`) para evitar errores de
+    punto flotante: `ceil(11900 * 90/100)` con floats daria 10711, no 10710.
+    """
+    if not descuento or descuento >= 100:
         return precio
-    return math.ceil(precio / (1 - descuento / 100))
+    return (precio * (100 - descuento) + 99) // 100
 
 
 def _aplicar_iva(precio_neto: int) -> int:
@@ -46,10 +50,9 @@ class GestionarProducto:
         self._generador_thumb = generador_thumb
 
     def crear(self, dto: CrearProductoDTO) -> Producto:
-        precio_final = _aplicar_iva(dto.precio)
-        precio_original = None
-        if dto.descuento and dto.descuento > 0:
-            precio_original = _calcular_precio_original(precio_final, dto.descuento)
+        precio_base = _aplicar_iva(dto.precio)
+        precio_final = _aplicar_descuento(precio_base, dto.descuento)
+        precio_original = precio_base if dto.descuento and dto.descuento > 0 else None
         producto = Producto(
             nombre=dto.nombre,
             categoria_id=dto.categoria_id,
@@ -63,6 +66,7 @@ class GestionarProducto:
             specs=dto.specs,
             descuento=dto.descuento,
             precio_original=precio_original,
+            nuevo_lanzamiento=dto.nuevo_lanzamiento,
         )
         return self._repositorio.add(producto)
 
@@ -179,10 +183,25 @@ class GestionarProducto:
             producto.specs = dto.specs
         if dto.descuento is not None:
             producto.descuento = dto.descuento
-            if dto.descuento > 0:
-                producto.precio_original = _calcular_precio_original(producto.precio, dto.descuento)
+        if dto.precio is not None or dto.descuento is not None:
+            # El precio que se guarda es la base (final con IVA). Con
+            # descuento, lo que paga el cliente BAJA y `precio_original`
+            # guarda la base como "antes de la oferta". Si llega solo el
+            # descuento, la base se recupera de `precio_original` (nunca del
+            # precio ya rebajado, o el descuento se aplicaria dos veces).
+            base = dto.precio if dto.precio is not None else (
+                producto.precio_original or producto.precio
+            )
+            if producto.descuento and producto.descuento > 0:
+                producto.precio_original = base
+                producto.precio = _aplicar_descuento(base, producto.descuento)
             else:
+                producto.precio = base
                 producto.precio_original = None
+        # `is not None` y no truthy: apagar un lanzamiento manda `False`, y con
+        # un if truthy el producto quedaria marcado para siempre.
+        if dto.nuevo_lanzamiento is not None:
+            producto.nuevo_lanzamiento = dto.nuevo_lanzamiento
         return self._repositorio.update(producto)
 
     def eliminar(self, producto_id: UUID) -> None:
