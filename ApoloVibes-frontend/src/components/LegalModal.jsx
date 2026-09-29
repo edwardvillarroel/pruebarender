@@ -1,106 +1,132 @@
 import { X } from 'lucide-react'
+import { mediaPath } from '../utils/media.js'
+
+
 
 const CONTENT = {
   terminos: {
     titulo: 'Términos y Condiciones',
-    texto: `Última actualización: 30 de agosto de 2026
+    texto: `Última actualización: 29 de septiembre de 2026
 
-1. Aceptación de los Términos
-Al acceder y utilizar el sitio web de Apolo Vibes 3D (en adelante, "el Sitio"), usted acepta los presentes Términos y Condiciones en su totalidad. Si no está de acuerdo con alguno de estos términos, le solicitamos no utilice el Sitio.
+1. Identificación del Proveedor
+El sitio de Apolo Vibes 3D (en adelante, "el Sitio") es operado por [nombre completo o razón social], RUT [xx.xxx.xxx-x], con domicilio en [dirección], Viña del Mar, Chile. Puede contactarnos en [correo] o al [teléfono].
 
-2. Descripción del Servicio
-Apolo Vibes 3D es una tienda en línea especializada en la venta de figuras de colección impresas en 3D, impresoras de resina, filamentos, resinas, repuestos y diseños personalizados. Nos reservamos el derecho de modificar, suspender o discontinuar cualquier aspecto del servicio en cualquier momento y sin previo aviso.
+2. Aceptación de los Términos
+Al acceder y utilizar el Sitio, usted acepta estos Términos y Condiciones. Si no está de acuerdo con ellos, le solicitamos no utilizar el Sitio.
 
-3. Productos y Precios
-Todos los productos exhibidos en el Sitio están sujetos a disponibilidad. Los precios están expresados en pesos chilenos (CLP) e incluyen IVA, salvo indicación contraria. Nos reservamos el derecho de cambiar los precios sin previo aviso. Las imágenes de los productos son referenciales y pueden diferir ligeramente del producto final.
+3. Descripción del Servicio
+Apolo Vibes 3D es una tienda en línea de figuras de colección impresas en 3D, impresoras de resina y diseños personalizados. Podemos modificar o discontinuar aspectos del servicio, sin que ello afecte los pedidos ya confirmados.
 
-4. Pedidos y Cotizaciones
-Los pedidos realizados a través del Sitio están sujetos a confirmación de stock y disponibilidad. Las cotizaciones generadas mediante la herramienta de IA son estimaciones y pueden variar según la complejidad final del diseño, materiales utilizados y condiciones de fabricación. El precio definitivo será confirmado por nuestro equipo antes de proceder con la producción.
+4. Productos y Precios
+Los productos están sujetos a disponibilidad. Los precios se expresan en pesos chilenos (CLP) e incluyen IVA. El precio que se respeta es el vigente al momento de confirmar su pedido; los cambios de precio solo afectan compras futuras. Las imágenes son referenciales y pueden diferir ligeramente del producto final.
 
-5. Formas de Pago
-Aceptamos los medios de pago disponibles en la plataforma de checkout, incluyendo tarjetas de crédito y débito a través de Webpay y Tuu. El procesamiento de pagos está sujeto a las políticas de los proveedores de servicios de pago.
+5. Pedidos, Confirmación y Cotizaciones
+Los pedidos están sujetos a confirmación de stock. Si un producto pagado no estuviera disponible, se lo informaremos y le devolveremos el dinero por el mismo medio de pago. Tras su compra le enviaremos por correo una confirmación con el detalle del pedido.
+Las cotizaciones generadas con la herramienta de IA son estimaciones y pueden variar según la complejidad del diseño, los materiales y las condiciones de fabricación. El precio definitivo será confirmado por nuestro equipo antes de producir.
 
-6. Envíos y Entregas
-Los tiempos de entrega son estimados y pueden variar según la ubicación, la disponibilidad del producto y la complejidad de los pedidos personalizados. Apolo Vibes 3D no se hace responsable por demoras ocasionadas por terceros transportistas.
+6. Formas de Pago
+Aceptamos los medios de pago disponibles en el checkout, incluyendo tarjetas de crédito y débito a través de la plataforma Tuu. El procesamiento de pagos está sujeto a las políticas de esos proveedores. Apolo Vibes 3D no almacena los datos de su tarjeta.
 
-7. Pedidos Personalizados
-Los diseños a medida cotizados a través de nuestra herramienta de generación de modelos 3D con IA son orientativos. El producto final puede diferir de la visualización generada. Se procederá a la fabricación una vez aprobado el diseño definitivo por el cliente y confirmado el pago.
+7. Envíos y Entregas
+Los plazos de entrega se informan durante la compra y pueden variar según la ubicación y la complejidad de los pedidos personalizados. Trabajamos con servicios de transporte externos, pero somos responsables frente a usted por la entrega de su pedido. Si hay retrasos, se lo comunicaremos y podrá ejercer los derechos que le reconoce la ley.
 
-8. Propiedad Intelectual
-Todo el contenido del Sitio, incluyendo pero no limitado a textos, gráficos, logotipos, imágenes, modelos 3D y software, es propiedad de Apolo Vibes 3D o de sus proveedores de contenido y está protegido por las leyes de propiedad intelectual chilenas e internacionales.
+8. Derecho de Retracto
+De acuerdo con la Ley 19.496, en las compras realizadas a través del Sitio usted puede arrepentirse dentro de 10 días contados desde la recepción del producto, sin necesidad de expresar causa.
+Para ejercerlo, escríbanos a [correo] indicando su número de pedido. El producto debe devolverse [sin uso, completo y con su embalaje original]. Le reembolsaremos el precio pagado por el mismo medio de pago, dentro del plazo legal. Los costos de devolución serán [de cargo del cliente / de cargo de Apolo Vibes 3D].
+El retracto no aplica a productos confeccionados según las especificaciones del cliente o claramente personalizados (por ejemplo, diseños a medida), ni a los demás casos de exclusión que establece la ley.
+Ejercer o no el retracto no afecta su derecho a la garantía legal.
 
-9. Limitación de Responsabilidad
-Apolo Vibes 3D no será responsable por daños indirectos, incidentales, especiales o consecuentes que resulten del uso o la imposibilidad de usar el Sitio o los productos adquiridos. Nuestra responsabilidad máxima será en todo caso el monto pagado por el producto en cuestión.
+9. Garantía Legal
+Si un producto presenta fallas o defectos, o no es apto para su uso, usted tiene derecho a la garantía legal de 6 meses desde la recepción del producto (para productos nuevos). Puede elegir entre la reparación gratuita, la reposición del producto o la devolución de lo pagado, en los términos de los artículos 19 a 21 de la Ley 19.496.
+Para solicitarla, escríbanos a [correo] con su número de pedido y, si es posible, fotografías del problema. No se aplica cuando el defecto se debe a mal uso, manipulación indebida o desgaste normal.
 
-10. Legislación Aplicable
-Los presentes Términos y Condiciones se rigen por las leyes de la República de Chile. Cualquier disputa será sometida a la jurisdicción de los tribunales competentes de Valparaíso, Chile.
+10. Pedidos Personalizados y Cancelación
+Los diseños a medida, incluidos los generados con nuestra herramienta de IA, son orientativos: el producto final puede diferir de la visualización generada. La fabricación comienza una vez aprobado el diseño definitivo y confirmado el pago.
+Puede cancelar un pedido personalizado sin costo antes de que comience la producción. Una vez iniciada, podremos cobrar los costos de materiales y trabajo ya incurridos. Si el producto llega con fallas, aplica la garantía legal.
 
-11. Modificaciones
-Nos reservamos el derecho de modificar estos Términos y Condiciones en cualquier momento. Las modificaciones entrarán en vigor inmediatamente después de su publicación en el Sitio. El uso continuado del Sitio después de dichas modificaciones constituye la aceptación de los mismos.
+11. Contenido y Diseños Aportados por el Cliente
+Si usted nos envía imágenes, modelos o ideas para un pedido personalizado, declara ser su titular o contar con las autorizaciones necesarias. Nos reservamos el derecho de rechazar pedidos que infrinjan derechos de autor, marcas u otros derechos de terceros. Usted nos autoriza a usar ese contenido solo para cotizar y fabricar su pedido.
 
-12. Contacto
-Para consultas sobre estos Términos y Condiciones, puede contactarnos a través de correo@gmail.com.`,
+12. Propiedad Intelectual
+Los textos, gráficos, logotipos, imágenes, modelos 3D y software del Sitio son propiedad de Apolo Vibes 3D o de sus proveedores y están protegidos por la legislación chilena e internacional.
+
+13. Responsabilidad
+Apolo Vibes 3D responde en los términos que establece la ley. Nada en estos Términos limita o excluye los derechos irrenunciables que la Ley 19.496 reconoce a los consumidores.
+
+14. Reclamos y Solución de Controversias
+Si tiene un problema, escríbanos primero a [correo] y buscaremos una solución. También puede acudir al SERNAC o al Juzgado de Policía Local competente, conforme a la Ley 19.496.
+
+15. Legislación Aplicable
+Estos Términos se rigen por las leyes de la República de Chile.
+
+16. Modificaciones
+Podemos modificar estos Términos en cualquier momento. Los cambios se aplican desde su publicación en el Sitio y no afectan las compras ya realizadas.
+
+17. Contacto
+Para consultas sobre estos Términos: [correo].`,
   },
   privacidad: {
     titulo: 'Política de Privacidad',
-    texto: `Última actualización: 30 de agosto de 2026
+    texto: `Última actualización: 29 septiembre de 2026
 
-1. Información que Recopilamos
-En Apolo Vibes 3D recopilamos información que usted nos proporciona directamente al realizar pedidos, cotizaciones o contactarnos, incluyendo:
-• Nombre y apellidos
-• Correo electrónico
-• Número de teléfono
-• Dirección de envío
-• Datos de pago procesados a través de nuestros proveedores de pago
+1. Responsable del Tratamiento
+El responsable de sus datos personales es [nombre completo o razón social], RUT [xx.xxx.xxx-x], con domicilio en [dirección], Viña del Mar, Chile. Contacto: [correo] / [teléfono].
 
-También recopilamos información automáticamente cuando utiliza el Sitio, como dirección IP, tipo de navegador, páginas visitadas y tiempo de permanencia.
+2. Datos que Recopilamos
+- Datos de identificación y contacto: nombre, apellidos, correo y teléfono.
+- Datos de envío: dirección de entrega.
+- Datos de pedidos y cotizaciones: productos, montos y comunicaciones con nosotros.
+- Contenido que ingresa en la herramienta de diseño con IA: textos, descripciones e imágenes.
+- Datos de pago: se procesan directamente por Tuu; nosotros no almacenamos los datos de su tarjeta.
+- Datos técnicos: dirección IP, tipo de navegador, páginas visitadas y tiempo de permanencia.
 
-2. Uso de la Información
-Utilizamos la información recopilada para:
-• Procesar y fulfillar sus pedidos
-• Enviar confirmaciones, actualizaciones de pedido y notificaciones relevantes
-• Responder a sus consultas y solicitudes de cotización
-• Mejorar nuestro Sitio, productos y servicios
-• Enviar comunicaciones de marketing, solo si usted ha dado su consentimiento
-• Cumplir con obligaciones legales
+3. Para Qué los Usamos y Con Qué Fundamento
+- Procesar y entregar sus pedidos y cotizaciones (necesario para ejecutar el contrato).
+- Enviar confirmaciones y avisos sobre su pedido (ejecución del contrato).
+- Atender consultas, garantías y reclamos (ejecución del contrato y obligaciones legales).
+- Cumplir obligaciones tributarias y contables (obligación legal).
+- Mejorar el Sitio y prevenir fraudes (interés legítimo).
+- Enviarle novedades y promociones (solo con su consentimiento, que puede retirar cuando quiera).
 
-3. Compartición de Información
-No vendemos ni compartimos su información personal con terceros, excepto en los siguientes casos:
-• Proveedores de servicios de pago (Webpay, Tuu) para procesar transacciones
-• Servicios de envío para entregar sus pedidos
-• Cuando lo requiera la ley o una orden judicial
+4. Uso de Herramientas de Inteligencia Artificial
+Para generar diseños y cotizaciones, el contenido que usted ingresa se procesa mediante servicios de IA de terceros. No lo use para enviar datos sensibles o de otras personas. Usamos ese contenido solo para prestarle el servicio solicitado.
 
-4. Cookies y Tecnologías de Rastreo
-El Sitio utiliza cookies para mejorar su experiencia de navegación. Puede configurar su navegador para rechazar cookies, aunque esto podría afectar la funcionalidad del Sitio.
+5. Con Quién Compartimos sus Datos
+No vendemos sus datos personales. Los compartimos solo con proveedores que los necesitan para prestarnos el servicio (encargados del tratamiento):
+- Proveedores de pago (Tuu).
+- Empresas de transporte y envío.
+- Proveedores de alojamiento del Sitio, correo electrónico y analítica: [indicar cuáles].
+- Proveedores de servicios de IA: [indicar cuáles].
+También podemos comunicarlos cuando lo exija la ley o una autoridad competente.
 
-5. Seguridad de los Datos
-Implementamos medidas de seguridad técnicas y organizativas razonables para proteger su información personal contra acceso no autorizado, alteración, divulgación o destrucción. Sin embargo, ningún método de transmisión por Internet o almacenamiento electrónico es 100% seguro.
+6. Transferencias Internacionales
+Algunos de estos proveedores pueden almacenar o procesar datos fuera de Chile. En esos casos exigimos medidas de protección adecuadas conforme a la ley.
 
-6. Retención de Datos
-Conservamos su información personal solo durante el tiempo necesario para los fines para los que fue recopilada, o según lo requiera la legislación aplicable.
+7. Cookies
+Usamos cookies esenciales para el funcionamiento del Sitio. Las cookies de analítica o marketing solo se activan con su consentimiento. Puede configurar su navegador para rechazarlas, aunque algunas funciones del Sitio podrían verse afectadas.
 
-7. Sus Derechos
-Usted tiene derecho a:
-• Acceder a su información personal
-• Solicitar la corrección de datos inexactos
-• Solicitar la eliminación de su información personal
-• Oponerse al procesamiento de sus datos
-• Solicitar la portabilidad de sus datos
-• Retirar su consentimiento en cualquier momento
+8. Cuánto Tiempo Conservamos sus Datos
+- Datos de pedidos y documentos tributarios: 6 años, por obligaciones legales.
+- Cotizaciones que no se concretan: [12 meses].
+- Datos de marketing: hasta que retire su consentimiento.
+Luego los eliminamos o anonimizamos.
 
-Para ejercer estos derechos, contáctenos a través de correo@gmail.com.
+9. Seguridad
+Aplicamos medidas técnicas y organizativas razonables para proteger sus datos contra acceso no autorizado, pérdida o alteración. Si ocurre una brecha de seguridad que afecte sus datos, actuaremos y notificaremos según lo exige la ley.
 
-8. Menores de Edad
-El Sitio no está dirigido a menores de 18 años. No recopilamos intencionalmente información personal de menores de edad.
+10. Sus Derechos
+Usted puede solicitar el acceso, la rectificación, la supresión, la oposición al tratamiento, la portabilidad de sus datos y el bloqueo temporal, además de retirar su consentimiento en cualquier momento. Para ejercer estos derechos, escríbanos a [correo] indicando su nombre y qué solicita. Le responderemos dentro de los plazos legales. Si considera que no atendimos su solicitud, puede reclamar ante la autoridad de protección de datos competente.
 
-9. Cambios en esta Política
-Nos reservamos el derecho de modificar esta Política de Privacidad en cualquier momento. Los cambios serán publicados en esta página con la fecha de última actualización.
+11. Menores de Edad
+El Sitio no está dirigido a menores de 18 años y no recopilamos intencionalmente sus datos personales.
 
-10. Contacto
-Si tiene preguntas sobre esta Política de Privacidad, puede contactarnos a través de:
-• Correo electrónico: correo@gmail.com
-• Teléfono: +569xxxxxxxx
-• Dirección: Viña del Mar, Chile`,
+12. Cambios en esta Política
+Podemos actualizar esta Política. Publicaremos los cambios en esta página con la fecha de última actualización.
+
+13. Contacto
+- Correo: [correo]
+- Teléfono: [teléfono]
+- Dirección: [dirección], Viña del Mar, Chile`,
   },
 }
 
@@ -133,13 +159,18 @@ export default function LegalModal({ tipo, onClose }) {
       >
         {/* Header */}
         <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '20px 24px', borderBottom: '1px solid var(--line)',
+          position: 'sticky', top: 0, zIndex: 3,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 10,
+          padding: '15px 52px 13px', background: 'var(--surface)',
+          borderBottom: '1px solid var(--line)',
         }}>
+          <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ height: 60, width: 'auto', marginBottom: -10 }} />
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, margin: 0, color: 'var(--text)' }}>{titulo}</h2>
           <button
             onClick={onClose}
             style={{
+              position: 'absolute', top: 12, right: 12,
               background: 'none', border: 'none', color: 'var(--text-dim)',
               cursor: 'pointer', padding: 4, borderRadius: 6,
               display: 'flex', alignItems: 'center', justifyContent: 'center',

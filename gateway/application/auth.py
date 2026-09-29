@@ -179,6 +179,9 @@ def _registrar_fallo(clave, tipo, umbral, escalable=True):
 
     Devuelve dict con: `espera_seg` (0 si no quedó bloqueado), `captcha_requerido`
     (a partir del 3er fallo) y `alerta` (True al alcanzar un umbral de bloqueo).
+
+    Un bloqueo ya concedido se conserva hasta expirar: solo los múltiplos del
+    umbral lo otorgan o renuevan. Los fallos intermedios no lo levantan.
     """
     registro = repositorios.buscar_bloqueo(clave, tipo)
     fallos = (registro or {}).get("fallos") or 0
@@ -196,11 +199,17 @@ def _registrar_fallo(clave, tipo, umbral, escalable=True):
         indice = min(len(duraciones) - 1, nivel - 1)
         bloqueo_hasta = calcular_expiracion(duraciones[indice])
         espera_seg = duraciones[indice] * 60
-        repositorios.guardar_o_actualizar_bloqueo(
-            clave, tipo, fallos, nivel, bloqueo_hasta
-        )
     else:
-        repositorios.guardar_o_actualizar_bloqueo(clave, tipo, fallos, nivel, None)
+        # Fallo que no es múltiplo del umbral: NO se anula un bloqueo vigente
+        # (si se pisara con None, el bloqueo del 5º fallo duraría un solo
+        # intento y quedarían 4 intentos sin restricción hasta el siguiente).
+        # Solo se limpia si el bloqueo previo ya expiró.
+        previo = (registro or {}).get("bloqueo_hasta")
+        bloqueo_hasta = previo if previo and not esta_expirado(previo) else None
+
+    repositorios.guardar_o_actualizar_bloqueo(
+        clave, tipo, fallos, nivel, bloqueo_hasta
+    )
 
     return {
         "espera_seg": espera_seg,
