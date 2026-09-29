@@ -32,8 +32,6 @@ export default function ProductoDetalle() {
   const [colores, setColores] = useState([])
   const [colorElegido, setColorElegido] = useState(null)
 
-  // Colores del producto (variantes con su propia foto). Un producto sin
-  // colores mantiene la imagen unica de siempre.
   useEffect(() => {
     let vigente = true
     if (!id) {
@@ -44,16 +42,9 @@ export default function ProductoDetalle() {
     productoApi.listarColores(id)
       .then(({ colores }) => {
         if (!vigente) return
-        // Se ordena por `orden` para no depender del orden de llegada: la
-        // primera foto agregada es la que queda por defecto.
         const lista = [...(colores || [])].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
         setColores(lista)
-        // La primera variante queda elegida desde el primer render: el
-        // cliente ve una foto concreta y puede comprar sin elegir nada. Si
-        // despues cambia de color, su eleccion manda sobre este default.
         setColorElegido(lista[0]?.id ?? null)
-        // El carrito necesita la foto de cada color para mostrar la linea
-        // correcta, asi que se deja cacheada al cargar el detalle.
         registrarColores(id, lista)
       })
       .catch(() => {
@@ -64,9 +55,6 @@ export default function ProductoDetalle() {
     return () => { vigente = false }
   }, [id])
 
-  // Los hooks van antes de cualquier return temprano: si useMemo quedara
-  // despues, el primer render con cargando=true no lo ejecutaria y React
-  // fallaria al cambiar el numero de hooks entre renders.
   const recomendados = useMemo(
     () => (producto
       ? productos

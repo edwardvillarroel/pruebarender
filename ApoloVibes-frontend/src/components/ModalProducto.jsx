@@ -123,16 +123,12 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
         nombre: producto?.nombre || '',
         descripcion: producto?.descripcion || '',
         categoria_id: producto?.categoria_id || (categorias[0]?.id ?? ''),
-        // En edición el precio base es `precio_original` (lo que vale sin
-        // descuento); `precio` hoy guarda el valor rebajado que paga el cliente.
         precio: producto?.precio_original ?? producto?.precio ?? '',
         stock: producto?.stock ?? '',
         material: producto?.material || '',
         tamano: producto?.tamano || '',
         color: producto?.color || '',
         descuento: producto?.descuento ?? '',
-        // `??` y no `||`: el flag es booleano y tiene que preservar el `false`
-        // explicito de la API, no convertirlo en "sin valor".
         nuevo_lanzamiento: producto?.nuevo_lanzamiento ?? false,
     })
     const [foto, setFoto] = useState(null)
@@ -232,15 +228,11 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
     const precioNeto = Number(form.precio) || 0
     const precioBase = esEdicion ? precioNeto : aplicarIva(precioNeto)
     const desc = Number(form.descuento) || 0
-
-    // El descuento BAJA lo que paga el cliente (como el backend). Aritmetica
-    // de enteros para no heredar errores de punto flotante (11900*90/100).
     const precioFinal = useMemo(() => {
         if (precioBase <= 0 || desc <= 0 || desc >= 100) return precioBase
         return Math.ceil((precioBase * (100 - desc)) / 100)
     }, [precioBase, desc])
 
-    // Base ("antes de la oferta") para el precio tachado de la preview.
     const precioOriginalPreview = useMemo(() => {
         if (precioBase <= 0 || desc <= 0 || desc >= 100) return null
         return precioBase
@@ -335,8 +327,6 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                     tamano: form.tamano?.trim() || null,
                     color: form.color?.trim() || null,
                     descuento: form.descuento ? Number(form.descuento) : null,
-                    // Se manda siempre, incluso en `false`: el PATCH usa
-                    // `is not None` para distinguir "no tocar" de "apagar".
                     nuevo_lanzamiento: form.nuevo_lanzamiento,
                 }
                 if (esEdicion) {

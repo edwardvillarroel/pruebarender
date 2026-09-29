@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { Menu, LogOut, LayoutDashboard, ClipboardList, Package, FileText, ShoppingCart, User } from 'lucide-react'
-import { mediaPath } from '../../utils/media.js'
+import ConfirmModal from '../../components/ConfirmModal.jsx'
 
 const navItems = [
   { to: '/admin', end: true, label: 'Dashboard', icon: LayoutDashboard },
@@ -33,61 +33,6 @@ const sidebarBtnStyle = {
   padding: '10px 12px', borderRadius: 12, fontSize: 13,
   color: 'var(--red)', background: 'var(--surface-3)', border: 'none',
   textAlign: 'left', cursor: 'pointer', fontWeight: 500,
-}
-
-function ConfirmModal({ onConfirm, onCancel }) {
-  return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.49)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 9999, backdropFilter: 'blur(4px)',
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          background: 'var(--surface)', borderRadius: 16, padding: '32px 28px',
-          width: '100%', maxWidth: 360, boxShadow: '0 20px 60px rgba(0,0,0,.3)',
-          textAlign: 'center',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ fontSize: 36, marginBottom: 12 }}></div>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
-          <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ width: 60, height: 60 }} />
-        </div>
-        <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>
-          Cerrar sesión
-        </h3>
-        <p style={{ margin: '0 0 22px', fontSize: 13, color: 'var(--text-dim)' }}>
-          Vas a salir del panel de administración. ¿Seguro?
-        </p>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={onCancel}
-            style={{
-              flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid var(--line)',
-              background: 'transparent', color: 'var(--text)', fontSize: 13, fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            No, quedarme
-          </button>
-          <button
-            onClick={onConfirm}
-            style={{
-              flex: 1, padding: '10px 0', borderRadius: 10, border: 'none',
-              background: '#b60303', color: '#fff', fontSize: 13, fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Sí, salir
-          </button>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function SidebarContent({ onLogout, user }) {
@@ -224,7 +169,13 @@ export default function AdminLayout() {
         </main>
       </div>
 
-      {showConfirm && <ConfirmModal onConfirm={handleLogout} onCancel={() => setShowConfirm(false)} />}
+      {showConfirm && (
+        <ConfirmModal
+          onConfirm={handleLogout}
+          onCancel={() => setShowConfirm(false)}
+          mensaje="Vas a salir del panel de administración. ¿Seguro?"
+        />
+      )}
 
       <style>{`
         @media (max-width: 860px) {

@@ -80,7 +80,6 @@ export default function LoginModal({ onClose }) {
     const [error, setError] = useState('')
     const [exito, setExito] = useState('')
     const [cargando, setCargando] = useState(false)
-    // El flujo OAuth de Google redirige el navegador: lleva su propio estado para
     // que el botón "Entrar" (correo/contraseña) no mienta mostrando "Entrando...".
     const [conectandoGoogle, setConectandoGoogle] = useState(false)
     const tiempoCierre = useRef(null)
@@ -107,15 +106,19 @@ export default function LoginModal({ onClose }) {
 
     // --- MFA (segundo factor) ---
     const [mfaTicket, setMfaTicket] = useState('')
-    const [modoMfa, setModoMfa] = useState(null) // null | 'codigo' | 'respaldo'
+    const [modoMfa, setModoMfa] = useState(null)
     const [codigoMfa, setCodigoMfa] = useState('')
     const [esperaBlanqueoMfa, setEsperaBlanqueoMfa] = useState(0)
+
+    // En el paso de MFA el modal muestra SOLO el código de verificación: sin
+    // divisor "o continua con", sin botón de Google y sin enlace de registro.
+    const enPasoMfa = modo === 'login' && Boolean(modoMfa)
 
     // --- reCAPTCHA ---
     const [captchaRequerido, setCaptchaRequerido] = useState(false)
     const [captchaToken, setCaptchaToken] = useState('')
+    
 
-    // Callback de Google con MFA pendiente: el gateway redirige con ?login=google&mfa=1.
     useEffect(() => {
         const abrir = () => {
             setModoMfa('codigo')
@@ -179,10 +182,10 @@ export default function LoginModal({ onClose }) {
 
     const formatearTiempo = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
-    // Countdown de expiración del código de recuperación
     useEffect(() => {
         if (!expiraRecupEn) return
         const fin = new Date(expiraRecupEn).getTime()
+        let id
         const tick = () => {
             const resta = Math.max(0, Math.floor((fin - Date.now()) / 1000))
             setTiempoRestante(resta)
@@ -192,7 +195,7 @@ export default function LoginModal({ onClose }) {
             }
         }
         tick()
-        const id = setInterval(tick, 1000)
+        id = setInterval(tick, 1000)
         return () => clearInterval(id)
     }, [expiraRecupEn])
 
@@ -204,11 +207,12 @@ export default function LoginModal({ onClose }) {
         }
         setErrores(nuevosErrores)
         if (nuevosErrores.email || nuevosErrores.password) return
+        if (captchaRequerido && !captchaToken) return
         setError('')
         setExito('')
         setCargando(true)
         try {
-            const data = await api.post('/auth/login', { email, password, ...(captchaRequerido && captchaToken ? { captcha_token: captchaToken } : {}) })
+            const data = await api.post('/auth/login', { email: email.trim(), password, ...(captchaRequerido && captchaToken ? { captcha_token: captchaToken } : {}) })
             if (data.mfa_requerido) {
                 setMfaTicket(data.mfa_ticket || '')
                 setModoMfa('codigo')
@@ -220,20 +224,27 @@ export default function LoginModal({ onClose }) {
             login({ token: data.access_token, user: data.user })
             onClose()
         } catch (err) {
+            if (captchaRequerido) setCaptchaToken('')
             const msg = err.message || ''
             const d = err.datos || {}
+
             if (d.espera_seg) {
                 setError('Demasiados intentos. Vuelve a intentarlo en unos minutos.')
             } else if (d.captcha_requerido) {
                 setCaptchaRequerido(true)
-                setError(msg)
+                if (/credenciales/i.test(msg)) {
+                    setErrores({ email: 'Credenciales incorrectas', password: 'Credenciales incorrectas'})
+                } else {
+                    setError(msg)
+                }
             } else if (msg.startsWith('Correo')) {
                 setErrores(prev => ({ ...prev, email: msg }))
             } else if (msg.startsWith('Contraseña')) {
                 setErrores(prev => ({ ...prev, password: msg }))
-            } else if (/credenciales/i.test(msg) || /captcha/i.test(msg)) {
+            } else if (/captcha/i.test(msg) && !/credenciales/i.test(msg)) {
+                setError(msg)
+            } else if (/credenciales/i.test(msg)) {
                 setErrores({ email: 'Credenciales incorrectas', password: 'Credenciales incorrectas' })
-                setCaptchaRequerido(d.captcha_requerido ?? captchaRequerido)
             } else {
                 setError(msg || 'Error al iniciar sesión')
             }
@@ -356,8 +367,6 @@ export default function LoginModal({ onClose }) {
         setEsperaBlanqueoMfa(0)
         setCaptchaRequerido(false)
         setCaptchaToken('')
-        // Sin esto, un submit en vuelo (o el redirect de Google) deja el boton
-        // del nuevo modo mostrando "Entrando..."/"Verificando..." sin estar envoyando nada.
         setCargando(false)
         setConectandoGoogle(false)
     }
@@ -461,6 +470,7 @@ export default function LoginModal({ onClose }) {
 
     const fortaleza = analizarPassword(registro.password)
     const fortalezaRecup = analizarPassword(olvidar.password)
+    const bloqueadoPorCaptcha = captchaRequerido && !captchaToken
 
     return createPortal(
         <div style={overlayStyle} onClick={onClose}>
@@ -576,8 +586,8 @@ export default function LoginModal({ onClose }) {
                                             style={{ display: 'block', margin: '0 auto 8px' }}
                                         />
                                         <p style={{ color: 'var(--text-dim)', fontSize: 12, margin: 0, textAlign: 'center', marginBottom: 20 }}>
-Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvidar.email.trim())}</strong>
-                                </p>
+                                            Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvidar.email.trim())}</strong>
+                                        </p>
                                     </div>
                                 )}
                                 <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', margin: '14px 0 6px' }}>
@@ -776,8 +786,8 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                     cursor: cargando || !codigoMfa.trim() ? 'default' : 'pointer', marginBottom: 10, display: 'flex', alignItems: 'center',
                                     justifyContent: 'center', gap: 8, transition: 'opacity .2s', opacity: cargando || !codigoMfa.trim() ? .7 : 1,
                                 }}
-                                onMouseEnter={(e) => { if (!cargando) e.currentTarget.style.opacity = '.9' }}
-                                onMouseLeave={(e) => { if (!cargando) e.currentTarget.style.opacity = '1' }}
+                                onMouseEnter={(e) => { if (!cargando && codigoMfa.trim()) e.currentTarget.style.opacity = '.9' }}
+                                onMouseLeave={(e) => { if (!cargando && codigoMfa.trim()) e.currentTarget.style.opacity = '1' }}
                             >
                                 {cargando ? 'Verificando...' : 'Verificar'} <span></span>
                             </button>
@@ -890,15 +900,15 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
 
                             <button
                                 type="submit"
-                                disabled={cargando}
+                                disabled={cargando || bloqueadoPorCaptcha}
                                 style={{
                                     width: '100%', padding: '13px 0', borderRadius: 10, border: 'none',
-                                    background: 'var(--accent)', color: '#ffffff', fontSize: 14, fontWeight: 600,
-                                    cursor: cargando ? 'default' : 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center',
+                                    background: bloqueadoPorCaptcha ? '#6b7280' : 'var(--accent)', color: bloqueadoPorCaptcha ? '#d1d5db' : '#ffffff', fontSize: 14, fontWeight: 600,
+                                    cursor: cargando || bloqueadoPorCaptcha ? 'not-allowed' : 'pointer', marginBottom: 20, display: 'flex', alignItems: 'center',
                                     justifyContent: 'center', gap: 8, transition: 'opacity .2s', opacity: cargando ? .7 : 1,
                                 }}
-                                onMouseEnter={(e) => { if (!cargando) e.currentTarget.style.opacity = '.9' }}
-                                onMouseLeave={(e) => { if (!cargando) e.currentTarget.style.opacity = '1' }}
+                                onMouseEnter={(e) => { if (!cargando && !bloqueadoPorCaptcha) e.currentTarget.style.opacity = '.9' }}
+                                onMouseLeave={(e) => { if (!cargando && !bloqueadoPorCaptcha) e.currentTarget.style.opacity = '1' }}
                             >
                                 {cargando ? 'Entrando...' : 'Entrar'} <span></span>
                             </button>
@@ -1252,7 +1262,7 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                         </div>
                     )}
 
-                    {modo === 'login' && (
+                    {modo === 'login' && !enPasoMfa && (
                         <>
                             <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', margin: '0 0 14px' }}>
                                 o continua con
@@ -1287,51 +1297,35 @@ Código enviado a <strong style={{ color: 'var(--accent)' }}>{ocultarCorreo(olvi
                                         </>
                                     )}
                                 </button>
-                                <button
-                                    type="button"
-                                    aria-label="Continuar con Facebook"
-                                    style={{
-                                        flex: 1, border: '1px solid var(--line)', borderRadius: 10,
-                                        padding: '11px 0', background: 'transparent', cursor: 'pointer',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        gap: 8, color: 'var(--text-dim)', fontSize: 12,
-                                        transition: 'border-color .2s',
-                                    }}
-                                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--line)')}
-                                >
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#1877F2">
-                                        <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z" />
-                                    </svg>
-                                    Facebook
-                                </button>
                             </div>
                         </>
                     )}
 
-                    <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', margin: 0 }}>
-                        {modo === 'registro' ? (
-                            <>
-                                Ya tienes cuenta?{' '}
-                                <span
-                                    style={{ color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}
-                                    onClick={() => cambiarModo('login')}
-                                >
-                                    Inicia sesion
-                                </span>
-                            </>
-                        ) : (
-                            <>
-                                No tienes cuenta?{' '}
-                                <span
-                                    style={{ color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}
-                                    onClick={() => cambiarModo('registro')}
-                                >
-                                    Registrate gratis
-                                </span>
-                            </>
-                        )}
-                    </p>
+                    {!enPasoMfa && (
+                        <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', margin: 0 }}>
+                            {modo === 'registro' ? (
+                                <>
+                                    Ya tienes cuenta?{' '}
+                                    <span
+                                        style={{ color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}
+                                        onClick={() => cambiarModo('login')}
+                                    >
+                                        Inicia sesion
+                                    </span>
+                                </>
+                            ) : (
+                                <>
+                                    No tienes cuenta?{' '}
+                                    <span
+                                        style={{ color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}
+                                        onClick={() => cambiarModo('registro')}
+                                    >
+                                        Registrate gratis
+                                    </span>
+                                </>
+                            )}
+                        </p>
+                    )}
                 </div>
 
                 <div

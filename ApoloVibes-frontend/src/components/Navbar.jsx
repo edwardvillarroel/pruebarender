@@ -1,5 +1,5 @@
+import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
-import { mediaPath } from '../utils/media.js'
 import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext.jsx'
 import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck, ClipboardList, Minus, Plus, Trash2, ArrowRight, ShieldCheck } from 'lucide-react'
 import LoginModal from './LoginModal.jsx'
 import SeguridadModal from './SeguridadModal.jsx'
+import ConfirmModal from './ConfirmModal.jsx'
 
 export default function Navbar() {
   const { items, cantidadTotal, solicitarLogin, abrirLogin, cerrarLogin, quitarItem, actualizarCantidadItem, total, requiereLogin } = useCart()
@@ -17,6 +18,7 @@ export default function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
   const [seguridadOpen, setSeguridadOpen] = useState(false)
+  const [confirmarLogout, setConfirmarLogout] = useState(false)
   const userMenuRef = useRef(null)
   const cartMenuRef = useRef(null)
   const navigate = useNavigate()
@@ -63,6 +65,19 @@ export default function Navbar() {
   function handleMobileNav(path) {
     setMobileOpen(false)
     navigate(path)
+  }
+
+  // Abre la confirmación de "Cerrar sesión". Los dos puntos de entrada (menú de
+  // usuario y menú móvil) cierran su menú antes, así el modal queda visible.
+  function handlePedirLogout(cerrarMenu) {
+    cerrarMenu()
+    setConfirmarLogout(true)
+  }
+
+  function handleLogout() {
+    setConfirmarLogout(false)
+    logout()
+    navigate('/')
   }
 
   return (
@@ -415,7 +430,7 @@ export default function Navbar() {
                   Seguridad
                 </button>
                 <button
-                  onClick={() => { setUserMenuOpen(false); logout(); navigate('/') }}
+                  onClick={() => handlePedirLogout(() => setUserMenuOpen(false))}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                     padding: '12px 16px', border: 'none', background: 'none',
@@ -463,7 +478,7 @@ export default function Navbar() {
             <>
               <button onClick={() => handleMobileNav('/mis-pedidos')}>Mis pedidos</button>
               {isAdmin && <button onClick={() => handleMobileNav('/admin')}>Panel admin</button>}
-              <button onClick={() => { logout(); setMobileOpen(false); navigate('/') }} style={{ color: '#b60303' }}>
+              <button onClick={() => handlePedirLogout(() => setMobileOpen(false))} style={{ color: '#b60303' }}>
                 Cerrar sesión
               </button>
             </>
@@ -484,6 +499,18 @@ export default function Navbar() {
 
       {seguridadOpen && (
         <SeguridadModal onClose={() => setSeguridadOpen(false)} />
+      )}
+
+      {/* El <header> es sticky y lleva backdrop-filter inline, que crea containing
+          block para position: fixed: sin portal el modal quedaría encerrado en la
+          franja del header en vez de cubrir el viewport. */}
+      {confirmarLogout && createPortal(
+        <ConfirmModal
+          onConfirm={handleLogout}
+          onCancel={() => setConfirmarLogout(false)}
+          mensaje="Vas a cerrar tu sesión en Apolo Vibes. ¿Seguro?"
+        />,
+        document.body
       )}
     </header>
   )
