@@ -66,7 +66,13 @@ def _items(datos: dict) -> list[ItemPedidoDTO]:
             raise ValueError("Ítem con id o cantidad inválidos")
         if cantidad < 1:
             raise ValueError("La cantidad debe ser un entero mayor a cero")
-        items.append(ItemPedidoDTO(producto_id=producto_id, cantidad=cantidad))
+        items.append(
+            ItemPedidoDTO(
+                producto_id=producto_id,
+                cantidad=cantidad,
+                color=(str(raw["color"]).strip() or None) if raw.get("color") else None,
+            )
+        )
     return items
 
 

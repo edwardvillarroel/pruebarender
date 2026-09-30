@@ -133,9 +133,9 @@ export default function Checkout() {
   const entregaSeleccionada = datosPersonalesCompletos && entrega !== null
 
   const costoEnvio = entrega === 'retiro' ? 0 : entrega === 'envio' ? (total >= ENVIO_GRATIS_DESDE ? 0 : COSTO_ENVIO_ESTANDAR) : 0
-  const totalConEnvio = total + costoEnvio
-  const totalConIva = Math.round(totalConEnvio * 1.19)
-  const montoIva = Math.round(totalConEnvio * 0.19)
+  const totalFinal = total + costoEnvio
+  const montoNeto = Math.round(totalFinal / 1.19)
+  const montoIva = totalFinal - montoNeto
 
   function actualizar(campo, valor) {
     setCliente(prev => ({ ...prev, [campo]: valor }))
@@ -156,11 +156,10 @@ export default function Checkout() {
 
     setEnviando(true)
     try {
-      // El teléfono se envía completo en formato internacional (+569 + 8 dígitos)
       const clienteEnvio = cliente.telefono.trim()
         ? { ...cliente, telefono: '+569' + cliente.telefono.trim() }
         : cliente
-      await iniciarPago({ items, total: totalConIva, cliente: clienteEnvio, entrega })
+      await iniciarPago({ items, total: totalFinal, cliente: clienteEnvio, entrega })
     } catch (err) {
       setError('No pudimos iniciar el pago. Intenta nuevamente.')
       setEnviando(false)
@@ -172,7 +171,7 @@ export default function Checkout() {
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <img src={mediaPath('nombrelogo.png')} alt='logo' className='nombre-logo'></img>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
-          ({items.length} {items.length === 1 ? 'producto' : 'productos'}) &nbsp; ${totalConIva.toLocaleString('es-CL')}
+          ({items.length} {items.length === 1 ? 'producto' : 'productos'}) &nbsp; ${totalFinal.toLocaleString('es-CL')}
         </p>
       </div>
 
@@ -590,26 +589,29 @@ export default function Checkout() {
 
           <div
             className="separador-suave"
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              paddingTop: 14,
-              fontFamily: 'var(--font-mono)',
-              fontWeight: 600,
-              fontSize: 16,
-              marginBottom: 4,
-            }}
+            style={{ display: 'flex', flexDirection: 'column', paddingTop: 14, marginBottom: 20 }}
           >
-            <span style={{ fontSize: 16, margin: 0, color: 'var(--surface-2)' }}>Total</span>
-            <span style={{ color: 'var(--surface)' }}>${totalConIva.toLocaleString('es-CL')}</span>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 16px' }}>
-            [IVA incluido ${montoIva.toLocaleString('es-CL')}]
-          </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
+              <span>Monto neto</span>
+              <span>${montoNeto.toLocaleString('es-CL')}</span>
+            </div>
 
-          <div style={{ borderTop: '1px solid var(--surface-3)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
+              <span>IVA (19%)</span>
+              <span>${montoIva.toLocaleString('es-CL')}</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface)' }}>Total</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface)' }}>${totalFinal.toLocaleString('es-CL')}</span>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid var(--surface-3)', paddingTop: 16, display: 'flex', flexDirection: 'column' }}>
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 16px' }}>
+              Detalle del pedido
+            </p>
             {items.map(item => (
-              <div key={item.id} style={{ display: 'flex', gap: 12 }}>
+              <div key={item.itemId ?? item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                 <div
                   style={{
                     width: 56,
@@ -628,13 +630,16 @@ export default function Checkout() {
                     />
                   )}
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--surface)' }}>{item.nombre}</p>
-                  <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 4px' }}>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--surface)' }}>{item.nombre} ( {item.cantidad}u )</p>
+                  {item.color && (
+                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
+                      Color: {item.color}
+                    </p>
+                  )}
+                  <p style={{ fontSize: 13, color: 'var(--text-dim)', flexShrink: 0 }}>
                     ${item.precio.toLocaleString('es-CL')}
-                  </p>
-                  <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
-                    Cantidad: {item.cantidad}
                   </p>
                 </div>
               </div>

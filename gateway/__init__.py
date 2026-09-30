@@ -24,6 +24,18 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     JWTManager(app)
     limiter.init_app(app)
 
+    @app.after_request
+    def _cabeceras_seguridad(respuesta):
+        # HSTS solo cuando la cookie va Secure (producción/HTTPS). En dev (http)
+        # el navegador descartaría la header y rompería la navegación normal.
+        if app.config.get("COOKIE_SECURE", True):
+            respuesta.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+            respuesta.headers["X-Content-Type-Options"] = "nosniff"
+            respuesta.headers["Referrer-Policy"] = "no-referrer"
+        return respuesta
+
     from gateway.api import register_blueprints
 
     register_blueprints(app)

@@ -57,3 +57,44 @@ def enviar_correo_codigo(email: str, codigo: str) -> None:
         raise ErrorEnvioCorreo(
             f"EmailJS respondió {respuesta.status_code}: {respuesta.text[:300]}"
         )
+
+
+def configurado_alerta_login() -> bool:
+    """True cuando existe una plantilla dedicada de alerta de seguridad."""
+    return configurado_emailjs() and bool(Config.EMAILJS_TEMPLATE_ALERTA)
+
+
+def enviar_correo_alerta_login(email: str, detalle: str) -> None:
+    """Alerta de seguridad (p.ej. N intentos fallidos de login) por correo.
+
+    Usa una plantilla EmailJS propia (`EMAILJS_TEMPLATE_ALERTA`) con variables
+    `{{to_email}}` y `{{detalle}}`. Lanza ErrorEnvioCorreo si falla.
+    """
+    if not configurado_alerta_login():
+        return
+
+    payload = {
+        "service_id": Config.EMAILJS_SERVICE_ID,
+        "template_id": Config.EMAILJS_TEMPLATE_ALERTA,
+        "user_id": Config.EMAILJS_PUBLIC_KEY,
+        "accessToken": Config.EMAILJS_PRIVATE_KEY,
+        "template_params": {
+            "to_email": email,
+            "detalle": detalle,
+        },
+    }
+
+    try:
+        respuesta = httpx.post(EMAILJS_URL, json=payload, timeout=15)
+    except httpx.HTTPError as error:
+        raise ErrorEnvioCorreo(f"Error de red al enviar el correo: {error}") from error
+
+    if respuesta.status_code >= 400:
+        raise ErrorEnvioCorreo(
+            f"EmailJS respondió {respuesta.status_code}: {respuesta.text[:300]}"
+        )
+
+
+def enviar_correo_mfa(email: str, codigo: str) -> None:
+    """Envía un código para el paso MFA por correo (fallback de respaldo)."""
+    return enviar_correo_codigo(email, codigo)

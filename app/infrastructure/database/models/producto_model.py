@@ -20,7 +20,14 @@ class ProductoModel(db.Model):
     imagen = db.Column(db.String(500))
     imagen_bytes = deferred(db.Column(LargeBinary))
     imagen_content_type = db.Column(db.String(50))
+    # Thumbnail generado perezosamente desde `imagen_bytes` para el catalogo.
+    # `imagen_bytes` sigue siendo la foto en resolucion completa.
+    imagen_thumb_bytes = deferred(db.Column(LargeBinary))
+    imagen_thumb_content_type = db.Column(db.String(50))
     activo = db.Column(db.Boolean, nullable=False, default=True)
+    # Lo activa el admin desde el modal de producto. La seccion "Lanzamientos" de
+    # la home muestra solo los que lo tienen. NUMBER(1) como `activo`.
+    nuevo_lanzamiento = db.Column(db.Boolean, nullable=False, default=False)
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     specs_raw = db.Column("specs", db.Text)
     descuento = db.Column(db.Integer)

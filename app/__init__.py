@@ -17,6 +17,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     _configurar_carrito(app)
     _configurar_catalogo(app)
     _configurar_pedidos_pagos(app)
+    _configurar_ventas(app)
 
     from app.api import register_blueprints
 
@@ -52,12 +53,16 @@ def _configurar_catalogo(app: Flask) -> None:
     Las rutas de catálogo leen los servicios desde `app.config`; así la capa
     API no depende de `infrastructure`. El catálogo se lee desde la base de
     datos (tablas `productos`/`categorias`). Importar los repositorios registra
-    los modelos ORM con Flask-SQLAlchemy (productos y categorias).
+    los modelos ORM con Flask-SQLAlchemy (productos y categorias). El conversor
+    de imágenes (`CONVERSOR_IMAGEN`, convierte RAW de cámara a JPEG) también
+    se inyecta aquí por la misma razón.
     """
     from app.application.catalogo_stock.gestionar_categoria import (
         GestionarCategoria,
     )
     from app.application.catalogo_stock.gestionar_producto import GestionarProducto
+    from app.infrastructure.imagenes.conversor_raw import normalizar_imagen
+    from app.infrastructure.imagenes.thumbnail import generar_thumbnail
     from app.infrastructure.repositories.categoria_repository import (
         CategoriaRepository,
     )
@@ -65,8 +70,11 @@ def _configurar_catalogo(app: Flask) -> None:
         ProductoRepository,
     )
 
-    app.config["PRODUCTO_SERVICE"] = GestionarProducto(ProductoRepository())
+    app.config["PRODUCTO_SERVICE"] = GestionarProducto(
+        ProductoRepository(), generador_thumb=generar_thumbnail
+    )
     app.config["CATEGORIA_SERVICE"] = GestionarCategoria(CategoriaRepository())
+    app.config["CONVERSOR_IMAGEN"] = normalizar_imagen
 
 
 def _configurar_pedidos_pagos(app: Flask) -> None:
@@ -117,6 +125,23 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
         cliente_starken = StarkenCliente(app.config)
     app.config["SEGUIMIENTO_STARKEN_SERVICE"] = GestionarSeguimientoStarken(
         pedidos, cliente_starken
+    )
+
+
+def _configurar_ventas(app: Flask) -> None:
+    """Punto de composición de la venta local (inyección de dependencias).
+
+    La ruta de ventas lee el servicio desde `app.config`; así la capa API no
+    depende de `infrastructure`. Importar los repositorios registra los modelos
+    ORM de venta local con Flask-SQLAlchemy.
+    """
+    from app.application.venta_local.gestionar_venta_local import GestionarVentaLocal
+    from app.infrastructure.database.models.usuario_model import UsuarioModel  # noqa: F401  (registra "usuarios" para el FK de sesiones_venta)
+    from app.infrastructure.repositories.producto_repository import ProductoRepository
+    from app.infrastructure.repositories.venta_local_repository import VentaLocalRepository
+
+    app.config["VENTA_SERVICE"] = GestionarVentaLocal(
+        VentaLocalRepository(), ProductoRepository()
     )
 
 

@@ -14,6 +14,8 @@ ver_tablas.py
 seed_productos_prueba.py
 agregar_producto.py
 migrar_imagen_blob.py
+generar_thumbnails.py
+optimizar_imagenes.py
 prueba_stock.py
 
 # Docs de diseño/agente (no versionar)

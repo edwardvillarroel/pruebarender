@@ -40,6 +40,7 @@ class CarritoRepositoryBd(CarritoRepository):
                     id=item.id,
                     producto_id=str(item.producto_id),
                     cantidad=item.cantidad,
+                    color=item.color,
                     agregado_en=item.agregado_en,
                 )
                 for item in modelo.items
@@ -77,11 +78,13 @@ class CarritoRepositoryBd(CarritoRepository):
                         carrito=modelo,
                         producto_id=_a_uuid(item.producto_id),
                         cantidad=item.cantidad,
+                        color=item.color,
                         agregado_en=item.agregado_en or ahora,
                     )
                 )
             else:
                 item_m.cantidad = item.cantidad
+                item_m.color = item.color
 
         try:
             db.session.commit()

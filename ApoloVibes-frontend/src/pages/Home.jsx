@@ -1,70 +1,52 @@
-import { useRef, useState, useCallback, useEffect } from 'react'
+import { useMemo } from 'react'
 import HeroVideo from '../components/HeroVideo.jsx'
-import ProductCard from '../components/ProductCard.jsx'
+import ProductCarousel from '../components/ProductCarousel.jsx'
 import { useProductos } from '../context/ProductContext.jsx'
 import { mediaPath } from '../utils/media.js'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 const CATEGORY_BACKGROUNDS = {
-  anime: mediaPath('banerAnime.png'),
-  animales: mediaPath('banerAnimales.png'),
+  videoJuegos: mediaPath('banerAnime.png'),
+  animales: mediaPath('Animales.png'),
   llaveros: mediaPath('banerllaveros.png'),
-  diseno: mediaPath('banerdiseño .png'),
+  diseno: mediaPath('banerdiseño.png'),
+  accesorios: mediaPath('AccesoriosBaner.png'),
+  articulados: mediaPath('ArticuladosBaner.png')
+
 }
 
 function fondoDeCategoria(nombre) {
   const n = (nombre || '').toLowerCase()
-  if (n.includes('anime')) return CATEGORY_BACKGROUNDS.anime
-  if (n.includes('animal')) return CATEGORY_BACKGROUNDS.animales
+  if (n.includes('videojuego') || n.includes('cine')) return CATEGORY_BACKGROUNDS.videoJuegos
+  if (n.includes('animales')) return CATEGORY_BACKGROUNDS.animales
   if (n.includes('llavero')) return CATEGORY_BACKGROUNDS.llaveros
-  if (n.includes('diseño') || n.includes('diseno') || n.includes('medida'))
+  if (n.includes('accesorios')) return CATEGORY_BACKGROUNDS.accesorios
+  if (n.includes('articulados')) return CATEGORY_BACKGROUNDS.articulados
+  if (n.includes('diseno') || n.includes('diseno') || n.includes('medida'))
     return CATEGORY_BACKGROUNDS.diseno
   return null
 }
 
 export default function Home() {
   const { productos, categorias, cargando, error } = useProductos()
-  const scrollRef = useRef(null)
-  const [enInicio, setEnInicio] = useState(true)
-  const [enFinal, setEnFinal] = useState(false)
-
-  const actualizarFlechas = useCallback(() => {
-    const el = scrollRef.current
-    if (!el) return
-    setEnInicio(el.scrollLeft <= 5)
-    setEnFinal(el.scrollLeft + el.clientWidth >= el.scrollWidth - 5)
-  }, [])
-
-  useEffect(() => {
-    actualizarFlechas()
-    window.addEventListener('resize', actualizarFlechas)
-    return () => window.removeEventListener('resize', actualizarFlechas)
-  }, [actualizarFlechas, productos])
-
-  function scroll(direccion) {
-    if (!scrollRef.current) return
-    const cardWidth = scrollRef.current.firstChild?.offsetWidth || 300
-    const gap = 20
-    scrollRef.current.scrollBy({ left: direccion * (cardWidth + gap), behavior: 'smooth' })
-  }
-
-  const btnFlecha = {
-    width: 40, height: 40, borderRadius: '50%', border: '1px solid var(--line)',
-    background: 'var(--surface-3)', cursor: 'pointer', display: 'flex',
-    alignItems: 'center', justifyContent: 'center', transition: 'border-color .2s',
-    boxShadow: '0 2px 8px rgba(0,0,0,.15)'
-  }
+  const lanzamientos = useMemo(
+    () => productos
+      .filter(p => p.nuevo_lanzamiento)
+      .slice()
+      .sort((a, b) => {
+        if (!a.creado_en) return 1
+        if (!b.creado_en) return -1
+        return a.creado_en < b.creado_en ? 1 : a.creado_en > b.creado_en ? -1 : 0
+      }),
+    [productos]
+  )
 
   return (
     <>
-      <style>{`
-        .carousel-hide::-webkit-scrollbar { display: none; }
-      `}</style>
       <HeroVideo />
 
-      <section className="wrap section-py-mobile" style={{ paddingTop: '80px', paddingLeft: 64, paddingRight: 64 }}>
+      <section className="wrap section-py-mobile" style={{ paddingTop: '80px' }}>
         <hr className="separador" />
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Los más vendidos del mes</h2>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Los más vendidos de la semana</h2>
         {cargando ? (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Cargando productos…</p>
         ) : error ? (
@@ -72,62 +54,51 @@ export default function Home() {
         ) : productos.length === 0 ? (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Aún no hay productos en el catálogo.</p>
         ) : (
-          <div style={{ position: 'relative' }}>
-            {/* Flecha izquierda */}
-            {!enInicio && (
-              <button
-                onClick={() => scroll(-1)}
-                style={{ ...btnFlecha, position: 'absolute', left: -50, top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--line)'}
-              >
-                <ChevronLeft size={20} color="var(--surface)" />
-              </button>
-            )}
-
-            {/* Carousel */}
-            <div
-              ref={scrollRef}
-              className="carousel-hide"
-              onScroll={actualizarFlechas}
-              style={{
-                display: 'flex', gap: 20, overflowX: 'auto', scrollSnapType: 'x mandatory',
-                scrollbarWidth: 'none', msOverflowStyle: 'none', paddingBottom: 4,
-              }}
-            >
-              {productos.map((p, i) => (
-                <div key={p.id} style={{ flex: '0 0 calc(25% - 15px)', scrollSnapAlign: 'start', minWidth: 220 }}>
-                  <ProductCard producto={p} index={i} />
-                </div>
-              ))}
-            </div>
-
-            {/* Flecha derecha */}
-            {!enFinal && (
-              <button
-                onClick={() => scroll(1)}
-                style={{ ...btnFlecha, position: 'absolute', right: -50, top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--line)'}
-              >
-                <ChevronRight size={20} color="var(--surface)" />
-              </button>
-            )}
-          </div>
+          <ProductCarousel productos={productos} />
         )}
       </section>
 
-      <section className="wrap" style={{ paddingTop: 32 }}>
+      <section className="wrap" style={{ paddingTop: 32, paddingBottom: 32 }}>
         <hr className="separador" />
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Lanzamientos</h2>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Destacados</h2>
+        <div className="grid-destacados">
+          {['DesDragon.png', 'DesCubone.png', 'destacados.png'].map(f => (
+            <div key={f} className="destacado-card">
+              <img src={mediaPath(f)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            </div>
+          ))}
+        </div>
+        <style>{`
+          .grid-destacados { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+          .destacado-card {
+            aspect-ratio: 6 / 8;
+            min-height: 130px;
+            border-radius: 0px;
+            background: transparent;
+            border: 1px solid var(--line);
+            overflow: hidden;
+          }
+          @media (max-width: 768px) {
+            .grid-destacados { grid-template-columns: 1fr; }
+          }
+        `}</style>
       </section>
+
+      {lanzamientos.length > 0 && (
+        <section className="wrap" style={{ paddingTop: 32, paddingBottom: 32 }}>
+          <hr className="separador" />
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Nuevos Lanzamientos</h2>
+          <ProductCarousel productos={lanzamientos} />
+        </section>
+      )}
+
 
       <section className="wrap section-py-mobile" style={{ paddingBottom: '80px' }}>
         <hr className="separador" />
         {cargando ? (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Cargando categorías…</p>
         ) : (
-          <div className="grid-3">
+          <div className="grid-3" style={{ rowGap: 8 }}>
             {categorias.map(cat => {
               const bg = fondoDeCategoria(cat.nombre)
               return (
@@ -142,11 +113,13 @@ export default function Home() {
                     position: 'relative',
                     border: '1px solid var(--line)',
                     borderRadius: 12,
-                    padding: '100px 22px',
+                    aspectRatio: '8 / 3',
+                    padding: '24px 22px',
                     minHeight: 130,
                     display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'flex-end',
+                    flexDirection: 'row',
+                    justifyContent: 'center',
+                    textAlign: 'center',
                     overflow: 'hidden',
                   }}
                 >
@@ -154,13 +127,12 @@ export default function Home() {
                     <div style={{
                       position: 'absolute', inset: 0,
                       background: 'rgba(0,0,0,.5)',
-                      borderRadius: 12,
                     }} />
                   )}
-                  <div style={{ position: 'relative', zIndex: 1 }}>
-                    <h3 style={{ textAlign: 'center', fontSize: 16, marginBottom: 4, color: bg ? '#fff' : 'inherit' }}>{cat.nombre}</h3>
+                  <div style={{ position: 'relative', zIndex: 1, padding: '0 16px' }}>
+                    <h3 style={{ fontSize: 18, marginTop: -5, color: bg ? '#fff' : 'var(--text)' }}>{cat.nombre}</h3>
                     {cat.cantidad > 0 && (
-                      <span style={{ justifyContent: 'center', fontSize: 12, color: bg ? 'rgba(255,255,255,.75)' : 'var(--text-dim)' }}>
+                      <span style={{ display: 'block', marginTop: -5, fontSize: 12, color: bg ? 'rgba(255,255,255,.75)' : 'var(--text-dim)' }}>
                         {cat.cantidad} {cat.cantidad === 1 ? 'producto' : 'productos'}
                       </span>
                     )}
@@ -170,7 +142,7 @@ export default function Home() {
             })}
           </div>
         )}
-      </section>
+      </section >
     </>
   )
 }

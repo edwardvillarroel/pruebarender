@@ -27,15 +27,25 @@ class GestionarCarrito:
             self._repositorio.guardar(carrito)
         return carrito
 
-    def agregar_item(self, usuario_id: str, producto_id: str, cantidad: int) -> Carrito:
+    def agregar_item(
+        self, usuario_id: str, producto_id: str, cantidad: int, color: str | None = None
+    ) -> Carrito:
+        """Agrega una linea al carrito.
+
+        Las lineas se agrupan por producto Y color: el mismo producto en blanco
+        y en negro son dos lineas distintas, porque se imprimen distinto.
+        """
         self._validar_cantidad(cantidad)
+        color = (color or "").strip() or None
         carrito = self.obtener(usuario_id)
         for item in carrito.items:
-            if item.producto_id == producto_id:
+            if item.producto_id == producto_id and (item.color or None) == color:
                 item.cantidad += cantidad
                 break
         else:
-            carrito.items.append(ItemCarrito(producto_id=producto_id, cantidad=cantidad))
+            carrito.items.append(
+                ItemCarrito(producto_id=producto_id, cantidad=cantidad, color=color)
+            )
         return self._repositorio.guardar(carrito)
 
     def actualizar_cantidad(self, usuario_id: str, item_id: UUID, cantidad: int) -> Carrito:

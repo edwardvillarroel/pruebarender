@@ -1,11 +1,27 @@
-import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import ProductCard from '../components/ProductCard.jsx'
 import { useProductos } from '../context/ProductContext.jsx'
 
+const slugify = (texto) =>
+  texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
 export default function Categorias() {
   const { productos, categorias, cargando, error } = useProductos()
-  const [activa, setActiva] = useState(null)
+  const [params, setParams] = useSearchParams()
 
+  const slugActivo = params.get('cat')
+  const catActiva = categorias.find((c) => slugify(c.nombre) === slugActivo)
+  const activa = catActiva ? catActiva.id : null
+  
+  const seleccionar = (cat) => {
+    if (cat) setParams({cat: slugify(cat.nombre)})
+      else setParams({})
+  }
   const filtrados = activa ? productos.filter(p => p.categoria_id === activa) : productos
 
   return (
@@ -26,7 +42,7 @@ export default function Categorias() {
         {categorias.map(cat => (
           <button key={cat.id}
             className="btn btn-ghost"
-            onClick={() => setActiva(cat.id)}
+            onClick={() => seleccionar(cat.id)}
             style={{
               background: activa == cat.id ? 'var(--accent)' : 'var(--accent-2)',
               color: activa == cat.id ? '#ffffff' : 'var(--surface)',

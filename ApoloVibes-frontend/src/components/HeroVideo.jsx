@@ -30,8 +30,12 @@ export default function HeroEstatico() {
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          objectPosition: 'center',
-          objectPosition: 'center',
+          // 'center' dejaba que el recorte horizontal metiera el logo de la imagen
+          // debajo del texto en pantallas angostas. Anclando a la izquierda se
+          // conserva la mitad vacia de la imagen, que es donde vive el texto.
+          // A >=900px el recorte horizontal es 0, asi que este valor es un no-op
+          // en escritorio: no cambia la imagen que se ve en pantalla completa.
+          objectPosition: 'left center',
         }}
         fetchpriority="high"
       />
@@ -51,8 +55,9 @@ export default function HeroEstatico() {
         }}
       >
 
-        <div style={{ maxWidth: 460 }}>
+        <div className="hero-texto" style={{ maxWidth: 460 }}>
           <span
+            className="hero-eyebrow"
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 12,
@@ -82,6 +87,8 @@ export default function HeroEstatico() {
           <p style={{ fontSize: 16, color: oscuro ? 'rgba(237,237,229,.85)' : '#4A5A6A', marginBottom: 30, lineHeight: 1.55 }}>
             De nuestro stock o hecho a tu medida: tu idea, con la energía de Apolo Vibes.
           </p>
+          {/* El marginTop que baja los botones vive en el media query de ≤1024px:
+              en pantalla completa los botones van pegados al párrafo como antes. */}
           <div className="hero-buttons" style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
             <Link
               to="/categorias"
