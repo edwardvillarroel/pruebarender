@@ -42,6 +42,7 @@ def _a_publico(carrito) -> dict:
                 "id": str(item.id),
                 "producto_id": item.producto_id,
                 "cantidad": item.cantidad,
+                "color": item.color,
             }
             for item in carrito.items
         ],
@@ -67,8 +68,19 @@ def agregar_producto():
     except (TypeError, ValueError):
         return _error("producto_id debe ser un UUID válido", 400)
 
+    # El color llega del cliente: si no es texto la capa de dominio no puede
+    # normalizarlo (llama .strip()), asi que se rechaza aca en vez de reventar
+    # con un 500 mas adelante.
+    color = datos.get("color")
+    if color is not None and not isinstance(color, str):
+        return _error("color debe ser un texto", 400)
+    if isinstance(color, str) and len(color.strip()) > 50:
+        return _error("color no puede superar los 50 caracteres", 400)
+
     try:
-        carrito = _servicio().agregar_item(_usuario_id(), producto_id, cantidad)
+        carrito = _servicio().agregar_item(
+            _usuario_id(), producto_id, cantidad, color
+        )
     except ValueError as exc:
         return _error(str(exc), 400)
     except IntegrityError as exc:

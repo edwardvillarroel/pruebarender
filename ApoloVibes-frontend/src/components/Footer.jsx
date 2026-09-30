@@ -36,11 +36,12 @@ const ICONOS_SOCIALES = [
 ]
 
 const ENLACES_TIENDA = [
-  { nombre: 'Figuras de Colección', href: '/categorias?cat=figuras' },
-  { nombre: 'Impresoras de resina', href: '/categorias?cat=impresoras-resina' },
-  { nombre: 'Filamentos', href: '/categorias?cat=filamentos' },
-  { nombre: 'Resinas', href: '/categorias?cat=resinas' },
-  { nombre: 'Piezas y repuestos', href: '/categorias?cat=repuestos' },
+  { nombre: 'Videojuegos y Cine', href: '/categorias?cat=videojuegos-cine' },
+  { nombre: 'Articulados', href: '/categorias?cat=articulados' },
+  { nombre: 'Llaveros', href: '/categorias?cat=llaveros' },
+  { nombre: 'Animales', href: '/categorias?cat=animales' },
+  { nombre: 'Accesorios', href: '/categorias?cat=accesorios' },
+  { nombre: 'Diseños a medida', href: '/categorias?cat=disenos-a-medida' },
 ]
 
 const ENLACES_EMPRESA = [

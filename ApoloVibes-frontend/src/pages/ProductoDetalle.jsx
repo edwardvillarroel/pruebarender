@@ -1,10 +1,11 @@
 import { useParams, Link } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useProductos } from '../context/ProductContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
 import { Minus, Plus, Star } from 'lucide-react'
 import ProductCard from '../components/ProductCard.jsx'
+import { productoApi, registrarColores } from '../services/products.js'
 
 const COLOR_NUEVO = '#2fa018'
 const COLOR_DESCUENTO = '#FA7F19'
@@ -28,19 +29,50 @@ export default function ProductoDetalle() {
   const producto = productos.find(p => p.id === id)
   const { agregarProducto } = useCart()
   const [cantidad, setCantidad] = useState(1)
+  const [colores, setColores] = useState([])
+  const [colorElegido, setColorElegido] = useState(null)
+
+  useEffect(() => {
+    let vigente = true
+    if (!id) {
+      setColores([])
+      setColorElegido(null)
+      return
+    }
+    productoApi.listarColores(id)
+      .then(({ colores }) => {
+        if (!vigente) return
+        const lista = [...(colores || [])].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
+        setColores(lista)
+        setColorElegido(lista[0]?.id ?? null)
+        registrarColores(id, lista)
+      })
+      .catch(() => {
+        if (!vigente) return
+        setColores([])
+        setColorElegido(null)
+      })
+    return () => { vigente = false }
+  }, [id])
+
+  const recomendados = useMemo(
+    () => (producto
+      ? productos
+        .filter(p => p.categoria_id === producto.categoria_id && p.id !== producto.id)
+        .slice(0, 4)
+      : []),
+    [productos, producto]
+  )
 
   if (cargando) return <div className="wrap" style={{ padding: 80 }}>Cargando…</div>
   if (!producto) return <div className="wrap" style={{ padding: 80 }}>Producto no encontrado.</div>
 
   const categoria = categorias.find(c => c.id === producto.categoria_id)
   const specsLimpios = specsFiltrados(producto.specs, producto.material, producto.tamano, producto.color)
-
-  const recomendados = useMemo(() =>
-    productos
-      .filter(p => p.categoria_id === producto.categoria_id && p.id !== producto.id)
-      .slice(0, 4),
-    [productos, producto]
-  )
+  const tieneVariantes = colores.length > 0
+  const colorActual = colores.find(c => c.id === colorElegido) || null
+  const faltaElegirColor = tieneVariantes && !colorActual
+  const fotoActual = (tieneVariantes && colorActual?.imagen) ? colorActual.imagen : producto.imagen
 
   return (
     <section className="wrap" style={{ paddingTop: '25px', paddingBottom: '80px' }}>
@@ -97,8 +129,8 @@ export default function ProductoDetalle() {
         <div>
           <div style={{
             position: 'relative',
-            height: 420,
-            background: producto.imagen ? '#FFFFFF' : 'var(--surface)',
+            height: 600,
+            background: fotoActual ? '#FFFFFF' : 'var(--surface)',
             borderRadius: 1,
             display: 'flex',
             alignItems: 'center',
@@ -106,14 +138,16 @@ export default function ProductoDetalle() {
             overflow: 'hidden',
           }}
           >
-            {producto.imagen && (
+            {fotoActual && (
               <img
-                src={producto.imagen}
+                src={fotoActual}
                 alt={producto.nombre}
                 style={{
                   width: '100%',
                   height: '100%',
-                  objectFit: 'cover'
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                  transformOrigin: 'center'
                 }}
               />
             )}
@@ -167,32 +201,65 @@ export default function ProductoDetalle() {
             ) : null}
           </div>
 
-
-          <div style={{
-            marginTop: 16,
-            padding: '12px 16px',
-            background: 'var(--surface-3)',
-            borderRadius: 8,
-            fontSize: 13,
-            color: 'var(--text-dim)',
-            lineHeight: 1.5,
-          }}>
-            {producto.sinStock ? (
-              <span style={{ color: COLOR_SIN_STOCK, fontWeight: 600 }}>Producto sin stock actualmente.</span>
-            ) : (
-              <>
-                Producto listo para envío — envío en 3-5 días hábiles
-                {producto.stock > 0 && (
-                  <span style={{ marginLeft: 8, color: 'var(--accent)' }}>· {producto.stock} unidades disponibles</span>
-                )}
-              </>
-            )}
-          </div>
+          {tieneVariantes && (
+            <div style={{ marginTop: 20 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+                {colores.map(c => {
+                  const activo = c.id === colorElegido
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setColorElegido(c.id)}
+                      title={c.nombre}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 12px 6px 6px',
+                        border: `1px solid ${activo ? COLOR_BUTTON : 'var(--line)'}`,
+                        borderRadius: 24,
+                        background: activo ? 'var(--surface-3)' : 'transparent',
+                        color: 'var(--text-dim)',
+                        fontSize: 13,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: 'var(--surface-2)',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {c.imagen ? (
+                          <img
+                            src={c.imagen_thumb || c.imagen}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : null}
+                      </span>
+                      {c.nombre}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div>
           {producto.descripcion && (
-            <p style={{ fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 16, textAlign: 'justify', marginTop: 20 }}>
+            <p style={{ fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.6, marginBottom: 16, textAlign: 'justify', marginTop: 10 }}>
               {producto.descripcion}
             </p>
           )}
@@ -273,6 +340,7 @@ export default function ProductoDetalle() {
               </span>
             )}
           </div>
+          <p style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 20, marginTop: -25 }}>Precio con IVA incluido</p>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
@@ -312,28 +380,58 @@ export default function ProductoDetalle() {
 
             <button
               className="btn btn-primary"
-              disabled={producto.sinStock}
-              onClick={() => agregarProducto(producto, cantidad)}
+              disabled={producto.sinStock || faltaElegirColor}
+              onClick={() => agregarProducto(
+                { ...producto, color: colorActual.nombre, imagen: fotoActual },
+                cantidad
+              )}
               style={{
                 flex: 1,
-                background: producto.sinStock ? 'var(--surface-2)' : COLOR_BUTTON,
-                color: producto.sinStock ? 'var(--text-dim)' : '#FFFFFF',
-                cursor: producto.sinStock ? 'not-allowed' : 'pointer',
+                background: producto.sinStock || faltaElegirColor ? 'var(--surface-2)' : COLOR_BUTTON,
+                color: producto.sinStock || faltaElegirColor ? 'var(--text-dim)' : '#FFFFFF',
+                cursor: producto.sinStock || faltaElegirColor ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8
               }}
             >
-              {!producto.sinStock && (
+              {!producto.sinStock && !faltaElegirColor && (
                 <img
                   src={mediaPath('cart.png')}
                   alt=""
                   style={{ width: 20, height: 20, filter: 'brightness(0) invert(1)' }}
                 />
               )}
-              {producto.sinStock ? 'Sin Stock' : 'Agregar al carrito'}
+              {producto.sinStock
+                ? 'Sin Stock'
+                : faltaElegirColor ? 'Elegí un color' : 'Agregar al carrito'}
             </button>
+            {faltaElegirColor && (
+              <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-dim)' }}>
+                Seleccioná el color para continuar.
+              </p>
+            )}
+          </div>
+          <div style={{
+            marginTop: 16,
+            padding: '12px 16px',
+            background: 'var(--surface-3)',
+            borderRadius: 8,
+            fontSize: 13,
+            color: 'var(--text-dim)',
+            lineHeight: 1.5,
+          }}>
+            {producto.sinStock ? (
+              <span style={{ color: COLOR_SIN_STOCK, fontWeight: 600 }}>Producto sin stock actualmente.</span>
+            ) : (
+              <>
+                Producto listo para envío — envío en 3-5 días hábiles
+                {producto.stock > 0 && (
+                  <span style={{ marginLeft: 8, color: 'var(--accent)' }}>· {producto.stock} unidades disponibles</span>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

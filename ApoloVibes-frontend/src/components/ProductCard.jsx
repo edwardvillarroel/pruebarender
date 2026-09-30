@@ -17,6 +17,7 @@ export default function ProductCard({ producto, index = 0 }) {
   const { categorias } = useProductos()
   const acento = ACENTOS[index % ACENTOS.length]
   const categoria = categorias.find(c => c.id === producto.categoria_id)
+  const imagenTarjeta = producto.imagen_thumb || producto.imagen
 
   return (
     <div
@@ -37,17 +38,19 @@ export default function ProductCard({ producto, index = 0 }) {
             position: 'relative',
             width: '100%',
             aspectRatio: '1 / 1',
-            background: producto.imagen ? '#FFFFFF' : 'var(--surface-2)',
+            background: imagenTarjeta ? '#FFFFFF' : 'var(--surface-2)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             overflow: 'hidden',
           }}
         >
-          {producto.imagen ? (
+          {imagenTarjeta ? (
             <img
-              src={producto.imagen}
+              src={imagenTarjeta}
               alt={producto.nombre}
+              loading="lazy"
+              decoding="async"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
@@ -135,13 +138,14 @@ export default function ProductCard({ producto, index = 0 }) {
       </Link>
 
       <div style={{ padding: '10px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
           <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', flex: 1, minWidth: 0 }}>{producto.nombre}</h4>
           {categoria && (
             <span
               style={{
                 display: 'inline-block',
                 flexShrink: 0,
+                maxWidth: '100%',
                 background: 'transparent',
                 border: '1px solid var(--accent)',
                 color: 'var(--accent)',
@@ -149,6 +153,9 @@ export default function ProductCard({ producto, index = 0 }) {
                 fontWeight: 600,
                 padding: '3px 10px',
                 borderRadius: 999,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
               {categoria.nombre}
@@ -175,8 +182,8 @@ export default function ProductCard({ producto, index = 0 }) {
             <span
               style={{
                 display: 'inline-block',
-                background: COLOR_SIN_STOCK,
-                color: '#FFFFFF',
+                background: 'var(--surface-3)',
+                color: 'var(--text-dim)',
                 fontSize: 11,
                 fontWeight: 600,
                 padding: '2px 8px',
@@ -188,6 +195,7 @@ export default function ProductCard({ producto, index = 0 }) {
             </span>
           ) : null}
         </div>
+        <p style={{ color: 'var(--text-dim)', fontWeight: 600, fontSize: 10, marginTop: -10 }}>IVA incluido</p>
 
         {producto.rating && (
           <div style={{ display: 'flex', gap: 2 }}>
@@ -208,7 +216,7 @@ export default function ProductCard({ producto, index = 0 }) {
           aria-label="Agregar al carrito"
           style={{
             marginTop: 'auto',
-            background: producto.sinStock ? 'var(--surface-2)' : COLOR_BUTTON,
+            background: producto.sinStock ? 'var(--surface-3)' : COLOR_BUTTON,
             color: producto.sinStock ? 'var(--text-dim)' : 'var(--text)',
             border: 'none',
             borderRadius: 12,

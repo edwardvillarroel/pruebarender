@@ -33,6 +33,7 @@ class CarritoItemModel(db.Model):
     carrito_id = db.Column(UuidRaw, db.ForeignKey("carrito.id"), nullable=False)
     producto_id = db.Column(UuidRaw, nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
+    color = db.Column(db.String(50))
     agregado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
     carrito = db.relationship("CarritoModel", back_populates="items")

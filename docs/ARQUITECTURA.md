@@ -120,6 +120,83 @@ viven en `infrastructure/database/models/` y mapean a las mismas tablas.
 > manualmente (`migrar_imagen_blob.py`) y el alta vía `agregar_producto.py`,
 > ambos fuera de git.
 
+> **Nota de desviación (2026-09-26):** un producto puede tener N variantes de
+> color, cada una con su propia foto. Esto agrega la tabla `producto_colores`
+> (entidad `ColorProducto` en `domain/entities/producto.py`, modelo
+> `ProductoColorModel`), más la columna `color` en `carrito_items` y en
+> `detalle_pedidos`. `productos.imagen_bytes` queda como imagen principal y
+> fallback para los productos sin variantes. En el carrito, dos líneas del
+> mismo producto solo se fusionan si comparten producto **y** color, porque se
+> imprimen distinto. La restricción única `UQ_CARRITO_ITEM_PRODUCTO`
+> (carrito_id, producto_id) de la tabla original fue reemplazada por
+> `ux_carrito_item_producto_color` sobre
+> `(carrito_id, producto_id, NVL(color, ' '))`; el `NVL` es necesario porque en
+> Oracle NULL no es igual a NULL dentro de un índice único. Migración:
+> `migrations/crear_producto_colores.sql`.
+>
+> `GET /api/productos` completa la foto de los productos que no tienen
+> `imagen_bytes` con la del **primer** color (`primera_imagen_color_por_producto`,
+> una sola consulta con `min(orden) GROUP BY`, no una por producto). Así la
+> tarjeta del catálogo no queda vacía para productos creados solo con
+> variantes. `GET /api/productos/:id` sí devuelve la foto principal tal cual.
+
+> **Nota de desviación (2026-09-26):** el catálogo servía fotos de 3-4 MB en
+> tarjetas de ~240px: 19 productos con foto son 100,69 MB de BLOB y 2,4 MB en
+> promedio por visita. Se agregan cuatro columnas —`imagen_thumb_bytes` (BLOB) y
+> `imagen_thumb_content_type` (VARCHAR2(50)) en `productos`, y las mismas dos en
+> `producto_colores`— que guardan una versión reducida: lado mayor de 600px,
+> JPEG quality 82. La **original queda intacta**: el detalle del producto y el
+> selector de color necesitan resolución completa, y `/imagen` sigue sirviendo
+> el archivo entero. Migración: `migrations/agregar_thumbnails.sql`.
+>
+> Las cuatro columnas están declaradas `deferred` en los modelos ORM. El listado
+> del catálogo pregunta solo por su existencia
+> (`imagen_thumb_bytes.isnot(None)`) en el mismo `SELECT` del modelo: leer el
+> atributo dentro del mapeo dispararía una consulta extra por producto (N+1) y el
+> listado volvería a ir lento, que es justo lo que se vino a arreglar.
+>
+> La generación es **perezosa**: no hay paso de backfill obligatorio. Si el
+> thumbnail no existe cuando se pide, `GET /api/productos/:id/thumb` (o
+> `.../colores/:id/thumb`) lo genera desde el original, lo guarda y lo sirve; las
+> peticiones siguientes ya leen el BLOB. Si no se puede generar —la foto ya es
+> chica, es ilegible, o falta Pillow— la ruta sirve la original en vez de dejar
+> la tarjeta rota. Cuando se reemplaza la foto, el thumbnail se invalida en el
+> mismo `UPDATE` que la original: es un invariante de persistencia, no una
+> operación aparte del caso de uso.
+>
+> El JSON de `GET /api/productos` y el de colores ya incluyen el campo
+> `imagen_thumb` con la URL del thumbnail, o `null` cuando todavía no existe (y
+> también cuando la foto no necesita reducción). El frontend usa el patrón
+> `imagen_thumb || imagen` en la grilla (`ProductCard.jsx`) y en los swatches de
+> color (`ProductoDetalle.jsx`), de modo que cae a la original mientras el
+> thumbnail no exista. El script `generar_thumbnails.py` (raíz, fuera de git)
+> permite adelantarlo si se quiere, con `--what-if` para ensayo.
+
+> **Nota de desviación (2026-09-28):** `productos` gana la columna
+> `nuevo_lanzamiento` (`NUMBER(1) DEFAULT 0 NOT NULL`), un flag que el admin
+> prende desde el modal de producto y que decide si el producto sale en la
+> sección **«Lanzamientos»** de la home. No es lo mismo que `activo`, que es el
+> borrado lógico: un producto puede estar activo y no ser un lanzamiento.
+> Migración: `migrations/agregar_nuevo_lanzamiento.sql`.
+>
+> El flag es un booleano y **no** se deriva de la fecha ni de la etiqueta. La
+> home ordena los lanzamientos del más nuevo al más viejo, así que el JSON de
+> `GET /api/productos` ahora incluye `creado_en` (ISO 8601) además de
+> `nuevo_lanzamiento`: sin la fecha en la respuesta la sección no se puede
+> ordenar, porque la API ordena por `nombre`.
+>
+> La etiqueta que ve la tarjeta (`badge`) se **deriva en `_a_publico_producto`**
+> y no se persiste nunca. La columna `productos.badge` queda reservada para
+> valores manuales (hay productos con «Best Seller») y así conviven «Nuevo» y
+> «Best Seller» sin pisarse. Derivarla y guardarla en la misma columna es un
+> error: el repositorio volvería a leer su propio valor derivado, y apagar el
+> flag dejaría el «Nuevo» pegado en la fila para siempre.
+>
+> `PATCH /api/productos/:id` distingue tres estados con `is not None`: ausente
+> = no tocar, `true` = marcar, `false` = desmarcar. Por eso el modal manda el
+> campo siempre, incluso en `false`: con un chequeo truthy el `false` nunca se
+> aplicaría y un lanzamiento no se podría apagar.
+
 ---
 
 ## 6. Contratos API (impuestos por el frontend)
@@ -135,14 +212,19 @@ POST   /api/auth/refresh               # cookie refresh_token → { access_token
 POST   /api/auth/logout                # invalida cookie y token
 GET    /api/auth/me                    # retorna usuario autenticado
 
-<<<<<<< HEAD
 # --- Proxeados al backend interno (:8000) ---
-GET    /api/productos                  # catalogo publico
-=======
 GET    /api/productos                  # catálogo público
-GET    /api/productos/:id              # detalle público
+                                       #   + nuevo_lanzamiento (bool), creado_en (ISO)
+                                       #   + badge: "Nuevo" si nuevo_lanzamiento,
+                                       #     si no el badge manual de la fila
+GET    /api/productos/:id              # detalle público (mismos campos)
 GET    /api/productos/:id/imagen       # imagen en BLOB (content-type real)
->>>>>>> 8214bceb9595cfb6e4e44a399924060ca889c191
+GET    /api/productos/:id/thumb        # thumbnail del producto (600px, JPEG q82)
+GET    /api/productos/:id/colores      # variantes de color del producto
+GET    /api/productos/colores/:id/imagen  # imagen de una variante de color
+GET    /api/productos/colores/:id/thumb   # thumbnail de una variante de color
+POST   /api/productos/:id/colores      # crea/reemplaza color + foto (multipart: color, imagen)
+DELETE /api/productos/colores/:id      # elimina una variante de color
 GET    /api/categorias
 
 POST   /api/pedidos

@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { Menu, LogOut, LayoutDashboard, ClipboardList, Package, FileText, ShoppingCart, User } from 'lucide-react'
+import ConfirmModal from '../../components/ConfirmModal.jsx'
 
 const navItems = [
   { to: '/admin', end: true, label: 'Dashboard', icon: LayoutDashboard },
@@ -34,67 +35,20 @@ const sidebarBtnStyle = {
   textAlign: 'left', cursor: 'pointer', fontWeight: 500,
 }
 
-function ConfirmModal({ onConfirm, onCancel }) {
-  return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.49)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 9999, backdropFilter: 'blur(4px)',
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          background: 'var(--surface)', borderRadius: 16, padding: '32px 28px',
-          width: '100%', maxWidth: 360, boxShadow: '0 20px 60px rgba(0,0,0,.3)',
-          textAlign: 'center',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div style={{ fontSize: 36, marginBottom: 12 }}></div>
-        <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>
-          Cerrar sesión
-        </h3>
-        <p style={{ margin: '0 0 22px', fontSize: 13, color: 'var(--text-dim)' }}>
-          Vas a salir del panel de administración. ¿Seguro?
-        </p>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button
-            onClick={onCancel}
-            style={{
-              flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid var(--line)',
-              background: 'transparent', color: 'var(--text)', fontSize: 13, fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            No, quedarme
-          </button>
-          <button
-            onClick={onConfirm}
-            style={{
-              flex: 1, padding: '10px 0', borderRadius: 10, border: 'none',
-              background: '#b60303', color: '#fff', fontSize: 13, fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Sí, salir
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function SidebarContent({ onLogout, user }) {
   const nombreCompleto = [user?.nombre, user?.apellido].filter(Boolean).join(' ') || user?.email || 'Mi cuenta'
   const rolLabel = user?.rol === 'admin' ? 'Admin' : user?.rol || ''
 
   return (
     <>
-      <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, padding: '6px 10px 28px' }}>
+      <Link
+        to="/"
+        style={{
+          fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, padding: '6px 10px 28px',
+          display: 'block', color: 'inherit', textDecoration: 'none', cursor: 'pointer',
+        }}>
         Apolo Vibes 3D
-      </div>
+      </Link>
       <nav style={{ flex: 1 }}>
         {navItems.map(({ to, end, label, icon: Icon }) => (
           <NavLink key={to} to={to} end={end} style={itemStyle}>
@@ -210,12 +164,18 @@ export default function AdminLayout() {
         <Menu size={20} />
       </button>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        <main style={{ padding: '28px 34px', flex: 1 }}>
+        <main style={{ padding: '28px 34px', flex: 1, display: 'flex', flexDirection: 'column' }}>
           <Outlet />
         </main>
       </div>
 
-      {showConfirm && <ConfirmModal onConfirm={handleLogout} onCancel={() => setShowConfirm(false)} />}
+      {showConfirm && (
+        <ConfirmModal
+          onConfirm={handleLogout}
+          onCancel={() => setShowConfirm(false)}
+          mensaje="Vas a salir del panel de administración. ¿Seguro?"
+        />
+      )}
 
       <style>{`
         @media (max-width: 860px) {
