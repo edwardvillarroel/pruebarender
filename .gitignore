@@ -20,6 +20,9 @@ prueba_stock.py
 ARQUITECTURA.md
 AGENTS.md
 
+# Evidencias del proyecto (entregables del cliente)
+Evidencias/
+
 # Scripts de debug/migración (ya no son necesarios)
 _check_cols.py
 _debug_sql.py
