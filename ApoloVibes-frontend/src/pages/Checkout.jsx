@@ -45,7 +45,6 @@ function rutValido(rutSucio) {
   return dv === dvEsperado
 }
 
-// Mensaje de error diferenciado: formato vs. dígito verificador.
 function rutMensajeError(cliente) {
   if (cliente.tipoIdentificacion !== 'rut') return ''
   const rut = cliente.rut.trim()
@@ -171,7 +170,7 @@ export default function Checkout() {
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <img src={mediaPath('nombrelogo.png')} alt='logo' className='nombre-logo'></img>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
-          ({items.length} {items.length === 1 ? 'producto' : 'productos'}) &nbsp; ${totalFinal.toLocaleString('es-CL')}
+          ({items.length} {items.length === 1 ? 'producto' : 'productos'}) &nbsp; 
         </p>
       </div>
 
@@ -552,7 +551,7 @@ export default function Checkout() {
               <>
                 Pagar con
                 <img src={mediaPath('tuu.png')} alt="Tuu" style={{ height: 16, verticalAlign: 'middle' }} />
-                →
+                
               </>
             )}
           </button>

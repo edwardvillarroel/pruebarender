@@ -1,9 +1,9 @@
 
 import { Link, useNavigate } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
-import { Trash2, Minus, Plus, ShoppingCart, Truck, ArrowRight } from 'lucide-react'
-import { useState } from 'react'
+import { Trash2, Minus, Plus, ShoppingCart, Truck } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
+import { useState } from 'react'
 
 const ENVIO_GRATIS_DESDE = 50000
 
@@ -21,6 +21,12 @@ export default function Carrito() {
   const montoConIva = total
   const montoNeto = Math.round(total / 1.19)
   const montoIva = montoConIva - montoNeto
+
+  const [redirigiendo, setRedirigiendo] = useState(false)
+
+  function irAlCheckout() {
+    setRedirigiendo(true)
+  setTimeout(() => navigate('/checkout'), 3000)  }
 
 
   if (requiereLogin) {
@@ -239,23 +245,30 @@ export default function Carrito() {
                 <span>IVA (19%)</span>
                 <span>${montoIva.toLocaleString('es-CL')}</span>
               </div>
-
+               <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)', marginBottom: 20 }}></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, color: 'var(--text-dim)', marginBottom: 8, fontWeight: 600 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface)' }}>Total</span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface)' }}>${montoConIva.toLocaleString('es-CL')}</span>
               </div>
             </div>
+             <h1 style={{ fontSize: 14, color: 'var(--surface)', textAlign: 'justify', margin: '0 0 5px' }}>
+             Información Del Pago
+            </h1>
+            <p style={{ fontSize: 11, marginTop: -5, color: 'var(--text-dim)', textAlign: 'justify', margin: '0 0 10px' }}>
+             Todas las transacciones son realizadas mediante conexión segura. La información de tu tarjetas no se guarda en este sitio*
+            </p>
 
             <button
               type="button"
-              onClick={() => navigate('/checkout')}
+              onClick={irAlCheckout}
+              disable={redirigiendo}
               className="btn btn-primary"
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', marginBottom: 12 }}>
-              Ir a pagar
-              <ArrowRight size={16} color='var(--text)' />
+              {redirigiendo ? 'Continuando...' : 'Paga con Tuu'}
             </button>
-            <p style={{ fontSize: 11, marginTop: -5, color: 'var(--text-dim)', textAlign: 'center', margin: '0 0 20px' }}>
-              Pago procesado de forma segura por Tuu.
+
+            <p style={{ fontSize: 11, marginTop: -5, color: 'var(--text-dim)', textAlign: 'justify', margin: '0 0 20px' }}>
+              Tus datos personales se utilizarán para procesar tu pedido y mejorar tu experiencia en Apolovibes3D.
             </p>
             <div className="separador-suave" style={{ paddingTop: 16 }}>
               <p style={{
