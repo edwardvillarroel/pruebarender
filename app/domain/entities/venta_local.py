@@ -7,8 +7,6 @@ from app.domain.enums import EstadoSesionVenta, MedioPago
 
 @dataclass
 class SesionVenta:
-    """Sesión de venta local: un turno de venta en el local, abierta o cerrada."""
-
     lugar: str
     fecha: date
     usuario_id: UUID
@@ -20,8 +18,6 @@ class SesionVenta:
 
 @dataclass
 class VentaLocalItem:
-    """Linea de una venta local: snapshot del producto vendido."""
-
     producto_id: UUID
     nombre: str
     cantidad: int
@@ -32,8 +28,6 @@ class VentaLocalItem:
 
 @dataclass
 class VentaLocal:
-    """Venta realizada en una sesión de venta local."""
-
     sesion_id: UUID
     medio_pago: str
     items: list[VentaLocalItem]

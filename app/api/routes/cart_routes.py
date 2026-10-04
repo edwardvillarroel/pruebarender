@@ -43,6 +43,12 @@ def _a_publico(carrito) -> dict:
                 "producto_id": item.producto_id,
                 "cantidad": item.cantidad,
                 "color": item.color,
+                # Foto de la linea: la del color elegido si tiene, la del
+                # producto si no. El carrito, el checkout y el navbar la
+                # renderizan con `{item.imagen && <img src={item.imagen}/>}`, y
+                # sin este campo no tienen de donde sacarla: el carrito solo
+                # conoce `producto_id` y el NOMBRE del color.
+                "imagen": item.imagen,
             }
             for item in carrito.items
         ],
