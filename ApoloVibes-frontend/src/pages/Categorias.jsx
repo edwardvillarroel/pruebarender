@@ -15,12 +15,14 @@ export default function Categorias() {
   const [params, setParams] = useSearchParams()
 
   const slugActivo = params.get('cat')
-  const catActiva = categorias.find((c) => slugify(c.nombre) === slugActivo)
+  const catActiva = categorias.find(
+    (c) => slugify(c.nombre) === slugActivo || c.id === slugActivo
+  )
   const activa = catActiva ? catActiva.id : null
-  
+
   const seleccionar = (cat) => {
-    if (cat) setParams({cat: slugify(cat.nombre)})
-      else setParams({})
+    if (cat) setParams({ cat: slugify(cat.nombre) })
+    else setParams({})
   }
   const filtrados = activa ? productos.filter(p => p.categoria_id === activa) : productos
 
@@ -31,7 +33,7 @@ export default function Categorias() {
       <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap', justifyContent: 'center' }}>
         <button
           className="btn btn-ghost"
-          onClick={() => setActiva(null)}
+          onClick={() => seleccionar(null)}
           style={{
             background: activa == null ? 'var(--accent)' : 'var(--accent-2)',
             color: activa == null ? '#ffffff' : 'var(--surface)',
@@ -42,7 +44,7 @@ export default function Categorias() {
         {categorias.map(cat => (
           <button key={cat.id}
             className="btn btn-ghost"
-            onClick={() => seleccionar(cat.id)}
+            onClick={() => seleccionar(cat)}
             style={{
               background: activa == cat.id ? 'var(--accent)' : 'var(--accent-2)',
               color: activa == cat.id ? '#ffffff' : 'var(--surface)',
@@ -64,7 +66,7 @@ export default function Categorias() {
         </p>
       ) : filtrados.length === 0 ? (
         <p style={{
-          textAlign: 'center', color: 'var(--text-dim)', padding: '410px 0'
+          textAlign: 'center', color: 'var(--text-dim)', padding: '40px 0'
         }}>
           No hay productos en esta categoría todavía.
         </p>

@@ -162,6 +162,9 @@ _LIMPIEZA = [
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
     ("pedidos", "usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test')"),
     ("usuarios", "email LIKE '%@caracterizacion.test'"),
+    # Va antes de `productos`: `producto_colores.producto_id` es FK a
+    # `productos`, asi que borrar el producto con colores vivos viola la FK.
+    ("producto_colores", "producto_id IN (SELECT id FROM productos WHERE nombre LIKE 'r0-%')"),
     ("productos", "nombre LIKE 'r0-%'"),
     ("categorias", "nombre LIKE 'r0-%'"),
 ]

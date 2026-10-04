@@ -9,9 +9,10 @@ const CartContext = createContext(null)
 
 function enrichItem(linea, productos) {
   const prod = productos.find(p => p.id === linea.producto_id)
-  // La foto de la linea es la del color elegido; la principal del producto es
-  // solo el fallback para productos sin variantes.
-  const imagen = imagenDeColor(linea.producto_id, linea.color) ?? prod?.imagen ?? null
+  const imagen = linea.imagen
+    ?? imagenDeColor(linea.producto_id, linea.color)
+    ?? prod?.imagen
+    ?? null
   return {
     id: linea.producto_id,
     itemId: linea.id,
@@ -46,8 +47,6 @@ export function CartProvider({ children }) {
     actualizarItems(enrichCart(carrito, productos))
   }, [productos])
 
-  // El carrito vive por usuario real (JWT). Al entrar/salir de sesión se
-  // (re)carga desde la base; al cerrar sesión se vacía la vista local.
   useEffect(() => {
     if (isLoggedIn) {
       cargarCarrito()
@@ -55,16 +54,13 @@ export function CartProvider({ children }) {
       syncItems(null)
       setError(null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn])
 
-  // Cuando llegan los productos del catálogo (o cambian) se re-enriquecen las
-  // líneas del carrito ya cargadas para mostrar nombre/precio correctos.
+
   useEffect(() => {
     if (carritoRef.current) {
       syncItems(carritoRef.current)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productos])
 
   async function cargarCarrito() {
@@ -87,8 +83,7 @@ export function CartProvider({ children }) {
     setItems(next)
   }
 
-// Dos lineas son la misma solo si comparten producto Y color: el mismo
-// producto en blanco y en negro se imprime distinto, asi que van separadas.
+
 function mismaLinea(a, producto, color) {
   return a.id === producto.id && (a.color ?? null) === (color ?? null)
 }
@@ -135,9 +130,7 @@ function reversarAgregar(producto) {
     actualizarItems(prev => prev.map(i => (i.itemId === itemId || i.id === itemId) ? { ...i, cantidad } : i))
   }
 
-  // Ejecuta la petición y reconcilia con el servidor solo si sigue siendo la
-  // mutación más reciente; así las respuestas encoladas/desordenadas no pisan
-  // el estado ya optimista de una operación más nueva.
+
   function fireAndReconcile(fn) {
     const op = ++seqRef.current
     fn()
@@ -174,8 +167,6 @@ function reversarAgregar(producto) {
     carritoApi.agregarProducto(producto.id, cantidad, color)
       .then(({ carrito }) => {
         if (op !== seqRef.current) return
-        // Si la linea se elimino de la vista antes de que respondiera el
-        // servidor, borrar la recien creada para no dejarla huerfana.
         const sigueEnVista = itemsRef.current.some(i => mismaLinea(i, producto, color))
         syncItems(carrito)
         mostrarToast('Producto agregado exitosamente')
