@@ -12,6 +12,9 @@ bcrypt==4.3.0
 
 # --- Base de datos ---
 oracledb==26.0.0
+# `oracledb` sigue por `tools/migrar_datos_oracle_postgres.py` y la rama de
+# rollback a Oracle. Postgres necesita psycopg2 aparte.
+psycopg2-binary==2.9.12
 
 # --- Proxy ---
 httpx==0.28.1
