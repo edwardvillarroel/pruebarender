@@ -3,6 +3,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from app.domain.enums import Rol
+from app.domain.time import utcnow
 
 
 @dataclass
@@ -19,4 +20,4 @@ class Usuario:
     mfa_activo: bool = False
     telefono: str | None = None
     id: UUID = field(default_factory=uuid4)
-    creado_en: datetime = field(default_factory=datetime.utcnow)
+    creado_en: datetime = field(default_factory=utcnow)

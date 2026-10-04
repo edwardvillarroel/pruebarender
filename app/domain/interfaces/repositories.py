@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
@@ -112,6 +113,28 @@ class ProductoRepository(RepositoryBase[Producto], ABC):
 
     @abstractmethod
     def eliminar_color(self, color_id: UUID) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def descontar_stock(self, items: Sequence[tuple[UUID, int]]) -> bool:
+        """Descuenta todos los items del pedido en una sola transaccion.
+
+        `items` son pares `(producto_id, cantidad)`. Devuelve `True` si se
+        descontaron todos, o `False` si alguno no tenia stock suficiente (o el
+        producto no existe) - en ese caso no se descuenta ninguno.
+
+        Es una operacion atomica y no un `update` de entidad a proposito: leer el
+        stock, compararlo en Python y despues escribir abre una ventana en la que
+        dos pagos concurrentes leen el mismo stock y ambos lo dan por bueno,
+        vendiendo unidades que no existen. El descuento de stock es la unica
+        operacion del dominio donde esa carrera produce perdida real, asi que el
+        "leer, validar y escribir" vive dentro de una sentencia de SQL con la
+        condicion `stock >= cantidad`, que la base de datos serializa sola.
+
+        Todo-o-nada y no item por item porque el pedido es una unidad de negocio:
+        descontar el primer producto y fallar en el segundo deja stock derivado
+        para un pedido que la pasarela va a rechazar.
+        """
         raise NotImplementedError
 
 

@@ -1,21 +1,21 @@
 import uuid
 from datetime import datetime
 
-from app.infrastructure.database.connection import UuidRaw, db
+from app.infrastructure.database.connection import db, utcnow
 
 
 class PedidoModel(db.Model):
     __tablename__ = "pedidos"
 
-    id = db.Column(UuidRaw, primary_key=True, default=uuid.uuid4)
-    usuario_id = db.Column(UuidRaw, db.ForeignKey("usuarios.id"), nullable=False)
+    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
+    usuario_id = db.Column(db.Uuid, db.ForeignKey("usuarios.id"), nullable=False)
     estado = db.Column(db.String(30), nullable=False, default="pendiente")
     total = db.Column(db.Integer, nullable=False, default=0)
     direccion_envio = db.Column(db.Text)
     codigo_seguimiento = db.Column(db.String(50))
     estado_seguimiento = db.Column(db.String(100))
-    seguimiento_actualizado_en = db.Column(db.DateTime)
-    creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    seguimiento_actualizado_en = db.Column(db.DateTime(timezone=True))
+    creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     detalles = db.relationship(
         "DetallePedidoModel",

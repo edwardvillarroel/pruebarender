@@ -17,6 +17,7 @@ from app.domain.entities.carrito import Carrito, ItemCarrito
 from app.domain.interfaces.carrito_repository import CarritoRepository
 from app.infrastructure.database.connection import db
 from app.infrastructure.database.models.carrito_model import CarritoItemModel, CarritoModel
+from app.domain.time import utcnow
 
 
 class CarritoRepositoryBd(CarritoRepository):
@@ -49,7 +50,7 @@ class CarritoRepositoryBd(CarritoRepository):
 
     def guardar(self, carrito: Carrito) -> Carrito:
         uid = _a_uuid(carrito.usuario_id)
-        ahora = datetime.utcnow()
+        ahora = utcnow()
         modelo = self._buscar(uid)
 
         if modelo is None:
