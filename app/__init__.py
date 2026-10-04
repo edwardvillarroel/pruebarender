@@ -3,6 +3,7 @@ from pathlib import Path
 from flask import Flask, jsonify, redirect, send_from_directory
 from flask_cors import CORS
 
+from app.api.json_provider import ProveedorJsonApp
 from app.config import Config
 from app.infrastructure.database.connection import db
 
@@ -10,6 +11,10 @@ from app.infrastructure.database.connection import db
 def create_app(config_class: type[Config] = Config) -> Flask:
     app = Flask(__name__, static_folder=None)
     app.config.from_object(config_class)
+    # Todo `numeric` de Postgres es `Decimal` y Flask los serializa como texto.
+    # Sin esto la API manda precios y cantidades como strings y el frontend
+    # formatea mal. Ver app/api/json_provider.py.
+    app.json = ProveedorJsonApp(app)
 
     CORS(app, origins=app.config.get("CORS_ORIGINS", "*"))
     db.init_app(app)

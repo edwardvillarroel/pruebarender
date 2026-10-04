@@ -17,6 +17,7 @@ migrar_imagen_blob.py
 generar_thumbnails.py
 optimizar_imagenes.py
 prueba_stock.py
+aplicar_colores.py
 
 # Docs de diseño/agente (no versionar)
 ARQUITECTURA.md
@@ -44,6 +45,9 @@ __pycache__/
 # Bases de datos y caches
 .pytest_cache/
 *.sqlite3
+
+# CodeGraph (indice local de codigo)
+.codegraph/
 
 # Frontend
 ApoloVibes-frontend/node_modules/
