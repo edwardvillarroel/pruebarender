@@ -30,6 +30,7 @@ from app.domain.entities.seguimiento_starken import (
     SeguimientoStarken,
 )
 from app.domain.interfaces.starken import ErrorStarken, StarkenSeguimientoCliente
+from app.domain.time import utcnow
 
 
 class StarkenCliente(StarkenSeguimientoCliente):
@@ -91,7 +92,7 @@ class StarkenCliente(StarkenSeguimientoCliente):
             estado=str(estado).strip().upper() if estado is not None else None,
             descripcion=str(descripcion).strip() if descripcion is not None else None,
             historial=historial,
-            consultado_en=datetime.utcnow(),
+            consultado_en=utcnow(),
         )
 
     @staticmethod

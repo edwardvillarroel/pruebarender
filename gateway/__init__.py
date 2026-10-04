@@ -40,12 +40,20 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     register_blueprints(app)
 
-    if os.getenv("ORACLE_DSN"):
-        from gateway.infrastructure.ddl import crear_tablas
+    # B4: fallo ruidoso sin base de datos. Antes esto se tragaba la excepcion y
+    # el gateway arrancaba igual, de modo que un `.env` sin DSN se manifestaba
+    # mucho despues como un 500 en /auth/login y no como un problema de arranque.
+    # Ahora `pg_pool` levanta RuntimeError con el mensaje concreto si falta la
+    # configuracion, y los errores de conexion/DDL se propagan.
+    from gateway.infrastructure.ddl import crear_tablas
 
-        try:
-            crear_tablas()
-        except Exception:
-            _log.warning("Oracle no disponible al iniciar; el gateway sigue.", exc_info=True)
+    try:
+        crear_tablas()
+    except Exception as exc:
+        raise RuntimeError(
+            "El gateway no pudo preparar su base de datos. "
+            "Revisa DATABASE_URL/PG_DSN (o POSTGRES_*) y que la base sea "
+            f"accesible. Causa original: {exc}"
+        ) from exc
 
     return app

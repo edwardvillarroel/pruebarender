@@ -17,6 +17,7 @@ from app.domain.entities.venta_local import SesionVenta, VentaLocal, VentaLocalI
 from app.domain.interfaces.venta_local_repository import (
     VentaLocalRepository as VentaLocalRepositoryInterface,
 )
+from app.domain.time import utcnow
 from app.infrastructure.database.connection import db
 from app.infrastructure.database.models.producto_model import ProductoModel
 from app.infrastructure.database.models.venta_local_model import (
@@ -77,7 +78,7 @@ class VentaLocalRepository(VentaLocalRepositoryInterface):
         if modelo is None:
             return None
         modelo.estado = "cerrada"
-        modelo.cerrada_en = datetime.utcnow()
+        modelo.cerrada_en = utcnow()
         db.session.commit()
         return _a_entidad_sesion(modelo)
 

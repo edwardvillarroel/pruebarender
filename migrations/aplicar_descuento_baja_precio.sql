@@ -5,9 +5,15 @@
 --
 -- Idempotente: guarda en el WHERE que la fila siga en formato viejo (comparando
 -- que `precio` todavia no sea el rebajado a partir de `precio_original`).
-UPDATE PRODUCTOS
-SET PRECIO_ORIGINAL = PRECIO,
-    PRECIO = CEIL(PRECIO * (100 - DESCUENTO) / 100)
-WHERE DESCUENTO IS NOT NULL
-  AND DESCUENTO > 0
-  AND PRECIO <> CEIL(PRECIO_ORIGINAL * (100 - DESCUENTO) / 100);
+--
+-- `precio`, `precio_original` y `descuento` son `numeric(10,2)` (vienen de
+-- NUMBER(10,2) de Oracle), asi que la aritmetica ya es exacta y CEIL no
+-- necesita cast. Solo hay que castear el resultado a numeric para no arrastrar
+-- un tipo unexpected en la asignacion. Un `::integer` aqui seria un error:
+-- truncaria los decimales de un precio.
+UPDATE productos
+SET precio_original = precio,
+    precio = CEIL(precio * (100 - descuento) / 100)
+WHERE descuento IS NOT NULL
+  AND descuento > 0
+  AND precio <> CEIL(precio_original * (100 - descuento) / 100);

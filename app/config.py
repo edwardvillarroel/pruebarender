@@ -32,14 +32,39 @@ def _oracle_uri():
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", "postgresql://app:app@localhost:5432/print3d_dev"
-    )
-    SQLALCHEMY_ENGINE_OPTIONS = {}
-    _oracle_uri, _oracle_engine_options = _oracle_uri()
-    if _oracle_uri:
-        SQLALCHEMY_DATABASE_URI = _oracle_uri
+
+    _oracle_uri_val, _oracle_engine_options = _oracle_uri()
+    _hay_oracle = bool(_oracle_uri_val)
+
+    # `DB_BACKEND` decide de forma explicita y su default es SIEMPRE postgres.
+    #
+    # Antes el default era "oracle si hay ORACLE_DSN", que dejaba una trampa
+    # armada: reintroducir ORACLE_DSN en el .env y perder DB_BACKEND (un merge,
+    # un .env regenerado, una maquina nueva) devolvia la app a Oracle sin que
+    # nadie lo pidiera. Con la migracion cerrada, Oracle solo entra si alguien
+    # lo escribe a proposito: `DB_BACKEND=oracle`. Esa es la unica forma de que
+    # una conexion a la base vieja aparezca, y es visible en el .env.
+    _backend = os.getenv("DB_BACKEND", "postgres").strip().lower()
+
+    if _backend == "oracle":
+        if not _hay_oracle:
+            raise RuntimeError(
+                "DB_BACKEND=oracle pero falta ORACLE_DSN u ORACLE_PASSWORD en el entorno"
+            )
+        SQLALCHEMY_DATABASE_URI = _oracle_uri_val
         SQLALCHEMY_ENGINE_OPTIONS = _oracle_engine_options
+    elif _backend == "postgres":
+        SQLALCHEMY_DATABASE_URI = os.getenv(
+            "DATABASE_URL", "postgresql://app:app@localhost:5432/print3d_dev"
+        )
+        # Supabase corta conexiones ociosas. Sin pool_pre_ping el primer request
+        # tras un rato de inactividad revienta con "server closed the connection".
+        SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    else:
+        raise RuntimeError(
+            f"DB_BACKEND invalido: {_backend!r}. Valores validos: 'oracle' o 'postgres'."
+        )
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     LLM_API_KEY = os.getenv("LLM_API_KEY", "")
@@ -95,11 +120,48 @@ class DevelopmentConfig(Config):
 
 
 class TestingConfig(Config):
+    """Configuracion de tests. El motor lo elige `TEST_DB_BACKEND`.
+
+    Para Postgres usa `TEST_DATABASE_URL` (base dedicada, no la de desarrollo).
+
+    Para Oracle NO cae al `ORACLE_DSN` del `.env`: los tests de integracion
+    escriben y borran filas, y el esquema de Oracle es la fuente de verdad de la
+    migracion. Que apunte ahi por descuido seria destructivo, asi que exige
+    `TEST_ORACLE_DSN` explicito. Sin el, la rama Oracle se salta y solo corre
+    Postgres.
+    """
+
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "TEST_DATABASE_URL", "postgresql://app:app@localhost:5432/print3d_test"
-    )
-    SQLALCHEMY_ENGINE_OPTIONS = {}
+    _backend_test = os.getenv("TEST_DB_BACKEND", "postgres").strip().lower()
+
+    if _backend_test == "oracle":
+        _test_dsn = os.getenv("TEST_ORACLE_DSN", "")
+        if not _test_dsn:
+            raise RuntimeError(
+                "TEST_DB_BACKEND=oracle exige TEST_ORACLE_DSN. No se cae al "
+                "ORACLE_DSN del .env a proposito: los tests de integracion "
+                "escriben en la base y el esquema de Oracle es la fuente de "
+                "verdad de la migracion."
+            )
+        _wallet_test = os.getenv("TEST_ORACLE_WALLET_DIR", "")
+        _args_test: dict = {}
+        if _wallet_test:
+            _args_test["config_dir"] = _wallet_test
+            _args_test["wallet_location"] = _wallet_test
+        if os.getenv("TEST_ORACLE_WALLET_PASSWORD"):
+            _args_test["wallet_password"] = os.getenv("TEST_ORACLE_WALLET_PASSWORD")
+        SQLALCHEMY_DATABASE_URI = _test_dsn
+        SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": _args_test}
+    elif _backend_test == "postgres":
+        SQLALCHEMY_DATABASE_URI = os.getenv(
+            "TEST_DATABASE_URL", "postgresql://app:app@localhost:5432/print3d_test"
+        )
+        SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    else:
+        raise RuntimeError(
+            f"TEST_DB_BACKEND invalido: {_backend_test!r}. "
+            "Valores validos: 'oracle' o 'postgres'."
+        )
 
 
 class ProductionConfig(Config):

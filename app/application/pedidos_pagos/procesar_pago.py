@@ -177,15 +177,22 @@ class ProcesarPago:
         return pedido, detalles
 
     def _descontar_stock(self, pedido: Pedido) -> None:
-        for detalle in pedido.detalles:
-            producto = self._productos.get_by_id(detalle.producto_id)
-            if producto is None or producto.stock < detalle.cantidad:
-                raise ValueError(
-                    f"No hay stock suficiente para completar el pedido "
-                    f"(producto {detalle.producto_id})"
-                )
-            producto.stock -= detalle.cantidad
-            self._productos.update(producto)
+        # El descuento va por `descontar_stock`, no por `update`. La validacion
+        # del stock ya ocurrio al crear el pedido, pero entre esa validacion y
+        # esta confirmacion el stock pudo caer por otra venta: releerlo y
+        # restarlo en memoria dejaba una ventana en la que dos pagos
+        # concurrentes leian el mismo stock y los dos lo descontaran. La
+        # operacion atomica hace que el segundo pago falle en vez de overdolar.
+        #
+        # Se pasa el pedido entero en una sola llamada porque el descuento es
+        # todo-o-nada: si un producto no alcanza, no se descuenta ninguno.
+        items = [(d.producto_id, d.cantidad) for d in pedido.detalles]
+        if not self._productos.descontar_stock(items):
+            producto = pedido.detalles[0].producto_id if pedido.detalles else "-"
+            raise ValueError(
+                f"No hay stock suficiente para completar el pedido "
+                f"(producto {producto})"
+            )
 
     def _marcar_fallido(self, pedido: Pedido, pago: Pago) -> None:
         pago.estado = EstadoPago.FALLIDO

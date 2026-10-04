@@ -7,6 +7,7 @@ modelos ORM.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
@@ -68,7 +69,7 @@ class ProductoRepository(ProductoRepositoryInterface):
                 self.model.imagen_thumb_bytes.isnot(None).label("tiene_thumb"),
                 self.model.imagen_bytes.isnot(None).label("tiene_imagen"),
             )
-            .where(self.model.activo == True)  # noqa: E712 - Oracle: activo = 1
+            .where(self.model.activo.is_(True))
             .order_by(self.model.nombre)
         ).all()
         return [
@@ -112,6 +113,37 @@ class ProductoRepository(ProductoRepositoryInterface):
         modelo.nuevo_lanzamiento = entidad.nuevo_lanzamiento
         db.session.commit()
         return entidad
+
+    def descontar_stock(self, items: Sequence[tuple[UUID, int]]) -> bool:
+        # Cada item es una sentencia condicional: `stock >= cantidad` viaja al
+        # WHERE, asi que la comparacion y la escritura son atomicas y la base
+        # serializa sola a dos pagos concurrentes. `filas == 0` significa que no
+        # alcuntaba (o el producto no existe).
+        #
+        # Un solo commit para todo el pedido: si el ultimo item no alcanza, el
+        # rollback deshace tambien los anteriores. Descontar a medias dejaria
+        # stock derivado para un pedido que la pasarela va a rechazar.
+        #
+        # `cantidad > 0` se valida aca y no en el caso de uso porque es una
+        # invariante de persistencia: un payload con cero o negativo no debe
+        # poder AUMENTAR el stock de un producto pasando por el descuento.
+        if any(cantidad <= 0 for _, cantidad in items):
+            raise ValueError("La cantidad a descontar debe ser mayor a cero")
+        try:
+            for producto_id, cantidad in items:
+                filas = db.session.execute(
+                    update(self.model)
+                    .where(self.model.id == producto_id, self.model.stock >= cantidad)
+                    .values(stock=self.model.stock - cantidad)
+                ).rowcount
+                if not filas:
+                    db.session.rollback()
+                    return False
+            db.session.commit()
+            return True
+        except Exception:
+            db.session.rollback()
+            raise
 
     def delete(self, entidad: Producto) -> None:
         modelo = db.session.get(self.model, entidad.id)

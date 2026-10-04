@@ -15,6 +15,7 @@ from app.domain.entities.pedido import Pedido
 from app.domain.entities.seguimiento_starken import SeguimientoStarken
 from app.domain.interfaces.repositories import PedidoRepository
 from app.domain.interfaces.starken import ErrorStarken, StarkenSeguimientoCliente
+from app.domain.time import utcnow
 
 MAX_LARGO_CODIGO = 50
 
@@ -82,7 +83,7 @@ class GestionarSeguimientoStarken:
 
         seguimiento = self._consultar_o_nada(pedido.codigo_seguimiento)
         actualizado_en = (
-            seguimiento.consultado_en if seguimiento else datetime.utcnow()
+            seguimiento.consultado_en if seguimiento else utcnow()
         )
         persistido = self._repositorio.actualizar_seguimiento(
             pedido_id,

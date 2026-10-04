@@ -6,6 +6,7 @@ la respuesta JSON del proveedor a estas entidades.
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from app.domain.time import utcnow
 
 
 @dataclass
@@ -27,4 +28,4 @@ class SeguimientoStarken:
     estado: str | None = None
     descripcion: str | None = None
     historial: list[EventoSeguimiento] = field(default_factory=list)
-    consultado_en: datetime = field(default_factory=datetime.utcnow)
+    consultado_en: datetime = field(default_factory=utcnow)
