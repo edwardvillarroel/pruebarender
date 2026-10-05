@@ -12,6 +12,7 @@ class PedidoModel(db.Model):
     estado = db.Column(db.String(30), nullable=False, default="pendiente")
     total = db.Column(db.Integer, nullable=False, default=0)
     direccion_envio = db.Column(db.Text)
+    entrega = db.Column(db.String(20), default="retiro")
     codigo_seguimiento = db.Column(db.String(50))
     estado_seguimiento = db.Column(db.String(100))
     seguimiento_actualizado_en = db.Column(db.DateTime(timezone=True))

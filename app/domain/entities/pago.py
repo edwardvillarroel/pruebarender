@@ -13,5 +13,7 @@ class Pago:
     proveedor: str
     estado: EstadoPago = EstadoPago.PENDIENTE
     token: str | None = None
+    clave_idempotencia: str | None = None
+    url_intento: str | None = None
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=utcnow)

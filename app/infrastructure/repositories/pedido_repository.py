@@ -12,17 +12,18 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import literal, select
 from sqlalchemy.orm import selectinload
 
 from app.domain.entities.detalle_pedido import DetallePedido
 from app.domain.entities.pedido import Pedido
-from app.domain.enums import EstadoPedido
+from app.domain.enums import EstadoPago, EstadoPedido
 from app.domain.interfaces.repositories import (
     PedidoRepository as PedidoRepositoryInterface,
 )
 from app.infrastructure.database.connection import db
 from app.infrastructure.database.models.detalle_pedido_model import DetallePedidoModel
+from app.infrastructure.database.models.pago_model import PagoModel
 from app.infrastructure.database.models.pedido_model import PedidoModel
 
 
@@ -62,6 +63,37 @@ class PedidoRepository(PedidoRepositoryInterface):
         ).scalars().all()
         return [_a_entidad(m) for m in modelos]
 
+    def list_pagados(self) -> list[Pedido]:
+        """Pedidos con pago `completado`, del más nuevo al más viejo.
+
+        El pedido se crea antes de pagar (`ProcesarPago.iniciar`), así que sin
+        este filtro la vista del admin muestra los carritos abandonados mezclados
+        como pedidos "pendiente". Filtra por `pagos.estado = 'completado'`, que
+        además deja afuera la venta local (`POST /pedidos`, que no genera pago).
+
+        Usa EXISTS y no JOIN porque la pregunta es "¿este pedido TUVO un pago
+        completado?" y eso es un sí/no, no una multiplicación. Con JOIN, un
+        pedido con dos pagos que califican devuelve dos filas de Postgres y el
+        listado queda bien solo porque el ORM deduplica la entidad primaria por
+        clave: una garantia implicita, no un contrato. EXISTS hace que la
+        cantidad de filas sea la cantidad de pedidos por construccion.
+        """
+        tiene_pago_completado = (
+            select(literal(1))
+            .select_from(PagoModel)
+            .where(PagoModel.pedido_id == self.model.id)
+            .where(PagoModel.estado == EstadoPago.COMPLETADO.value)
+            .exists()
+        )
+        modelos = (
+            db.session.query(self.model)
+            .options(selectinload(self.model.detalles))
+            .filter(tiene_pago_completado)
+            .order_by(self.model.creado_en.desc())
+            .all()
+        )
+        return [_a_entidad(m) for m in modelos]
+
     def crear_con_detalles(
         self, pedido: Pedido, detalles: list[DetallePedido]
     ) -> Pedido:
@@ -71,6 +103,7 @@ class PedidoRepository(PedidoRepositoryInterface):
             estado=pedido.estado.value,
             total=pedido.total,
             direccion_envio=pedido.direccion_envio,
+            entrega=pedido.entrega,
             codigo_seguimiento=pedido.codigo_seguimiento,
             estado_seguimiento=pedido.estado_seguimiento,
             seguimiento_actualizado_en=pedido.seguimiento_actualizado_en,
@@ -84,6 +117,7 @@ class PedidoRepository(PedidoRepositoryInterface):
                     cantidad=detalle.cantidad,
                     precio_unitario=detalle.precio_unitario,
                     color=detalle.color,
+                    nombre=detalle.nombre,
                 )
             )
         db.session.add(modelo)
@@ -129,6 +163,7 @@ class PedidoRepository(PedidoRepositoryInterface):
         modelo.estado = entidad.estado.value
         modelo.total = entidad.total
         modelo.direccion_envio = entidad.direccion_envio
+        modelo.entrega = entidad.entrega
         modelo.codigo_seguimiento = entidad.codigo_seguimiento
         modelo.estado_seguimiento = entidad.estado_seguimiento
         modelo.seguimiento_actualizado_en = entidad.seguimiento_actualizado_en
@@ -150,6 +185,7 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
         estado=EstadoPedido(modelo.estado),
         total=modelo.total,
         direccion_envio=modelo.direccion_envio,
+        entrega=modelo.entrega,
         codigo_seguimiento=modelo.codigo_seguimiento,
         estado_seguimiento=modelo.estado_seguimiento,
         seguimiento_actualizado_en=modelo.seguimiento_actualizado_en,
@@ -162,6 +198,7 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
                 cantidad=d.cantidad,
                 precio_unitario=d.precio_unitario,
                 color=d.color,
+                nombre=d.nombre,
             )
             for d in modelo.detalles
         ],
@@ -175,6 +212,7 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
         estado=entidad.estado.value,
         total=entidad.total,
         direccion_envio=entidad.direccion_envio,
+        entrega=entidad.entrega,
         codigo_seguimiento=entidad.codigo_seguimiento,
         estado_seguimiento=entidad.estado_seguimiento,
         seguimiento_actualizado_en=entidad.seguimiento_actualizado_en,
@@ -187,6 +225,7 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
             cantidad=d.cantidad,
             precio_unitario=d.precio_unitario,
             color=d.color,
+            nombre=d.nombre,
         )
         for d in entidad.detalles
     ]
