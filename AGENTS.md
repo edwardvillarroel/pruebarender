@@ -4,7 +4,7 @@ ApoloVibes: web store for 3D-printed products with LLM-assisted custom designs. 
 
 ## Governance
 
-- `docs/ARQUITECTURA.md` is the design contract; **its copy at root `ARQUITECTURA.md` is now stale** (docs has the "Nota de desviación": Producto gained BLOB columns `imagen_bytes`/`imagen_content_type`, new `GET /api/productos/:id/imagen`). **Un-resolved `<<<<<<< HEAD` merge markers remain in `docs/ARQUITECTURA.md` §6** (the root copy resolved the same spot differently — it dropped the `GET /productos/:id`(imagen) lines) — resolve/reconcile with `docs/` when touching it. The API contracts in §6 are **imposed by the already-built frontend** — do not change route shapes, field names, or response formats without updating the frontend.
+- `docs/ARQUITECTURA.md` is the design contract; **its copy at root `ARQUITECTURA.md` is now stale** (docs has the "Nota de desviación": Producto gained BLOB columns `imagen_bytes`/`imagen_content_type`, new `GET /api/productos/:id/imagen`). **Los marcadores de merge `<<<<<<< HEAD` de `docs/ARQUITECTURA.md` §6 ya están resueltos** (verificado: 0 marcadores) — lo que queda por hacer es reconciliar su contenido con el de la copia de raíz, que resolved ese punto distinto (dropped the `GET /productos/:id`(imagen) lines). The API contracts in §6 are **imposed by the already-built frontend** — do not change route shapes, field names, or response formats without updating the frontend.
 - Despite `.gitignore` listing `AGENTS.md` and `ARQUITECTURA.md` under "Docs de diseño/agente (no versionar)", **all three (`AGENTS.md`, root `ARQUITECTURA.md`, `docs/ARQUITECTURA.md`) ARE tracked in git** (re-added in commit 20126bb) — edits to them show up in `git status` like any tracked file.
 - **Mandatory Clean Architecture layering** (ARQUITECTURA §3.1):
   - `app/domain/` — pure Python, no Flask/SQLAlchemy.
@@ -28,6 +28,8 @@ Run from repo root, in a venv. Instala TODO con un solo archivo: `pip install -r
 3. `flask --app gateway.main run --port 3000` — API Gateway público. Sin `DATABASE_URL` corre sin DB (health/proxy sí; login/me no).
 4. Tests: `python -m pytest` from root. Fixtures (`app`, `client`) in `app/tests/conftest.py` use `TestingConfig` → `TEST_DATABASE_URL` (`postgres_test` en Supabase). **Ya no son skeletons: hay 151 tests** — unitarios en `app/tests/unit/` y caracterización R0 (cross-backend, con guard de residuos) en `app/tests/integration/`. La suite de integración **exige** la base: si no conecta, FALLA (no se saltea) salvo `R0_PERMITIR_SIN_BASE=1`, y al terminar falla si dejó filas. Sin pytest.ini/lint/typecheck config.
 5. **Pago online TUU** (Pago en Línea de Haulmer): config se lee de `app/config.py` desde env `TUU_ACCOUNT_ID`, `TUU_SECRET_KEY`, `TUU_API_URL`, `TUU_SHOP_NAME`, `TUU_URL_CALLBACK`, `TUU_URL_COMPLETE`, `TUU_URL_CANCEL` (defaults = credenciales de **prueba/integración** que están documentadas públicamente, NO son las de la PYME). `TUU_URL_CALLBACK` debe ser accesible públicamente (HTTPS en producción); en dev no puede ser localhost para el callback server-to-server. Ver sección "Current state" para el flujo.
+   - **Recipe para probar pagos en dev**: `ngrok http 3000` (el **gateway**, NO 5000 — con el puerto equivocado TUU recibe un 404 y el pago nunca se confirma). El dominio free **cambia en cada arranque**, así que hay que reescribir `TUU_URL_CALLBACK` en `.env` y **reiniciar el backend**: `TuuCliente` lee la config una sola vez al construirse. Para verificar el túnel sin la página de warning de ngrok, usar un User-Agent no-navegador (`curl/8.4.0`): `/api/auth/me` debe dar 401 y `/api/productos` 200 con JSON.
+   - `TUU_URL_COMPLETE` y `TUU_URL_CANCEL` **sí pueden ser `localhost:5173`** en dev: ese redirect final lo hace el navegador del cliente, no TUU.
 
 Data scripts (root, run with the backend venv, hit whatever DB `.env` points at — Oracle or Postgres). **All of them are gitignored** (`.gitignore`, junto a `test_oracle.py`) — existen solo en working trees, no en un clone fresco (los `migrations/*.sql` sí están versionados):
 - `agregar_producto.py` — insert a product + image as BLOB (`--imagen ruta.png`, `--what-if` dry-run). Sets `productos.imagen` to the `/api/productos/:id/imagen` URL.
@@ -36,7 +38,19 @@ Data scripts (root, run with the backend venv, hit whatever DB `.env` points at 
 - `ver_tablas.py` — dump tables/rows of the configured DB.
 - `prueba_stock.py` — the **only real integration test** of stock semantics (reserva/hold, venta exitosa, cancelación, validación de stock, reabastecimiento) against the configured DB. Creates a temp product/categoría, prints `[PASS]/[FAIL]`, exit 0/1; `--conservar` keeps the temp rows.
 
-Schema migrations: despite Alembic/Flask-Migrate in requirements (and ARQUITECTURA §2 claiming Alembic), **there is no Alembic setup** — schema changes are raw SQL in `migrations/*.sql` (run via sqlplus/psql) and one-off Python scripts.
+Schema migrations: despite Alembic/Flask-Migrate in requirements (and ARQUITECTURA §2 claiming Alembic), **there is no Alembic setup** — schema changes are raw SQL in `migrations/` and one-off Python scripts.
+
+**Postgres: usar `aplicar_migraciones_postgres.py`** (raíz, gitignored; usa el `psycopg2` del venv, no hace falta `psql`, que no está instalado en la máquina):
+
+```
+python aplicar_migraciones_postgres.py --listar   # muestra applied/pendiente
+python aplicar_migraciones_postgres.py             # aplica a DESARROLLO (DATABASE_URL)
+```
+
+- Por defecto apunta a `DATABASE_URL` (desarrollo). `--solo-test` fuerza `TEST_DATABASE_URL`; usarlo solo para probar el runner, nunca para migrar.
+- Lleva ledger en la tabla `migraciones_aplicadas`, que tiene **dos** columnas: `archivo varchar` (nombre del `.sql`) y `aplicado_en timestamptz`. **La columna se llama `archivo`, no `nombre`** — un `SELECT nombre` revienta con `UndefinedColumn`. NO guarda checksum: si se edita un `.sql` ya aplicado, hay que borrar su registro a mano.
+- **`migrations/postgres/` mezcla esquema base e increments y no se corren juntos.** Los de base (`usuarios.sql`, `pedidos.sql`, `pagos.sql`, `schema_completo.sql`) usan `CREATE TABLE` pelado SIN `IF NOT EXISTS`: son para una base vacía y fallan con "relation already exists" si la tabla ya está. Los increments (`agregar_*.sql`) sí usan `IF NOT EXISTS`, son idempotentes, y son los únicos que aplica el runner. Base nueva: primero `schema_completo.sql`, después los increments.
+- Los tests **siguen y deben seguir** contra `postgres_test` (`TEST_DATABASE_URL`). La suite R0 borra filas entre tests y exige terminar en 0: apuntarla a la base real se llevaría los datos.
 
 ## Frontend commands
 
@@ -63,7 +77,8 @@ Run in `ApoloVibes-frontend/`:
 
 ## API conventions (frontend expects these)
 
-- Base URL `http://localhost:3000/api`; error responses must be `{ "mensaje": string }` (frontend `src/services/api.js` throws `err.mensaje`).
+- Base URL `http://localhost:3000/api`; error responses must be `{ "mensaje": string }`. OJO: `src/services/api.js` (`errorDeRespuesta`) lanza `new Error(body.mensaje)`, o sea que el texto llega en **`err.message`** y el body crudo en `err.datos` (más `err.status`). **No** existe `err.mensaje` como propiedad.
 - AI generation: `POST /api/ai/image-to-3d` (multipart field `imagen`) → `{ taskId }`; poll `GET /api/ai/image-to-3d/:taskId` every ~2s → `{ status: processing|completed|failed, modelUrl, error }`.
-- Payment: `POST /api/pago/crear` → `{ url, token }`; el frontend redirige a `url` (TUU, no auto-submit `token_ws`); el resultado real llega por `POST /api/pago/callback` y se confirma con `POST /api/pago/confirmar` (ambos validados por firma HMAC-SHA256 `x_signature` sobre los campos `x_*`, ver `app/infrastructure/pagos/tuu_client.py`). `x_reference` es una codificación base62 del `pedido.id` (`app/application/common/referencias.py`): TUU rechaza referencias de más de 24 caracteres (el UUID plano, 36 chars, no sirve).
+- Payment: `POST /api/pago/crear` → `{ url, token }`; el frontend redirige a `url` (TUU, no auto-submit `token_ws`); el resultado real llega por `POST /api/pago/callback` y se confirma con `POST /api/pago/confirmar` (ambos validados por firma HMAC-SHA256 `x_signature` sobre los campos `x_*`, ver `app/infrastructure/pagos/tuu_client.py`). `x_reference` es una codificación base62 del `pedido.id` (`app/application/common/referencias.py`): TUU rechaza referencias de más de 24 caracteres (el UUID plano, 36 chars, no sirve). **`/pago/confirmar` y `/pago/callback` comparten la MISMA respuesta** (`_cuerpo_confirmacion`): `{estado, pedido_id, mensaje, correo_enviado}`. `correo_enviado` es `true`/`false` en un pago exitoso y `null` en los demás casos; el envío del comprobante es **best-effort** (traga la excepción, loguea, 1 reintento), así que el frontend NO debe prometer el correo si es `false`.
+- **Comprobante por correo** (`EmailJsCorreo`): `{{estado}}` es el estado del **PAGO** ("Pagado"), NO `pedido.estado` (que describe el envío y lo ve el usuario en MisPedidos / el admin en su panel). `{{total}}` y los precios de `{{items}}` llegan ya formateados en pesos chilenos (`$10.990`). El email sale del campo `email` del JSON guardado en `pedidos.direccion_envio`; sin email no hay envío (solo un log) y el pago queda confirmado igual. OJO al testear: `.env` trae credenciales **reales** de EmailJS, así que cualquier test que pague contra el `PAGO_SERVICE` por defecto sale a la red — hay que inyectar un doble (ver `app/tests/integration/test_comprobante_idempotencia.py`).
 - LLM inputs must be sanitized for prompt injection before reaching the model (see `application/asistente_llm/validar_prompt.py`, `application/disenos_personalizados/sanitizar_input.py`).

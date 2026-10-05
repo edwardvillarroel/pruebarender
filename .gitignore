@@ -18,6 +18,7 @@ generar_thumbnails.py
 optimizar_imagenes.py
 prueba_stock.py
 aplicar_colores.py
+aplicar_migraciones_postgres.py
 
 # Docs de diseño/agente (no versionar)
 ARQUITECTURA.md
