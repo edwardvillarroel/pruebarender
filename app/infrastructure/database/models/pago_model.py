@@ -12,5 +12,7 @@ class PagoModel(db.Model):
     monto = db.Column(db.Integer, nullable=False)
     proveedor = db.Column(db.String(50), nullable=False)
     token = db.Column(db.String(255))
+    clave_idempotencia = db.Column(db.String(100))
+    url_intento = db.Column(db.String(500))
     estado = db.Column(db.String(30), nullable=False, default="pendiente")
     creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)

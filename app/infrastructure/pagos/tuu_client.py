@@ -76,7 +76,7 @@ class TuuCliente(PasarelaPago):
             "x_currency": "CLP",
             "x_customer_email": solicitud.email_cliente,
             "x_customer_first_name": solicitud.nombre_cliente,
-            "x_customer_last_name": "",
+            "x_customer_last_name": solicitud.apellido_cliente,
             "x_customer_phone": solicitud.telefono_cliente,
             "x_description": solicitud.descripcion,
             "x_reference": solicitud.referencia,

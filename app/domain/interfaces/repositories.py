@@ -113,6 +113,10 @@ class PedidoRepository(RepositoryBase[Pedido], ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def list_pagados(self) -> list[Pedido]:
+        raise NotImplementedError
+
+    @abstractmethod
     def crear_con_detalles(
         self, pedido: Pedido, detalles: list[DetallePedido]
     ) -> Pedido:
@@ -137,6 +141,17 @@ class PedidoRepository(RepositoryBase[Pedido], ABC):
         raise NotImplementedError
 
 
+class ClaveIdempotenciaOcupada(Exception):
+    """Ya hay un pago `pendiente` con esa clave de idempotencia.
+
+    La traduce la infraestructura, que es la unica capa que sabe que la
+    unicidad la garantiza un indice unico de Postgres. `application` recibe
+    esta excepcion en vez de `sqlalchemy.exc.IntegrityError` para no depender
+    del motor: la carrera del doble click es una regla del negocio, no un
+    detalle de SQL.
+    """
+
+
 class PagoRepository(RepositoryBase[Pago], ABC):
     @abstractmethod
     def get_by_token(self, token: str) -> Pago | None:
@@ -144,6 +159,10 @@ class PagoRepository(RepositoryBase[Pago], ABC):
 
     @abstractmethod
     def get_by_pedido(self, pedido_id: UUID) -> Pago | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_by_clave_idempotencia(self, clave: str) -> Pago | None:
         raise NotImplementedError
 
 

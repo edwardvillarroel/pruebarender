@@ -12,5 +12,6 @@ class DetallePedidoModel(db.Model):
     cantidad = db.Column(db.Integer, nullable=False)
     precio_unitario = db.Column(db.Integer, nullable=False)
     color = db.Column(db.String(50))
+    nombre = db.Column(db.String(150))
 
     pedido = db.relationship("PedidoModel", back_populates="detalles")

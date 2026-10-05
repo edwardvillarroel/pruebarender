@@ -34,16 +34,7 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
     _oracle_uri_val, _oracle_engine_options = _oracle_uri()
-    _hay_oracle = bool(_oracle_uri_val)
 
-    # `DB_BACKEND` decide de forma explicita y su default es SIEMPRE postgres.
-    #
-    # Antes el default era "oracle si hay ORACLE_DSN", que dejaba una trampa
-    # armada: reintroducir ORACLE_DSN en el .env y perder DB_BACKEND (un merge,
-    # un .env regenerado, una maquina nueva) devolvia la app a Oracle sin que
-    # nadie lo pidiera. Con la migracion cerrada, Oracle solo entra si alguien
-    # lo escribe a proposito: `DB_BACKEND=oracle`. Esa es la unica forma de que
-    # una conexion a la base vieja aparezca, y es visible en el .env.
     _backend = os.getenv("DB_BACKEND", "postgres").strip().lower()
 
     if _backend == "oracle":
@@ -57,8 +48,7 @@ class Config:
         SQLALCHEMY_DATABASE_URI = os.getenv(
             "DATABASE_URL", "postgresql://app:app@localhost:5432/print3d_dev"
         )
-        # Supabase corta conexiones ociosas. Sin pool_pre_ping el primer request
-        # tras un rato de inactividad revienta con "server closed the connection".
+
         SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
     else:
         raise RuntimeError(
@@ -91,15 +81,17 @@ class Config:
     )
     TUU_URL_CANCEL = os.getenv("TUU_URL_CANCEL", "http://localhost:5173/checkout")
 
-    # Seguimiento Starken (portal developers.starken.cl). Credenciales de la
-    # cuenta de la PYME; sin STARKEN_API_KEY el seguimiento queda deshabilitado.
     STARKEN_API_URL = os.getenv("STARKEN_API_URL", "https://gateway.starken.cl")
     STARKEN_API_KEY = os.getenv("STARKEN_API_KEY", "")
     STARKEN_SEGUIMIENTO_RUTA = os.getenv("STARKEN_SEGUIMIENTO_RUTA", "/orden-flete/of/")
     STARKEN_TIMEOUT = int(os.getenv("STARKEN_TIMEOUT", "10"))
-    # Modo desarrollador: con STARKEN_MODO_SIMULACION activo se inyecta un
-    # cliente simulado (estados deterministas por código) en vez del real.
+
     STARKEN_MODO_SIMULACION = os.getenv("STARKEN_MODO_SIMULACION", "")
+
+    EMAILJS_PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY", "")
+    EMAILJS_PRIVATE_KEY = os.getenv("EMAILJS_PRIVATE_KEY", "")
+    EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID", "")
+    EMAILJS_TEMPLATE_COMPROBANTE = os.getenv("EMAILJS_TEMPLATE_COMPROBANTE", "")
 
     MAX_UPLOAD_SIZE = 10 * 1024 * 1024
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "glb", "stl"}
@@ -120,17 +112,6 @@ class DevelopmentConfig(Config):
 
 
 class TestingConfig(Config):
-    """Configuracion de tests. El motor lo elige `TEST_DB_BACKEND`.
-
-    Para Postgres usa `TEST_DATABASE_URL` (base dedicada, no la de desarrollo).
-
-    Para Oracle NO cae al `ORACLE_DSN` del `.env`: los tests de integracion
-    escriben y borran filas, y el esquema de Oracle es la fuente de verdad de la
-    migracion. Que apunte ahi por descuido seria destructivo, asi que exige
-    `TEST_ORACLE_DSN` explicito. Sin el, la rama Oracle se salta y solo corre
-    Postgres.
-    """
-
     TESTING = True
     _backend_test = os.getenv("TEST_DB_BACKEND", "postgres").strip().lower()
 

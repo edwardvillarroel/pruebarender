@@ -39,6 +39,7 @@ TABLAS_SENSIBLES = (
     "ventas_local",
     "sesiones_venta",
     "detalle_pedidos",
+    "pagos",
     "pedidos",
     "productos",
     "categorias",
@@ -100,6 +101,7 @@ def _conteos() -> dict[str, int]:
     from app.infrastructure.database.models.detalle_pedido_model import (  # noqa: F401
         DetallePedidoModel,
     )
+    from app.infrastructure.database.models.pago_model import PagoModel  # noqa: F401
     from app.infrastructure.database.models.pedido_model import PedidoModel  # noqa: F401
     from app.infrastructure.database.models.venta_local_model import (  # noqa: F401
         SesionVentaModel,
@@ -114,6 +116,7 @@ def _conteos() -> dict[str, int]:
         "ventas_local": VentaLocalModel,
         "sesiones_venta": SesionVentaModel,
         "detalle_pedidos": DetallePedidoModel,
+        "pagos": PagoModel,
         "pedidos": PedidoModel,
         "productos": ProductoModel,
         "categorias": CategoriaModel,
@@ -158,6 +161,11 @@ _LIMPIEZA = [
     ("ventas_local", "sesion_id IN (SELECT id FROM sesiones_venta WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
     ("sesiones_venta", "usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test')"),
+    # Antes que `pedidos`: `pagos.pedido_id` es FK a `pedidos`, asi que borrar
+    # el pedido con el pago vivo viola la FK. Los tests de `/pago/crear` son los
+    # primeros que dejan filas en `pagos`.
+    ("pagos", "pedido_id IN (SELECT id FROM pedidos WHERE usuario_id IN "
+     "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
     ("detalle_pedidos", "pedido_id IN (SELECT id FROM pedidos WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
     ("pedidos", "usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test')"),

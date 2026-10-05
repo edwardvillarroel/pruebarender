@@ -13,6 +13,7 @@ class Pedido:
     estado: EstadoPedido = EstadoPedido.PENDIENTE
     total: int = 0
     direccion_envio: str | None = None
+    entrega: str = "retiro"
     codigo_seguimiento: str | None = None
     estado_seguimiento: str | None = None
     seguimiento_actualizado_en: datetime | None = None
