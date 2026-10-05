@@ -15,24 +15,6 @@ const ICONOS_SOCIALES = [
       </svg>
     ),
   },
-  {
-    nombre: 'TikTok',
-    href: '',
-    svg: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0 1 15.54 3h-3.09v12.4a2.592 2.592 0 0 1-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6 0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64 0 3.33 2.76 5.7 5.69 5.7 3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 0 0 4.32 1.39V7.31s-1.88.09-3.26-1.49z" />
-      </svg>
-    ),
-  },
-  {
-    nombre: 'Facebook',
-    href: '',
-    svg: (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z" />
-      </svg>
-    ),
-  },
 ]
 
 const ENLACES_TIENDA = [
@@ -145,7 +127,7 @@ export default function Footer() {
                   marginBottom: 8,
                 }}
               >
-                Síguenos
+                Síguenos en Instagram
               </p>
               <div style={{ display: 'flex', gap: 10 }}>
                 {ICONOS_SOCIALES.map((red) => (
@@ -222,8 +204,7 @@ export default function Footer() {
               abierta={seccionesAbiertas.contacto}
               alAlternar={() => alternar('contacto')}
             >
-              <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>correo@gmail.com</span>
-              <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>+569xxxxxxxx</span>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>pabla.rojas@hotmail.com</span>
               <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>Viña del Mar, Chile</span>
             </SeccionFooter>
           </div>

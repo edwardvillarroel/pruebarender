@@ -1,141 +1,113 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { mediaPath } from '../utils/media.js'
 import { Navigate, Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { iniciarPago } from '../services/payment.js'
 import SelectOpciones from '../components/SelectOpciones.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
+import { REGIONES, COMUNAS_POR_REGION } from '../services/regiones.js'
+import { calcularErrores, clienteParaEnvio, datosDesdeUsuario, edadDesde, esMayorDeEdad,
+   hoyISO, normalizarEmpresa, normalizarIdentificacion, normalizarTelefono, soloDigitos,} from '../utils/validacionescheckout.js'
 
 
 const ENVIO_GRATIS_DESDE = 50000
-const COSTO_ENVIO_ESTANDAR = 5990
+const clp = n => `$${n.toLocaleString('es-CL')}`
 
-const REGIONES = [
-  'Valparaíso',
-  'Metropolitana de Santiago',
-  'Biobío',
-  'La Araucanía',
+const tituloSeccion = { fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }
+const estiloAyuda = { fontSize: 12, color: 'var(--text-dim)', margin: '4px 0 0' }
+const estiloError = { color: '#ef4444', fontSize: 12, margin: '6px 0 0' }
+const sinBorde = { border: 'none', padding: 0, margin: 0 }
+
+const CLIENTE_INICIAL = {
+   email: '',
+  nombre: '',
+  apellido: '',
+  region: '',
+  comuna: '',
+  codigoPostal: '',
+  direccion: '',
+  numero: '',
+  dpto: '',
+  ciudad: '',
+  telefono: '',
+  tipoDocumento: '',
+  tipoIdentificacion: '',
+  rut: '',
+  razonSocial: '',
+  giro: '',
+}
+
+const OPCIONES_ENTREGA = [
+  { valor: 'envio', titulo: 'Envío estándar', detalle: 'Plazos y costo según la empresa de transporte'},
+  { valor: 'retiro', titulo: 'Retiro', detalle: 'Disponible en 24 horas en Álvarez 1106, Viña del Mar'},
 ]
 
-const COMUNAS_POR_REGION = {
-  'Valparaíso': ['Viña del Mar', 'Valparaíso', 'Quilpué', 'Villa Alemana'],
-  'Metropolitana de Santiago': ['Santiago', 'Providencia', 'Las Condes', 'Ñuñoa'],
-  'Biobío': ['Concepción', 'Talcahuano', 'Chiguayante'],
-  'La Araucanía': ['Temuco', 'Padre Las Casas'],
-}
-
-const emailValido = valor => /\S+@\S+\.\S+/.test(valor)
-const telefonoValido = valor => /^\d{8}$/.test(valor)
-
-function rutValido(rutSucio) {
-  const rut = rutSucio.replace(/[.\s]/g, '').toUpperCase()
-  if (!/^\d{7,8}-[0-9K]$/.test(rut)) return false
-
-  const [cuerpo, dv] = rut.split('-')
-  let suma = 0
-  let multiplicador = 2
-
-  for (let i = cuerpo.length - 1; i >= 0; i--) {
-    suma += Number(cuerpo[i]) * multiplicador
-    multiplicador = multiplicador === 7 ? 2 : multiplicador + 1
-  }
-
-  const resto = 11 - (suma % 11)
-  const dvEsperado = resto === 11 ? '0' : resto === 10 ? 'K' : String(resto)
-
-  return dv === dvEsperado
-}
-
-function rutMensajeError(cliente) {
-  if (cliente.tipoIdentificacion !== 'rut') return ''
-  const rut = cliente.rut.trim()
-  if (!rut) return ''
-  if (!/^\d{7,8}-[0-9K]$/.test(rut.replace(/[.\s]/g, '').toUpperCase())) {
-    return 'Ingresa tu RUT sin puntos y con guión. Ejemplos: 12345678-K, 1234567-9'
-  }
-  if (!rutValido(rut)) {
-    return 'El dígito verificador no es válido. Revisa el RUT ingresado.'
-  }
-  return ''
+function Campo({ id, label, error, ayuda, style, children }){
+  return (
+    <div style={{ marginBottom: 16, ...style }} >
+      <label htmlFor={id}>{label}</label>
+      {children}
+      {error && <p id={`${id}-error`} role="alert" style={estiloError}>{error}</p>}
+      {ayuda && <p style={estiloAyuda}>{ayuda}</p>}
+    </div>
+  )
 }
 
 export default function Checkout() {
   const { items, total } = useCart()
-  const [cliente, setCliente] = useState({
-    email: '',
-    nombre: '',
-    apellido: '',
-    region: '',
-    comuna: '',
-    codigoPostal: '',
-    direccion: '',
-    numero: '',
-    dpto: '',
-    ciudad: '',
-    telefono: '',
-    tipoDocumento: '',
-    tipoIdentificacion: '',
-    rut: '',
-    razonSocial: '',
-    giro: '',
-  })
+  const { user } = useAuth()
+  const claveRef  = useRef(null)
+  const enviandoRef = useRef(false)
+  if (claveRef.current === null) claveRef.current = crypto.randomUUID()
+
+  const [cliente, setCliente] = useState(CLIENTE_INICIAL)
+  const [fechaNacimiento, setFechaNacimiento] = useState('')
   const [guardarDatos, setGuardarDatos] = useState(false)
-  const [facturacionIgual, setFacturacionIgual] = useState(true)
-  const [mayorEdad, setMayorEdad] = useState(true)
   const [aceptaTerminos, setAceptaTerminos] = useState(false)
   const [entrega, setEntrega] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState(null)
+  const [tocado, setTocado] = useState({})
 
+    useEffect(() => {
+    const d =  datosDesdeUsuario(user)
+    setCliente(prev => ({
+      ...prev,
+      email: d.email || prev.email,
+      nombre: prev.nombre || d.nombre || '',
+      apellido: prev.apellido || d.apellido || '',
+      telefono: prev.telefono || d.telefono || '',
+    }))
+  }, [user])
+
+  if (!user) return <Navigate to="/" replace />
   if (items.length === 0) {
     return <Navigate to="/carrito" replace />
   }
+  const emailDeCuenta = !!(user?.email ?? user?.correo)
 
-  const contactoCompleto = emailValido(cliente.email)
+  // validaciones
+  const errores = calcularErrores(cliente, fechaNacimiento, aceptaTerminos)
+  const edad = edadDesde(fechaNacimiento)
+  const esMayor = esMayorDeEdad(edad)
+  const errorDe = campo => (tocado[campo] ? errores[campo] : '')
+  const borde = campo => (errorDe(campo) ? { borderColor: '#ef4444' } : undefined)
+  const sinErrores = campos => campos.every(c => !errores[c])
+  const marcar = campo => setTocado(prev => (prev[campo] ? prev : {...prev, [campo]: true }))
 
-  const direccionCompleta =
-    contactoCompleto &&
-    cliente.nombre.trim() &&
-    cliente.apellido.trim() &&
-    cliente.region &&
-    cliente.comuna &&
-    cliente.codigoPostal &&
-    cliente.direccion.trim() &&
-    cliente.ciudad.trim() &&
-    telefonoValido(cliente.telefono)
-
-  const telefonoError =
-    cliente.telefono.trim() && !telefonoValido(cliente.telefono)
-      ? 'Ingrese un teléfono móvil válido, por ejemplo 1234 5678.'
-      : ''
-
-  const rutError = rutMensajeError(cliente)
-
-  const identificacionValida =
-    cliente.tipoIdentificacion === 'rut'
-      ? rutValido(cliente.rut)
-      : cliente.tipoIdentificacion === 'pasaporte'
-        ? cliente.rut.trim().length > 0
-        : false
-
-  const facturaCompleta =
-    cliente.tipoDocumento !== 'factura' ||
-    (cliente.razonSocial.trim() && cliente.giro.trim())
-
-  const datosPersonalesCompletos =
-    direccionCompleta &&
-    cliente.tipoDocumento &&
-    identificacionValida &&
-    facturaCompleta &&
-    mayorEdad &&
-    aceptaTerminos
-
+  const contactoCompleto = sinErrores(['email'])
+  const direccionCompleta = contactoCompleto && sinErrores(['nombre', 'apellido', 'region', 'comuna', 'codigoPostal', 'direccion', 'numero', 'ciudad', 'telefono'])
+  const datosPersonalesCompletos = direccionCompleta && sinErrores(['tipoDocumento', 'tipoIdentificacion', 'rut', 'razonSocial', 'giro', 'fechaNacimiento', 'aceptaTerminos'])
   const entregaSeleccionada = datosPersonalesCompletos && entrega !== null
 
-  const costoEnvio = entrega === 'retiro' ? 0 : entrega === 'envio' ? (total >= ENVIO_GRATIS_DESDE ? 0 : COSTO_ENVIO_ESTANDAR) : 0
-  const totalFinal = total + costoEnvio
+  //totales
+  const envioGratis = total >= ENVIO_GRATIS_DESDE
+  const etiquetaEnvio = tipo => (tipo === 'retiro' || envioGratis ? 'Gratis' : 'Por pagar')
+  const totalFinal = total
   const montoNeto = Math.round(totalFinal / 1.19)
   const montoIva = totalFinal - montoNeto
 
+  //handles
   function actualizar(campo, valor) {
     setCliente(prev => ({ ...prev, [campo]: valor }))
   }
@@ -144,26 +116,65 @@ export default function Checkout() {
     setCliente(prev => ({ ...prev, region: valor, comuna: '' }))
   }
 
+  function cambiarTipoIdentificacion(valor) {
+    setCliente(prev => ({ ...prev, tipoIdentificacion: valor, rut: ''}))
+    setTocado(prev => ({ ...prev, rut: false}))
+  }
+
+  function cambiarTipoDocumento(valor){
+    setCliente(prev => ({
+      ...prev,
+      tipoDocumento: valor,
+      ...(valor === 'factura' && prev.tipoIdentificacion === 'pasaporte' ? { tipoIdentificacion: 'rut', rut: ''} : {}),
+    }))
+    setTocado(prev => ({...prev, rut: false}))
+  }
+
+  //prop
+  function campo (nombre, normalizar){
+    const hayError = !!errorDe(nombre)
+    return {
+      id: nombre,
+      value: cliente[nombre],
+      onChange: e => actualizar(nombre, normalizar ? normalizar(e.target.value) : e.target.value),
+      onBlur: () => {
+        marcar(nombre)
+        const recortado = cliente[nombre].trim()
+        if (recortado !== cliente[nombre]) actualizar(nombre, recortado)
+      },
+    'aria-invalid': hayError || undefined,
+      'aria-describedby': hayError ? `${nombre}-error` : undefined,
+    }
+  }
+
   async function pagar(e) {
     e.preventDefault()
     setError(null)
-
-    if (!entregaSeleccionada) {
-      setError('Completa todos los pasos antes de continuar.')
-      return
-    }
-
+    if (!entregaSeleccionada || enviandoRef.current) return
+    
+    enviandoRef.current = true
     setEnviando(true)
     try {
-      const clienteEnvio = cliente.telefono.trim()
-        ? { ...cliente, telefono: '+569' + cliente.telefono.trim() }
-        : cliente
-      await iniciarPago({ items, total: totalFinal, cliente: clienteEnvio, entrega })
+      await iniciarPago({ 
+        items, 
+        cliente: clienteParaEnvio(cliente),
+        entrega,
+        totalEsperado: totalFinal,
+        claveIdempotencia: claveRef.current,
+        guardarDatos,
+      mayorEdad: esMayor, 
+      aceptaTerminos,
+    })
     } catch (err) {
-      setError('No pudimos iniciar el pago. Intenta nuevamente.')
+      setError(err.message || 'No pudimos iniciar el pago. Intenta nuevamente.')
+      enviandoRef.current = false
       setEnviando(false)
     }
   }
+
+  const esFactura = cliente.tipoDocumento === 'factura'
+  const esRut = cliente.tipoIdentificacion === 'rut'
+
 
   return (
     <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px' }}>
@@ -175,51 +186,61 @@ export default function Checkout() {
       </div>
 
       <div className="checkout-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: 48 }}>
-        <form noValidate onSubmit={pagar}>
+        <form className="checkout-form" noValidate onSubmit={pagar}>
           {/* Paso 1: Contacto */}
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Contacto</h2>
-          <div style={{ marginBottom: 24 }}>
-            <label htmlFor="email">Email</label>
+          <Campo
+          id="email"
+          label="Email"
+          error={errorDe('email')}
+          ayuda={emailDeCuenta ? 'Este es el email de tu cuenta. Aquí te enviaremos la confirmación del pedido.' : undefined}
+          style={{ margintBottom: 24 }}  
+          >
             <input
-              id="email"
+            {...campo('email')}
               required
               type="email"
-              value={cliente.email}
-              onChange={e => actualizar('email', e.target.value)}
-
+              autoComplete="email"
+              maxLength={120}
+              readOnly={emailDeCuenta}
+              style={emailDeCuenta ? { opacity: 0.7, cursor: 'not-allowed'} : borde('email')}
             />
-          </div>
+          </Campo>
 
           <div className="separador-suave" style={{ marginBottom: 24 }} />
 
           {/* Paso 2: Dirección — bloqueado hasta que el contacto sea válido */}
           <fieldset
             disabled={!contactoCompleto}
-            style={{ border: 'none', padding: 0, margin: 0, opacity: contactoCompleto ? 1 : 0.4 }}
+            style={{ ...sinBorde, opacity: contactoCompleto ? 1 : 0.4 }}
           >
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Dirección de envío</h2>
+            <h2 style={tituloSeccion}>Dirección de envío</h2>
 
             <div className="grid-2" style={{ marginBottom: 16 }}>
-              <div>
-                <label htmlFor="nombre">Nombre</label>
+              <Campo
+              id="nombre"
+              label="Nombre"
+              error={errorDe('nombre')}
+              style={{ marginBottom: 0}}>
                 <input
-                  id="nombre"
-                  required
-                  value={cliente.nombre}
-                  onChange={e => actualizar('nombre', e.target.value)}
-
-                />
-              </div>
-              <div>
-                <label htmlFor="apellido">Apellido</label>
+                {...campo('nombre')}
+                required
+                autoComplete="given-name"
+                maxLength={60}
+                style={borde('nombre')}/>
+              </Campo>
+              <Campo
+              id="apellido"
+              label="Apellido"
+              error={errorDe('apellido')}
+              style={{ marginBottom: 0}}>
                 <input
-                  id="apellido"
-                  required
-                  value={cliente.apellido}
-                  onChange={e => actualizar('apellido', e.target.value)}
-
-                />
-              </div>
+                {...campo('apellido')}
+                required
+                autoComplete="family-name"
+                maxLength={60}
+              style={borde('apellido')}/>
+              </Campo>
             </div>
 
             <div className="grid-2" style={{ marginBottom: 16 }}>
@@ -249,60 +270,61 @@ export default function Checkout() {
               </div>
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-              <label htmlFor="codigoPostal">Código postal</label>
-              <input
-                id="codigoPostal"
+             <Campo id="codigoPostal" label="Código postal" error={errorDe('codigoPostal')} ayuda="7 dígitos.">
+                <input
+                {...campo('codigoPostal', v => soloDigitos(v, 7))}
                 required
-                value={cliente.codigoPostal}
-                onChange={e => actualizar('codigoPostal', e.target.value)}
-              />
-            </div>
+                inputMode='numeric'
+                autoComplete="postal-code"
+                maxLength={7}
+              style={borde('codigoPostal')}/>
+              </Campo>
 
-            <div style={{ marginBottom: 16 }}>
-              <label htmlFor="direccion">Dirección</label>
-              <input
-                id="direccion"
+            <Campo id="direccion" label="Dirección" error={errorDe('direccion')}>
+                <input
+                {...campo('direccion')}
                 required
                 placeholder="Calle"
-                value={cliente.direccion}
-                onChange={e => actualizar('direccion', e.target.value)}
-              />
-            </div>
+                autoComplete="address-line1"
+                maxLength={100}
+              style={borde('direccion')}/>
+              </Campo>
+
 
             <div className="grid-2" style={{ marginBottom: 16 }}>
-              <div>
-                <label htmlFor="numero">Número de calle</label>
+             <Campo id="numero" label="Número de calle" error={errorDe('numero')} style={{ marginBottom: 0 }}>
                 <input
-                  id="numero"
-                  required
-                  value={cliente.numero}
-                  onChange={e => actualizar('numero', e.target.value)}
-                />
-              </div>
-              <div>
-                <label htmlFor="dpto">Dpto/Block/Piso</label>
-                <input
-                  id="dpto"
-                  value={cliente.dpto}
-                  onChange={e => actualizar('dpto', e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label htmlFor="ciudad">Ciudad</label>
-              <input
-                id="ciudad"
+                {...campo('numero')}
                 required
-                value={cliente.ciudad}
-                onChange={e => actualizar('ciudad', e.target.value)}
-              />
+                autoComplete="off"
+                maxLength={10}
+              style={borde('numero')}/>
+              </Campo>
+              <Campo id="dpto" label="Dpto/Block/Piso" style={{ marginBottom: 0 }}>
+                <input
+                {...campo('dpto')}
+                autoComplete="address-line2"
+                maxLength={30}/>
+              </Campo>
             </div>
 
-            <div style={{ marginBottom: 12 }}>
-              <label htmlFor="telefono">Teléfono</label>
-              <div className="input-prefijo" style={telefonoError ? { borderColor: '#ef4444' } : undefined}>
+             <Campo id="ciudad" label="Ciudad" error={errorDe('ciudad')}>
+                <input
+                {...campo('ciudad')}
+                required
+                autoComplete="address-level2"
+                maxLength={60}
+                style={borde('ciudad')}/>
+              </Campo>
+
+            <Campo
+              id="telefono"
+              label="Teléfono"
+              error={errorDe('telefono')}
+              ayuda="Solo te llamaremos si tenemos alguna duda sobre tu pedido."
+              style={{ marginBottom: 12 }}
+            >
+              <div className="input-prefijo" style={borde('telefono')}>
                 <svg
                   aria-hidden="true"
                   width={20}
@@ -318,25 +340,18 @@ export default function Checkout() {
                     fill="#FFFFFF"
                   />
                 </svg>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: .85 }}>+569</span>
-                <span style={{ opacity: .4 }}>|</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: 0.85 }}>+569</span>
+                <span style={{ opacity: 0.4 }}>|</span>
                 <input
-                  id="telefono"
+                  {...campo('telefono', normalizarTelefono)}
                   required
                   type="tel"
                   inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={8}
+                  autoComplete="tel-national"
                   placeholder="1234 5678"
-                  value={cliente.telefono}
-                  onChange={e => actualizar('telefono', e.target.value.replace(/\D/g, '').slice(0, 8))}
                 />
               </div>
-              {telefonoError && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{telefonoError}</p>}
-              <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '4px 0 0' }}>
-                Solo te llamaremos si tenemos alguna duda sobre tu pedido.
-              </p>
-            </div>
+            </Campo>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, marginTop: 30 }}>
               <input
@@ -357,177 +372,168 @@ export default function Checkout() {
           {/* Paso 3: Datos personales — bloqueado hasta completar la dirección */}
           <fieldset
             disabled={!direccionCompleta}
-            style={{ border: 'none', padding: 0, margin: 0, opacity: direccionCompleta ? 1 : 0.4 }}
+            style={{ ...sinBorde, opacity: direccionCompleta ? 1 : 0.4 }}
           >
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Datos personales</h2>
+            <h2 style={tituloSeccion}>Datos personales</h2>
 
-            <div style={{ marginBottom: 16 }}>
-              <label htmlFor="tipoDocumento">Tipo de documento</label>
+             <Campo id="tipoDocumento" label="Tipo de documento">
               <SelectOpciones
                 id="tipoDocumento"
                 options={[{ value: 'boleta', label: 'Boleta' }, { value: 'factura', label: 'Factura' }]}
                 value={cliente.tipoDocumento}
-                onChange={v => actualizar('tipoDocumento', v)}
+                onChange={cambiarTipoDocumento}
                 placeholder="Selecciona una opción"
               />
-            </div>
+            </Campo>
 
-            <div style={{ marginBottom: 16 }}>
-              <label htmlFor="tipoIdentificacion">Identificación</label>
+             <Campo id="tipoIdentificacion" label="Identificación">
               <SelectOpciones
                 id="tipoIdentificacion"
-                options={[{ value: 'rut', label: 'RUT' }, { value: 'pasaporte', label: 'Pasaporte' }]}
+                options={esFactura ? [{ value: 'rut', label: 'RUT' }] : [{ value: 'rut', label: 'RUT'}, { value: 'pasaporte', label: 'Pasaporte' }]}
                 value={cliente.tipoIdentificacion}
-                onChange={v => actualizar('tipoIdentificacion', v)}
+                onChange={cambiarTipoIdentificacion}
                 placeholder="Selecciona una opción"
               />
-            </div>
+            </Campo>
 
             {cliente.tipoIdentificacion && (
-              <div style={{ marginBottom: 8 }}>
-                <label htmlFor="rut">{cliente.tipoIdentificacion === 'rut' ? 'RUT' : 'Número de pasaporte'}</label>
+              <Campo
+                id="rut"
+                label={esRut ? (esFactura ? 'RUT empresa' : 'RUT') : 'Número de pasaporte'}
+                error={errorDe('rut')}
+                ayuda={esRut ? 'Escríbelo sin puntos; el guión se agrega solo.' : undefined}
+                style={{ marginBottom: 8 }}
+              >
                 <input
-                  id="rut"
+                  {...campo('rut', v => normalizarIdentificacion(cliente.tipoIdentificacion, v))}
                   required
-                  placeholder={cliente.tipoIdentificacion === 'rut' ? '12345678-K' : ''}
-                  value={cliente.rut}
-                  onChange={e => actualizar('rut', e.target.value)}
-                  style={{
-                    borderColor: rutError ? '#ef4444' : undefined,
-                  }}
+                  autoComplete="off"
+                  maxLength={esRut ? 10 : 20}
+                  placeholder={esRut ? '12345678-5' : ''}
+                  style={borde('rut')}
                 />
-                {rutError && (
-                  <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>
-                    {rutError}
-                  </p>
-                )}
-              </div>
+              </Campo>
             )}
 
-            {cliente.tipoDocumento === 'factura' && (
+            {esFactura && (
               <div style={{ marginTop: 16 }}>
-                <div style={{ marginBottom: 16 }}>
-                  <label htmlFor="razonSocial">Razón social</label>
-                  <input
-                    id="razonSocial"
-                    required
-                    value={cliente.razonSocial}
-                    onChange={e => actualizar('razonSocial', e.target.value)}
-                  />
-                </div>
-                <div style={{ marginBottom: 16 }}>
-                  <label htmlFor="giro">Giro</label>
-                  <input
-                    id="giro"
-                    required
-                    value={cliente.giro}
-                    onChange={e => actualizar('giro', e.target.value)}
-                  />
-                </div>
+                <Campo id="razonSocial" label="Razón social" error={errorDe('razonSocial')}>
+                  <input {...campo('razonSocial', normalizarEmpresa)} required maxLength={100} style={borde('razonSocial')} />
+                </Campo>
+                <Campo id="giro" label="Giro" error={errorDe('giro')}>
+                  <input {...campo('giro', normalizarEmpresa)} required maxLength={100} style={borde('giro')} />
+                </Campo>
               </div>
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, marginTop: 30 }}>
-              <input
-                id="mayorEdad"
-                type="checkbox"
-                required
-                checked={mayorEdad}
-                onChange={e => setMayorEdad(e.target.checked)}
-                style={{ margin: 0, flexShrink: 0, width: 16, height: 16 }}
-              />
-              <label htmlFor="mayorEdad" style={{ fontSize: 13, margin: 0 }}>
-                Soy mayor de 14 años
-              </label>
-            </div>
+            <Campo
+            id="fechaNacimiento"
+            label="Fecha de nacimiento"
+            error={errorDe('fechaNacimiento')}
+            ayuda="Solo la usamos para comprobar que eres mayor de edad; no la guardamos."
+            style={{ marginTop: 30, marginBottom: 20}}
+            >
+              <input 
+              id="fechaNacimiento"
+              type="date"
+              required
+              max={hoyISO()}
+              autoComplete="bday"
+              value={fechaNacimiento}
+              onChange={e => setFechaNacimiento(e.target.value)}
+              onBlur={() => marcar('fechaNacimiento')}
+              aria-invalid={errorDe('fechaNacimiento') ? true : undefined}
+              aria-describedby={errorDe('fechaNacimiento') ? 'fechaNacimiento-error' : undefined}
+              style={borde('fechaNacimiento')}
+              />       
+            </Campo>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 24 }}>
-              <input
-                id="aceptaTerminos"
-                type="checkbox"
-                required
-                checked={aceptaTerminos}
-                onChange={e => setAceptaTerminos(e.target.checked)}
-                style={{ margin: '2px 0 0', flexShrink: 0, width: 16, height: 16 }}
-              />
-              <label htmlFor="aceptaTerminos" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
-                Acepto los <a href="/terminos" target="_blank" rel="noreferrer">Términos y condiciones</a> y la{' '}
-                <a href="/privacidad" target="_blank" rel="noreferrer">Política de privacidad</a>
-              </label>
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <input
+                  id="aceptaTerminos"
+                  type="checkbox"
+                  required
+                  checked={aceptaTerminos}
+                  onChange={e => { setAceptaTerminos(e.target.checked); marcar('aceptaTerminos') }}
+                  onBlur={() => marcar('aceptaTerminos')}
+                  aria-invalid={errorDe('aceptaTerminos') ? true : undefined}
+                  aria-describedby={errorDe('aceptaTerminos') ? 'aceptaTerminos-error' : undefined}
+                  style={{ margin: '2px 0 0', flexShrink: 0, width: 16, height: 16 }}
+                />
+                <label htmlFor="aceptaTerminos" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+                  Acepto los <a href="/terminos" target="_blank" rel="noreferrer">Términos y condiciones</a> y la{' '}
+                  <a href="/privacidad" target="_blank" rel="noreferrer">Política de privacidad</a>
+                </label>
+              </div>
+              {errorDe('aceptaTerminos') && (
+                <p id="aceptaTerminos-error" role="alert" style={estiloError}>{errorDe('aceptaTerminos')}</p>
+              )}
             </div>
           </fieldset>
 
           <div className="separador-suave" style={{ marginBottom: 24 }} />
-
-          {/* Paso 4: Opciones de entrega — bloqueado hasta completar datos personales */}
+        {/* Paso 4: Opciones de entrega — bloqueado hasta completar datos personales */}
           <fieldset
             disabled={!datosPersonalesCompletos}
-            style={{ border: 'none', padding: 0, margin: 0, opacity: datosPersonalesCompletos ? 1 : 0.4 }}
+            style={{ ...sinBorde, opacity: datosPersonalesCompletos ? 1 : 0.4 }}
           >
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Opciones de entrega</h2>
-
+            <h2 style={tituloSeccion}>Opciones de entrega</h2>
+            {!envioGratis && (
+              <p style={{ ...estiloAyuda, margin: '0 0 12px' }}>
+                Envío gratis en compras desde {clp(ENVIO_GRATIS_DESDE)}. Te faltan {clp(ENVIO_GRATIS_DESDE - total)}.
+              </p>
+            )}
+ 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-              <label
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  border: entrega === 'envio' ? '1px solid var(--accent)' : '1px solid var(--line)',
-                  borderRadius: 8,
-                  padding: '12px 14px',
-                  cursor: 'pointer',
-                  backgroundColor: 'var(--surface-3)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input
-                    type="radio"
-                    name="entrega"
-                    checked={entrega === 'envio'}
-                    onChange={() => setEntrega('envio')}
-                    style={{ margin: 0 }}
-                  />
-                  <div>
-                    <p style={{ fontWeight: 600, fontSize: 14, margin: '0 0 2px' }}>Envío estándar</p>
-                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>2 a 4 días hábiles</p>
-                  </div>
-                </div>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>
-                  {total >= ENVIO_GRATIS_DESDE ? 'Gratis' : `$${COSTO_ENVIO_ESTANDAR.toLocaleString('es-CL')}`}
-                </span>
-              </label>
-
-              <label
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  border: entrega === 'retiro' ? '1px solid var(--accent)' : '1px solid var(--line)',
-                  borderRadius: 8,
-                  padding: '12px 14px',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input
-                    type="radio"
-                    name="entrega"
-                    checked={entrega === 'retiro'}
-                    onChange={() => setEntrega('retiro')}
-                    style={{ margin: 0 }}
-                  />
-                  <div>
-                    <p style={{ fontWeight: 600, fontSize: 14, margin: '0 0 2px' }}>Retiro en tienda</p>
-                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>Disponible en 24 horas</p>
-                  </div>
-                </div>
-                <span style={{ fontWeight: 600, fontSize: 14 }}>Gratis</span>
-              </label>
+              {OPCIONES_ENTREGA.map(op => {
+                const activa = entrega === op.valor
+                return (
+                  <label
+                    key={op.valor}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      border: activa ? '1px solid var(--green)' : '1px solid var(--line)',
+                      borderRadius: 8,
+                      padding: '12px 14px',
+                      cursor: 'pointer',
+                      backgroundColor: activa ? 'var(--surface-3)' : '#fff',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <input
+                        type="radio"
+                        name="entrega"
+                        checked={activa}
+                        onChange={() => setEntrega(op.valor)}
+                        style={{ margin: 0, padding: 0, width: 18, height: 18, flexShrink: 0 }}
+                      />
+                      <div>
+                        <p style={{ fontWeight: 600, fontSize: 14, margin: '0 0 2px', color: activa ? 'var(--surface)' : 'var(--text-dim)' }}>
+                          {op.titulo}
+                        </p>
+                        <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>{op.detalle}</p>
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        fontSize: 14,
+                        color: activa ? (op.valor === 'retiro' ? 'var(--green)' : 'var(--surface)') : 'var(--text-dim)',
+                      }}
+                    >
+                      {etiquetaEnvio(op.valor)}
+                    </span>
+                  </label>
+                )
+              })}
             </div>
           </fieldset>
 
           {error && (
-            <p style={{ color: 'var(--danger, #D8302F)', fontSize: 13, marginBottom: 16 }}>
+            <p role="alert" style={{ color: 'var(--danger, #D8302F)', fontSize: 13, marginBottom: 16 }}>
               {error}
             </p>
           )}
@@ -545,15 +551,8 @@ export default function Checkout() {
               color: 'var(--text)'
             }}
           >
-            {enviando ? (
-              'Redirigiendo…'
-            ) : (
-              <>
-                Pagar con
-                <img src={mediaPath('tuu.png')} alt="Tuu" style={{ height: 16, verticalAlign: 'middle' }} />
-                
-              </>
-            )}
+            {enviando ? 'Redirigiendo a' : 'Pagar con'}
+              <img src={mediaPath('tuu.png')} alt="Tuu" style={{ height: 16, verticalAlign: 'middle' }} />
           </button>
         </form>
 
@@ -579,11 +578,11 @@ export default function Checkout() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
             <span>{items.length} {items.length === 1 ? 'producto' : 'productos'}</span>
-            <span>${total.toLocaleString('es-CL')}</span>
+            <span>{clp(total)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 14 }}>
             <span>Entrega</span>
-            <span>{entrega === null ? 'Por definir' : costoEnvio === 0 ? 'Gratis' : `$${costoEnvio.toLocaleString('es-CL')}`}</span>
+            <span>{entrega === null ? 'Por definir' : etiquetaEnvio(entrega)}</span>
           </div>
 
           <div
@@ -592,18 +591,24 @@ export default function Checkout() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
               <span>Monto neto</span>
-              <span>${montoNeto.toLocaleString('es-CL')}</span>
+              <span>{clp(montoNeto)}</span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
               <span>IVA (19%)</span>
-              <span>${montoIva.toLocaleString('es-CL')}</span>
+              <span>{clp(montoIva)}</span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
               <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface)' }}>Total</span>
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface)' }}>${totalFinal.toLocaleString('es-CL')}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface)' }}>{clp(totalFinal)}</span>
             </div>
+
+            {entrega === 'envio' && !envioGratis && (
+              <p style={{ ...estiloAyuda }}>
+                El costo del envío no está incluido y se paga a la empresa de transporte.
+              </p>
+            )}
           </div>
           <div style={{ borderTop: '1px solid var(--surface-3)', paddingTop: 16, display: 'flex', flexDirection: 'column' }}>
             <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 16px' }}>
