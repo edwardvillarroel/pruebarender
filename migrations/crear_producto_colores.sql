@@ -1,18 +1,4 @@
--- Migracion: colores por producto (una imagen por color) + color en carrito y pedido
--- Ejecutar desde la raiz del proyecto:
---   Oracle: sqlplus user/pass@DSN @migrations/crear_producto_colores.sql
---
--- Un producto puede tener N colores y cada uno tiene su propia imagen. En el
--- detalle el cliente elige el color y la foto cambia antes de agregar al
--- carrito. El color elegido queda registrado en la linea del carrito y en el
--- detalle del pedido para que la impresora sepa que pintar.
---
--- Los productos SIN colores siguen funcionando exactamente igual que hoy,
--- usando la imagen unica de productos.imagen_bytes.
 
--- ---------------------------------------------------------------------------
--- Tabla producto_colores
--- ---------------------------------------------------------------------------
 DECLARE
     v_count NUMBER;
 BEGIN
@@ -58,20 +44,7 @@ BEGIN
 END;
 /
 
--- ---------------------------------------------------------------------------
--- La unicidad por producto debe incluir el color
---
--- carrito_items tenia UQ_CARRITO_ITEM_PRODUCTO UNIQUE (carrito_id, producto_id),
--- creada antes de que existieran los colores. Con esa restriccion el mismo
--- producto no puede tener dos lineas, asi que agregar el mismo producto en dos
--- colores falla con ORA-00001 y el carrito queda con una sola linea.
---
--- Se reemplaza por un indice unico sobre (carrito_id, producto_id, color).
--- El NVL es necesario porque en Oracle NULL no es igual a NULL en un indice
--- unico: sin el, un producto sin color podria repetirse ilimitadamente. Con
--- NVL(color, ' ') dos lineas sin color siguen chocando, que es lo que quiere
--- la regla de negocio (mismo producto + mismo color = una sola linea).
--- ---------------------------------------------------------------------------
+
 DECLARE
     v_count NUMBER;
 BEGIN

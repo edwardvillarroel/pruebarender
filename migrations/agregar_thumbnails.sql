@@ -1,20 +1,4 @@
--- Migracion: thumbnails de imagenes de producto y de color
--- Ejecutar desde la raiz del proyecto:
---   Oracle: sqlplus user/pass@DSN @migrations/agregar_thumbnails.sql
---
--- El catalogo mostraba cada foto en una tarjeta de ~240px descargando el
--- archivo completo: 43 MB para 18 productos (2,4 MB en promedio, 3,5 MB el
--- peor caso). Estas columnas guardan una version reducida para la grilla,
--- mientras `imagen_bytes` sigue siendo la foto original en resolucion
--- completa para la vista de detalle.
---
--- No hay backfill: el thumbnail se genera perezosamente en el primer request
--- que lo pide y queda cacheado en la columna. Por eso el script solo agrega
--- las columnas y no toca los 18 productos existentes.
 
--- ---------------------------------------------------------------------------
--- productos.imagen_thumb_*
--- ---------------------------------------------------------------------------
 DECLARE
     v_count NUMBER;
 BEGIN
@@ -44,9 +28,8 @@ BEGIN
 END;
 /
 
--- ---------------------------------------------------------------------------
+
 -- producto_colores.imagen_thumb_*
--- ---------------------------------------------------------------------------
 DECLARE
     v_count NUMBER;
 BEGIN
@@ -76,8 +59,6 @@ BEGIN
 END;
 /
 
--- Verificacion. Ojo: en Oracle no se puede COUNT() sobre un BLOB; hay que
--- medirlo con LENGTH(), que devuelve el tamano en bytes.
 SELECT 'productos' AS tabla,
        COUNT(*) AS con_foto,
        SUM(CASE WHEN LENGTH(imagen_thumb_bytes) > 0 THEN 1 ELSE 0 END) AS con_thumb

@@ -1,5 +1,3 @@
--- VENTA_LOCAL_ITEMS: generado desde el DDL de Oracle (DBMS_METADATA.GET_DDL).
--- No editar a mano: regenerar con tools/migrar_ddl_oracle.py.
 
 CREATE TABLE VENTA_LOCAL_ITEMS 
    (	ID uuid NOT NULL , 
