@@ -1,5 +1,3 @@
--- SOLICITUDES_DISENO: generado desde el DDL de Oracle (DBMS_METADATA.GET_DDL).
--- No editar a mano: regenerar con tools/migrar_ddl_oracle.py.
 
 CREATE TABLE SOLICITUDES_DISENO 
    (	ID uuid DEFAULT gen_random_uuid(), 

@@ -1,5 +1,3 @@
--- PRODUCTO_COLORES: generado desde el DDL de Oracle (DBMS_METADATA.GET_DDL).
--- No editar a mano: regenerar con tools/migrar_ddl_oracle.py.
 
 CREATE TABLE PRODUCTO_COLORES 
    (	ID uuid NOT NULL , 

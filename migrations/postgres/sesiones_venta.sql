@@ -1,5 +1,3 @@
--- SESIONES_VENTA: generado desde el DDL de Oracle (DBMS_METADATA.GET_DDL).
--- No editar a mano: regenerar con tools/migrar_ddl_oracle.py.
 
 CREATE TABLE SESIONES_VENTA 
    (	ID uuid NOT NULL , 

@@ -1,5 +1,3 @@
--- CODIGOS_VERIFICACION: generado desde el DDL de Oracle (DBMS_METADATA.GET_DDL).
--- No editar a mano: regenerar con tools/migrar_ddl_oracle.py.
 
 CREATE TABLE CODIGOS_VERIFICACION 
    (	EMAIL varchar(255)  NOT NULL , 

@@ -1,5 +1,3 @@
--- PEDIDOS: generado desde el DDL de Oracle (DBMS_METADATA.GET_DDL).
--- No editar a mano: regenerar con tools/migrar_ddl_oracle.py.
 
 CREATE TABLE PEDIDOS 
    (	ID uuid DEFAULT gen_random_uuid(), 
