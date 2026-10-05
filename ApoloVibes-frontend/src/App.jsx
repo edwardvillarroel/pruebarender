@@ -12,7 +12,6 @@ import ProductoDetalle from './pages/ProductoDetalle.jsx'
 import Carrito from './pages/Carrito.jsx'
 import Checkout from './pages/Checkout.jsx'
 import PagoRetorno from './pages/PagoRetorno.jsx'
-import CompraExitosa from './pages/CompraExitosa.jsx'
 import Cotizacion from './pages/Cotizacion.jsx'
 import MisPedidos from './pages/MisPedidos.jsx'
 import NotFound from './pages/NotFound.jsx'
@@ -51,7 +50,11 @@ export default function App() {
           <Route path="/carrito" element={<TiendaLayout><Carrito /></TiendaLayout>} />
           <Route path="/checkout" element={<TiendaLayout><Checkout /></TiendaLayout>} />
           <Route path="/pago/retorno" element={<TiendaLayout><PagoRetorno /></TiendaLayout>} />
-          <Route path="/compra-exitosa" element={<TiendaLayout><CompraExitosa /></TiendaLayout>} />
+          {/* No existe ruta /compra-exitosa: el exito se muestra en /pago/retorno,
+              que ademas confirma el pago contra el backend. La pagina estatica
+              "CompraExitosa" que se elimino decia "¡Compra realizada con exito!"
+              sin verificar nada, y si TUU se des-configuraba el usuario caia ahi
+              y veia un exito falso. */}
           <Route path="/cotizar" element={<TiendaLayout><Cotizacion /></TiendaLayout>} />
           <Route path="/mis-pedidos" element={<TiendaLayout><MisPedidos /></TiendaLayout>} />
 

@@ -3,15 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { confirmarPago } from '../services/payment.js'
 import { useCart } from '../context/CartContext.jsx'
 
-// TUU redirige aquí (x_url_complete) con los parámetros x_* en la URL y su
-// firma. Esta página solo confirma la transacción contra el backend y muestra
-// el resultado — nunca decide por sí sola si el pago fue exitoso.
 export default function PagoRetorno() {
   const [params] = useSearchParams()
   const { vaciarCarrito } = useCart()
-  // verificando | completado | fallido | pendiente | error
   const [estado, setEstado] = useState('verificando')
   const [mensaje, setMensaje] = useState('')
+  const [correoEnviado, setCorreoEnviado] = useState(null)
 
   useEffect(() => {
     const parametros = Object.fromEntries(params.entries())
@@ -25,6 +22,7 @@ export default function PagoRetorno() {
       .then(res => {
         if (res.estado === 'completado') {
           setEstado('completado')
+          setCorreoEnviado(res.correo_enviado ?? null)
           vaciarCarrito()
         } else if (res.estado === 'fallido') {
           setEstado('fallido')
@@ -34,9 +32,9 @@ export default function PagoRetorno() {
           setMensaje('Tu pago aún está en proceso. Te avisaremos cuando se confirme.')
         }
       })
-      .catch(() => {
+      .catch(err => {
         setEstado('error')
-        setMensaje('No pudimos confirmar tu pago. Intenta nuevamente.')
+        setMensaje(err?.message || 'No pudimos confirmar tu pago. Intenta nuevamente.')
       })
   }, [params, vaciarCarrito])
 
@@ -46,8 +44,17 @@ export default function PagoRetorno() {
 
       {estado === 'completado' && (
         <>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, marginBottom: 12 }}>Pago confirmado</h1>
-          <p style={{ color: 'var(--text-dim)', marginBottom: 24 }}>Te enviamos el comprobante a tu correo.</p>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, marginBottom: 12 }}>¡Pedido realizado con éxito!</h1>
+          <p style={{ color: 'var(--text-dim)', marginBottom: 24 }}>
+            {correoEnviado === true && 'Gracias por tu compra. Te enviamos el comprobante de pago a tu correo.'}
+            {correoEnviado === false && (
+              <>
+                Gracias por tu compra. Tu pago quedó confirmado, pero no pudimos enviarte el
+                comprobante por correo. Si no lo recibes, escríbenos y te lo mandamos.
+              </>
+            )}
+            {correoEnviado === null && 'Gracias por tu compra. Tu pago quedó confirmado.'}
+          </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link to="/" className="btn btn-primary">Volver al inicio</Link>
             <Link to="/categorias" className="btn btn-ghost">Seguir comprando</Link>
