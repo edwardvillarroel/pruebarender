@@ -17,6 +17,8 @@ pydantic==2.13.4
 pydantic-settings==2.15.0
 email-validator==2.2.0
 python-dotenv==1.2.3
+# zoneinfo en Windows no trae la base de tz: sin esto ZoneInfo("America/Santiago") falla.
+tzdata==2026.4
 
 # --- Autenticación / seguridad ---
 passlib[bcrypt]==1.7.4
