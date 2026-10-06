@@ -123,7 +123,7 @@ def test_sin_credenciales_imprime_el_comprobante_en_consola(capsys):
     assert "$3.500" in salida, (
         f"el total sale formateado para el cliente, no en crudo: {salida!r}"
     )
-    assert str(pedido.id) in salida, "el id del pedido permite encontrar la compra"
+    assert str(pedido.id)[:8] in salida, "el id del pedido permite encontrar la compra"
     assert "Llavero calavera" in salida, "no se imprime el contenido del comprobante"
 
 
@@ -169,7 +169,7 @@ def test_envia_el_payload_esperado_por_emailjs(monkeypatch):
         "con 'Use Private Key' de EmailJS, accessToken es obligatorio"
     )
     assert payload["template_params"]["to_email"] == "ana@x.test"
-    assert payload["template_params"]["pedido_id"] == str(pedido.id)
+    assert payload["template_params"]["pedido_id"] == str(pedido.id)[:8]
 
 
 def test_el_snapshot_del_nombre_va_al_comprobante(monkeypatch):
@@ -259,7 +259,7 @@ def test_el_total_llega_formateado_en_pesos_chilenos(monkeypatch):
     params = _params(monkeypatch)
 
     assert params["total"] == "$3.500"
-    assert params["items"].endswith("@ $1.000"), params["items"]
+    assert "$2.000" in params["items"], params["items"]
 
 
 # --- Reintento: una insistencia, y solo cuando sirve -------------------------

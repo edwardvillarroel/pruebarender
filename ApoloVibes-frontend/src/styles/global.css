@@ -134,7 +134,7 @@ video {
 .btn-ghost {
   border-color: var(--line);
   color: var(--text);
-  background: var(--red);
+  background: var(--accent);
 }
 
 .btn-ghost:hover {
