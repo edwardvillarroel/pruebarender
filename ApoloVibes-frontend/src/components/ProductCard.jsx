@@ -3,13 +3,12 @@ import { mediaPath } from '../utils/media.js'
 import { useCart } from '../context/CartContext.jsx'
 import { useProductos } from '../context/ProductContext.jsx'
 import { Star, ImageOff } from 'lucide-react'
-import { IconShoppingCartPlus } from '@tabler/icons-react'
 import { useState } from 'react'
 
 const ACENTOS = ['#FA7F19', '#F6D976', '#E8863E']
 const COLOR_NUEVO = '#2fa018'
 const COLOR_DESCUENTO = '#FA7F19'
-const COLOR_SIN_STOCK = '#e71414'
+const COLOR_SIN_STOCK = '#db0b0b91'
 const COLOR_BUTTON = '#FA7F19'
 
 export default function ProductCard({ producto, index = 0 }) {
@@ -18,6 +17,17 @@ export default function ProductCard({ producto, index = 0 }) {
   const acento = ACENTOS[index % ACENTOS.length]
   const categoria = categorias.find(c => c.id === producto.categoria_id)
   const imagenTarjeta = producto.imagen_thumb || producto.imagen
+  const [agregando, setAgregando] = useState(false)
+
+  const handleAgregar = async () => {
+    if (agregando) return
+    setAgregando(true)
+    try {
+      await agregarProducto(producto)
+    } finally {
+      setAgregando(false)
+    }
+  }
 
   return (
     <div
@@ -101,7 +111,7 @@ export default function ProductCard({ producto, index = 0 }) {
                 zIndex: 2,
               }}
             >
-              AGOTADO
+              NO DISPONIBLE
             </span>
           ) : producto.badge ? (
             <span
@@ -138,8 +148,8 @@ export default function ProductCard({ producto, index = 0 }) {
       </Link>
 
       <div style={{ padding: '10px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-          <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', flex: 1, minWidth: 0 }}>{producto.nombre}</h4>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+           <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', flex: 1, minWidth: 0 }}>{producto.nombre}</h4>
           {categoria && (
             <span
               style={{
@@ -149,8 +159,8 @@ export default function ProductCard({ producto, index = 0 }) {
                 background: 'transparent',
                 border: '1px solid var(--accent)',
                 color: 'var(--accent)',
-                fontSize: 11,
-                fontWeight: 600,
+                fontSize: 9,
+                fontWeight: 500,
                 padding: '3px 10px',
                 borderRadius: 999,
                 whiteSpace: 'nowrap',
@@ -162,6 +172,23 @@ export default function ProductCard({ producto, index = 0 }) {
             </span>
           )}
         </div>
+        
+
+         {(() => {
+          const rating = Number(producto.rating) || 0
+          return (
+             <div style={{ display: 'flex', gap: 2 }}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star
+                key={i}
+                size={14}
+                fill={i < rating ? acento : 'none'}
+                color={i < rating ? acento : 'var(--line)'}
+              />
+            ))}
+          </div>
+          )
+         })()}
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)' }}>
@@ -197,22 +224,9 @@ export default function ProductCard({ producto, index = 0 }) {
         </div>
         <p style={{ color: 'var(--text-dim)', fontWeight: 600, fontSize: 10, marginTop: -10 }}>IVA incluido</p>
 
-        {producto.rating && (
-          <div style={{ display: 'flex', gap: 2 }}>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Star
-                key={i}
-                size={14}
-                fill={i < producto.rating ? acento : 'none'}
-                color={i < producto.rating ? acento : 'var(--line)'}
-              />
-            ))}
-          </div>
-        )}
-
         <button
-          onClick={() => agregarProducto(producto)}
-          disabled={producto.sinStock}
+          onClick={handleAgregar}
+          disabled={producto.sinStock || agregando}
           aria-label="Agregar al carrito"
           style={{
             marginTop: 'auto',
@@ -226,12 +240,12 @@ export default function ProductCard({ producto, index = 0 }) {
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
-            cursor: producto.sinStock ? 'not-allowed' : 'pointer',
+            cursor: producto.sinStock ? 'not-allowed' : agregando ? 'wait' : 'pointer',
             transition: 'opacity .2s',
           }}
           onMouseEnter={(e) => !producto.sinStock && (e.currentTarget.style.opacity = '.85')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-        > Agregar
+        > {agregando ? 'Agregando' : 'Agregar'}
           <img
             src={mediaPath('cart.png')}
             alt=""

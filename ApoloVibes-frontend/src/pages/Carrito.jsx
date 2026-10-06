@@ -95,7 +95,7 @@ export default function Carrito() {
               {envioGratis ? 'Tu pedido tiene envio gratis' : `Envío gratis en compras sobre $${ENVIO_GRATIS_DESDE.toLocaleString('es-CL')}`}
             </p>
             <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, lineHeight: 1.5 }}>
-              {envioGratis ? 'Felicidades, no pagarás costo de envio en esta compra.' : 'Bajo ese monto no se aplica un costo de envío fijo según tu comuna.'}
+              {envioGratis ? 'Felicidades, no pagarás costo de envio en esta compra.' : 'Bajo ese monto se aplica costo de envío segun la empresa de transporte.'}
             </p>
           </div>
 

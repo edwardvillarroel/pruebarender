@@ -157,31 +157,24 @@ function reversarAgregar(producto) {
     setSolicitarLogin(false)
   }
 
-  function agregarProducto(producto, cantidad = 1) {
-    if (!isLoggedIn) return abrirLogin()
+  async function agregarProducto(producto, cantidad = 1) {
+    if (!isLoggedIn){
+      abrirLogin() 
+      return false
+    }
     setError(null)
     const color = producto.color ?? null
-    optimistaAgregar(producto, cantidad)
-
+    //optimistaAgregar(producto, cantidad)
     const op = ++seqRef.current
-    carritoApi.agregarProducto(producto.id, cantidad, color)
-      .then(({ carrito }) => {
-        if (op !== seqRef.current) return
-        const sigueEnVista = itemsRef.current.some(i => mismaLinea(i, producto, color))
-        syncItems(carrito)
+    try {
+      const { carrito } = await carritoApi.agregarProducto(producto.id, cantidad, color)
+      if (op === seqRef.current) syncItems(carrito)
         mostrarToast('Producto agregado exitosamente')
-        if (!sigueEnVista) {
-          const linea = carrito?.items?.find(
-            i => i.producto_id === producto.id && (i.color ?? null) === color
-          )
-          if (linea) carritoApi.eliminarItem(linea.id).catch(() => {})
-        }
-      })
-      .catch(err => {
-        if (op !== seqRef.current) return
-        setError(err.message)
-        reversarAgregar(producto)
-      })
+        return true
+    } catch (err) {
+      setError(err.message)
+      return false
+    }
   }
 
   function quitarItem(itemId) {
