@@ -1,15 +1,37 @@
 export const OBLIGATORIO = 'Campo obligatorio.'
 
-const RE_NOMBRE = /^\p{L}[\p{L}\s'’.-]{1,59}$/u
+const RE_NOMBRE = /^\p{L}[\p{L}\s'’-]{1,59}$/u
 const RE_EMPRESA = /^[\p{L}\p{N}\s&.,'’"\-/()+°#:]+$/u
+const LETRAS = 'A-Za-zÁÉÍÓÚÜÑáéíóúüñ'
+const RE_DIRECCION = /^[\p{L}\p{N}][\p{L}\p{N}\s.'’-]{2,99}$/u
+const RE_DPTO = /^[\p{L}\p{N}][\p{L}\p{N}\s.\-/]{0,29}$/u
 
 export const normalizarEmpresa = v => v.replace(/[^\p{L}\p{N}\s&.,'’\-/()]/gu, '').slice(0, 100)
 export const emailValido = v => v.trim().length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim())
 export const nombreValido = v => RE_NOMBRE.test(v.trim())
 export const telefonoValido = v => /^\d{8}$/.test(v)
 export const codigoPostalValido = v => /^\d{7}$/.test(v)
-export const numeroCalleValido = v => /^(\d{1,6}\s?[A-Za-z]?|S\/N)$/i.test(v.trim())
+export const numeroCalleValido = v => /^\d{1,6}$/.test(v.trim())
 export const pasaporteValido = v => /^[A-Z0-9]{5,20}$/.test(v)
+export const normalizarCiudad = v => 
+  v.replace(new RegExp(`[^${LETRAS}\\s'-]`, 'g'), '')
+.replace(/\s{2,}/g, ' ')
+.slice(0, 60)
+export const normalizarNombre = v => 
+  v.replace(/[^\p{L}\s'’-]/gu, '')
+.replace(/\s{2,}/g, ' ')
+.replace(/^[\s'’-]+/, '')
+.slice(0, 60)
+export const normalizarDireccion = v => 
+  v.replace(/[^\p{L}\p{N}\s.'’-]/gu, '')
+.replace(/\s{2,}/g, ' ')
+.replace(/^[\s.'’-]+/, '')
+.slice(0, 100)
+export const normalizarDpto = v =>
+  v.replace(/[^\p{L}\p{N}\s.\-/]/gu, '')
+.replace(/\s{2,}/g, ' ')
+.replace(/^[\s.\-/]+/, '')
+.slice(0, 30)
 
 export function rutValido(rutSucio) {
   const rut = rutSucio.replace(/[.\s]/g, '').toUpperCase()
@@ -26,7 +48,6 @@ export function rutValido(rutSucio) {
   const dvEsperado = resto === 11 ? '0' : resto === 10 ? 'K' : String(resto)
   return dv === dvEsperado
 }
-
 
 export const soloDigitos = (valor, max) => valor.replace(/\D/g, '').slice(0, max)
 
@@ -97,9 +118,11 @@ export function calcularErrores(c, fechaNacimiento, aceptaTerminos) {
     region: c.region ? '' : OBLIGATORIO,
     comuna: c.comuna ? '' : OBLIGATORIO,
     codigoPostal: texto(c.codigoPostal, codigoPostalValido, 'El código postal tiene 7 dígitos.'),
-    direccion: texto(c.direccion, v => v.length >= 3 && v.length <= 100, 'Ingresa el nombre de la calle (entre 3 y 100 caracteres).'),
-    numero: texto(c.numero, numeroCalleValido, 'Ingresa el número de la calle, o S/N si no tiene.'),
-    ciudad: texto(c.ciudad, nombreValido, errorNombre),
+    direccion: texto(c.direccion, 
+      v => RE_DIRECCION.test(v) && /\p{L}/u.test(v), 'Ingresa el nombre de la calle (entre 3 y 100 caracteres; solo letras, espacios, punto y guion).'),
+    dpto: !c.dpto.trim() ||   RE_DPTO.test(c.dpto.trim()) ? '' : 'Usa solo letras, números, espacios, punto, guion o barra.',
+    numero: texto(c.numero, numeroCalleValido, 'Ingresa solo el número de la calle (hasta 6 dígitos).'),
+    ciudad: !c.ciudad.trim() ? OBLIGATORIO : validarCiudad(c.ciudad),
     telefono: !c.telefono
       ? OBLIGATORIO
       : telefonoValido(c.telefono) ? '' : 'Ingresa los 8 dígitos de tu móvil, por ejemplo 1234 5678.',
@@ -147,4 +170,15 @@ export function clienteParaEnvio(c) {
     razonSocial: esFactura ? limpio.razonSocial : '',
     giro: esFactura ? limpio.giro : '',
   }
+}
+
+export function validarCiudad(valor) {
+  const v = (valor || '').trim()
+  if (!v) return 'Ingresa tu ciudad.'
+  if (v.length < 3) return 'La ciudad debe tener al menos 3 letras.'
+  if (!new RegExp(`^[${LETRAS}]+(?:[ '-][${LETRAS}]+)*$`).test(v))
+    return 'Usa solo letras.'
+  if (/(.)\1{2,}/.test(v)) return 'La ciudad no parece válida.'
+  if (!/[aeiouáéíóúü]/i.test(v)) return 'La ciudad no parece válida.'
+  return ''
 }

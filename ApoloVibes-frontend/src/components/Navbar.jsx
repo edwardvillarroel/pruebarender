@@ -226,14 +226,14 @@ export default function Navbar() {
                       </button>
                     </div>
                   ) : (
-                    items.map(item => (
+                    items.map((item, index) => (
                       <div
-                        key={item.id}
+                        key={item.itemId}
                         style={{
                           display: 'flex',
                           gap: 12,
                           padding: '12px 16px',
-                          borderBottom: '1px solid var(--bg)',
+                          borderBottom: index < items.length - 1 ? '1px solid var(--surface-3)' : 'none',
                         }}
                       >
                         <div

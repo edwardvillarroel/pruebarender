@@ -7,7 +7,7 @@ import SelectOpciones from '../components/SelectOpciones.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { REGIONES, COMUNAS_POR_REGION } from '../services/regiones.js'
 import { calcularErrores, clienteParaEnvio, datosDesdeUsuario, edadDesde, esMayorDeEdad,
-   hoyISO, normalizarEmpresa, normalizarIdentificacion, normalizarTelefono, soloDigitos,} from '../utils/validacionescheckout.js'
+   hoyISO, normalizarCiudad, normalizarNombre, normalizarDireccion, normalizarDpto, normalizarEmpresa, normalizarIdentificacion, normalizarTelefono, soloDigitos,} from '../utils/validacionescheckout.js'
 
 
 const ENVIO_GRATIS_DESDE = 50000
@@ -74,8 +74,8 @@ export default function Checkout() {
     setCliente(prev => ({
       ...prev,
       email: d.email || prev.email,
-      nombre: prev.nombre || d.nombre || '',
-      apellido: prev.apellido || d.apellido || '',
+      nombre: prev.nombre || normalizarNombre(d.nombre || ''),
+      apellido: prev.apellido || normalizarNombre(d.apellido || ''),
       telefono: prev.telefono || d.telefono || '',
     }))
   }, [user])
@@ -96,7 +96,7 @@ export default function Checkout() {
   const marcar = campo => setTocado(prev => (prev[campo] ? prev : {...prev, [campo]: true }))
 
   const contactoCompleto = sinErrores(['email'])
-  const direccionCompleta = contactoCompleto && sinErrores(['nombre', 'apellido', 'region', 'comuna', 'codigoPostal', 'direccion', 'numero', 'ciudad', 'telefono'])
+  const direccionCompleta = contactoCompleto && sinErrores(['nombre', 'apellido', 'region', 'comuna', 'codigoPostal', 'direccion', 'dpto', 'numero', 'ciudad', 'telefono'])
   const datosPersonalesCompletos = direccionCompleta && sinErrores(['tipoDocumento', 'tipoIdentificacion', 'rut', 'razonSocial', 'giro', 'fechaNacimiento', 'aceptaTerminos'])
   const entregaSeleccionada = datosPersonalesCompletos && entrega !== null
 
@@ -113,7 +113,15 @@ export default function Checkout() {
   }
 
   function cambiarRegion(valor) {
-    setCliente(prev => ({ ...prev, region: valor, comuna: '' }))
+    setCliente(prev => ({ ...prev, region: valor, comuna: '',
+      ciudad: prev.ciudad === prev.comuna ? '' : prev.ciudad,
+     }))
+  }
+
+  function cambiarComuna(valor){
+    setCliente(prev => ({
+      ...prev, comuna: valor, ciudad: !prev.ciudad || prev.ciudad === prev.comuna ? valor : prev.ciudad,
+    }))
   }
 
   function cambiarTipoIdentificacion(valor) {
@@ -194,7 +202,7 @@ export default function Checkout() {
           label="Email"
           error={errorDe('email')}
           ayuda={emailDeCuenta ? 'Este es el email de tu cuenta. Aquí te enviaremos la confirmación del pedido.' : undefined}
-          style={{ margintBottom: 24 }}  
+          style={{ marginBottom: 24 }}  
           >
             <input
             {...campo('email')}
@@ -223,7 +231,7 @@ export default function Checkout() {
               error={errorDe('nombre')}
               style={{ marginBottom: 0}}>
                 <input
-                {...campo('nombre')}
+                {...campo('nombre', normalizarNombre)}
                 required
                 autoComplete="given-name"
                 maxLength={60}
@@ -235,7 +243,7 @@ export default function Checkout() {
               error={errorDe('apellido')}
               style={{ marginBottom: 0}}>
                 <input
-                {...campo('apellido')}
+                {...campo('apellido', normalizarNombre)}
                 required
                 autoComplete="family-name"
                 maxLength={60}
@@ -260,7 +268,7 @@ export default function Checkout() {
                   id="comuna"
                   options={COMUNAS_POR_REGION[cliente.region] || []}
                   value={cliente.comuna}
-                  onChange={v => actualizar('comuna', v)}
+                  onChange={cambiarComuna}
                   disabled={!cliente.region}
                   placeholder="Selecciona una comuna"
                 />
@@ -282,7 +290,7 @@ export default function Checkout() {
 
             <Campo id="direccion" label="Dirección" error={errorDe('direccion')}>
                 <input
-                {...campo('direccion')}
+                {...campo('direccion', normalizarDireccion)}
                 required
                 placeholder="Calle"
                 autoComplete="address-line1"
@@ -294,23 +302,25 @@ export default function Checkout() {
             <div className="grid-2" style={{ marginBottom: 16 }}>
              <Campo id="numero" label="Número de calle" error={errorDe('numero')} style={{ marginBottom: 0 }}>
                 <input
-                {...campo('numero')}
+                {...campo('numero', v => soloDigitos(v, 6))}
                 required
+                inputMode="numeric"
                 autoComplete="off"
-                maxLength={10}
+                maxLength={6}
               style={borde('numero')}/>
               </Campo>
-              <Campo id="dpto" label="Dpto/Block/Piso" style={{ marginBottom: 0 }}>
+              <Campo id="dpto" label="Dpto/Block/Piso" error={errorDe('dpto')} style={{ marginBottom: 0 }}>
                 <input
-                {...campo('dpto')}
+                {...campo('dpto', normalizarDpto)}
                 autoComplete="address-line2"
-                maxLength={30}/>
+                maxLength={30}
+                style={borde('dpto')} />
               </Campo>
             </div>
 
              <Campo id="ciudad" label="Ciudad" error={errorDe('ciudad')}>
                 <input
-                {...campo('ciudad')}
+                {...campo('ciudad', normalizarCiudad)}
                 required
                 autoComplete="address-level2"
                 maxLength={60}
@@ -636,7 +646,7 @@ export default function Checkout() {
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--surface)' }}>{item.nombre} ( {item.cantidad}u )</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--surface)' }}>{item.nombre} ( {item.cantidad} )</p>
                   {item.color && (
                     <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
                       Color: {item.color}
