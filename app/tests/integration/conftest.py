@@ -235,12 +235,18 @@ def categoria(db_sesion, centinela):
 
 @pytest.fixture
 def producto(db_sesion, categoria, centinela):
-    def _crear(stock: int = 10, nombre: str | None = None, precio: int = 5000):
+    def _crear(
+        stock: int = 10,
+        nombre: str | None = None,
+        precio: int = 5000,
+        stock_minimo: int | None = None,
+    ):
         p = ProductoModel(
             categoria_id=categoria.id,
             nombre=nombre or f"{centinela}-prod",
             precio=precio,
             stock=stock,
+            stock_minimo=stock_minimo,
         )
         db_sesion.add(p)
         db_sesion.commit()

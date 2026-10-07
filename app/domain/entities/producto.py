@@ -3,6 +3,10 @@ from datetime import datetime
 from uuid import UUID, uuid4
 from app.domain.time import utcnow
 
+# Umbral global de "stock bajo" para productos sin `stock_minimo` propio. Lo usa
+# la detección del cruce en `descontar_stock` y el campo `stock_bajo` del JSON.
+STOCK_BAJO = 3
+
 
 @dataclass
 class Producto:
@@ -31,6 +35,13 @@ class Producto:
     # no tiene foto o cuando su foto ya es chica y no necesita reduccion: en
     # ese caso el consumidor debe usar `imagen`.
     imagen_thumb: str | None = None
+    # Umbral propio de "stock bajo". None = usar el global `STOCK_BAJO`.
+    stock_minimo: int | None = None
+    # Se marca al cruzar hacia abajo el umbral en `descontar_stock` y se limpia
+    # al reponer stock por encima del umbral. Queda reservado para la futura
+    # notificacion al dueño: sin el aviso el admin no sabe si el cruce ya se
+    # disparo una vez.
+    aviso_stock_enviado: bool = False
 
 
 @dataclass

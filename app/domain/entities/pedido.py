@@ -15,6 +15,7 @@ class Pedido:
     direccion_envio: str | None = None
     entrega: str = "retiro"
     codigo_seguimiento: str | None = None
+    transportista: str | None = None
     estado_seguimiento: str | None = None
     seguimiento_actualizado_en: datetime | None = None
     id: UUID = field(default_factory=uuid4)

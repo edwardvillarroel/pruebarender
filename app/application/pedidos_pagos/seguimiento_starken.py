@@ -32,7 +32,9 @@ class GestionarSeguimientoStarken:
     def listar_propios(self, usuario_id: UUID) -> list[Pedido]:
         return self._repositorio.list_by_usuario(usuario_id)
 
-    def registrar_codigo(self, pedido_id: UUID, codigo: str) -> Pedido:
+    def registrar_codigo(
+        self, pedido_id: UUID, codigo: str, transportista: str | None = None
+    ) -> Pedido:
         codigo = (codigo or "").strip()
         if not codigo:
             raise ValueError("El código de seguimiento es obligatorio")
@@ -45,6 +47,12 @@ class GestionarSeguimientoStarken:
         if pedido is None:
             raise ValueError("Pedido no encontrado")
 
+        transportista = (transportista or "").strip() or pedido.transportista
+        if transportista and len(transportista) > 30:
+            raise ValueError(
+                "El transportista no puede superar 30 caracteres"
+            )
+
         seguimiento = self._consultar_o_nada(codigo)
         actualizado_en = seguimiento.consultado_en if seguimiento else None
         persistido = self._repositorio.actualizar_seguimiento(
@@ -52,6 +60,7 @@ class GestionarSeguimientoStarken:
             codigo_seguimiento=codigo,
             estado_seguimiento=seguimiento.estado if seguimiento else None,
             actualizado_en=actualizado_en,
+            transportista=transportista,
         )
         pedido_actual = persistido or pedido
 
@@ -80,6 +89,7 @@ class GestionarSeguimientoStarken:
             codigo_seguimiento=pedido.codigo_seguimiento,
             estado_seguimiento=seguimiento.estado if seguimiento else None,
             actualizado_en=actualizado_en,
+            transportista=pedido.transportista,
         )
         return (persistido or pedido), seguimiento
 

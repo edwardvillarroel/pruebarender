@@ -179,6 +179,53 @@ def test_registrar_codigo_starken_avanza_a_enviado(client, usuario, admin):
     )
 
 
+def test_registrar_codigo_con_transportista_se_persiste_y_se_devuelve(
+    client, usuario, admin
+):
+    """El transportista elegido en el panel viaja al pedido y vuelve en la lista."""
+    p = _pedido(usuario, "pendiente")
+
+    respuesta = client.post(
+        f"/api/pedidos/{p.id}/seguimiento",
+        json={"codigo": "OF98765", "transportista": "bluexpress"},
+        headers=_cabeceras(admin),
+    )
+
+    assert respuesta.status_code == 200, respuesta.get_json()
+    assert respuesta.get_json()["transportista"] == "bluexpress", (
+        "el serializador no devuelve el transportista que se acaba de guardar"
+    )
+    en_la_base = db.session.execute(
+        db.text("SELECT transportista FROM pedidos WHERE id = :i"), {"i": p.id}
+    ).scalar_one()
+    assert en_la_base == "bluexpress", (
+        "la respuesta dijo bluexpress pero la base guardo otra cosa"
+    )
+
+
+def test_registrar_codigo_sin_transportista_no_borra_el_guardado(
+    client, usuario, admin
+):
+    """Sincronizar o re-registrar sin transportista no lo pisa con NULL."""
+    p = _pedido(usuario, "pendiente")
+    client.post(
+        f"/api/pedidos/{p.id}/seguimiento",
+        json={"codigo": "OF11111", "transportista": "starken"},
+        headers=_cabeceras(admin),
+    )
+
+    respuesta = client.post(
+        f"/api/pedidos/{p.id}/seguimiento",
+        json={"codigo": "OF22222"},
+        headers=_cabeceras(admin),
+    )
+
+    assert respuesta.status_code == 200, respuesta.get_json()
+    assert respuesta.get_json()["transportista"] == "starken", (
+        "un re-registro sin transportista borro el transportista previo"
+    )
+
+
 @pytest.mark.parametrize("estado", ["entregado", "cancelado"])
 def test_registrar_codigo_no_reabre_un_pedido_cerrado(client, usuario, admin, estado):
     """Corregir el codigo de un pedido ya cerrado no lo revierte.

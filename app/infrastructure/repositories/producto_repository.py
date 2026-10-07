@@ -1,19 +1,14 @@
-﻿"""Repositorio de productos (SQLAlchemy) con mapeo ORM -> dominio.
-
-Implementa la interfaz `ProductoRepository` de la capa de dominio. Los objetos
-que cruzan la frontera de infraestructura son siempre entidades `Producto`, no
-modelos ORM.
-"""
-
+﻿
 from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, case, func, select, update
 
 from app.domain.entities.producto import (
+    STOCK_BAJO,
     ColorProducto,
     FotoColorCatalogo,
     ImagenProducto,
@@ -59,10 +54,6 @@ class ProductoRepository(ProductoRepositoryInterface):
         )
 
     def list_activos(self) -> list[Producto]:
-        # `imagen_bytes` e `imagen_thumb_bytes` son deferred: se pregunta solo por
-        # su existencia con `isnot(None)` en el mismo SELECT. Leer el atributo
-        # dentro del mapeo dispararia una consulta extra por producto (N+1) y el
-        # listado volveria a ir lento, que es justo lo que se vino a arreglar.
         filas = db.session.execute(
             select(
                 self.model,
@@ -111,30 +102,37 @@ class ProductoRepository(ProductoRepositoryInterface):
         modelo.precio_original = entidad.precio_original
         modelo.rating = entidad.rating
         modelo.nuevo_lanzamiento = entidad.nuevo_lanzamiento
+        modelo.stock_minimo = entidad.stock_minimo
+        umbral = (
+            entidad.stock_minimo
+            if entidad.stock_minimo is not None
+            else STOCK_BAJO
+        )
+        if entidad.stock > umbral:
+            modelo.aviso_stock_enviado = False
         db.session.commit()
         return entidad
 
     def descontar_stock(self, items: Sequence[tuple[UUID, int]]) -> bool:
-        # Cada item es una sentencia condicional: `stock >= cantidad` viaja al
-        # WHERE, asi que la comparacion y la escritura son atomicas y la base
-        # serializa sola a dos pagos concurrentes. `filas == 0` significa que no
-        # alcuntaba (o el producto no existe).
-        #
-        # Un solo commit para todo el pedido: si el ultimo item no alcanza, el
-        # rollback deshace tambien los anteriores. Descontar a medias dejaria
-        # stock derivado para un pedido que la pasarela va a rechazar.
-        #
-        # `cantidad > 0` se valida aca y no en el caso de uso porque es una
-        # invariante de persistencia: un payload con cero o negativo no debe
-        # poder AUMENTAR el stock de un producto pasando por el descuento.
         if any(cantidad <= 0 for _, cantidad in items):
             raise ValueError("La cantidad a descontar debe ser mayor a cero")
         try:
             for producto_id, cantidad in items:
+                umbral = func.coalesce(self.model.stock_minimo, STOCK_BAJO)
+                cruzó = and_(
+                    self.model.stock > umbral,
+                    self.model.stock - cantidad <= umbral,
+                )
                 filas = db.session.execute(
                     update(self.model)
                     .where(self.model.id == producto_id, self.model.stock >= cantidad)
-                    .values(stock=self.model.stock - cantidad)
+                    .values(
+                        stock=self.model.stock - cantidad,
+                        aviso_stock_enviado=case(
+                            (cruzó, True),
+                            else_=self.model.aviso_stock_enviado,
+                        ),
+                    )
                 ).rowcount
                 if not filas:
                     db.session.rollback()
@@ -159,7 +157,6 @@ class ProductoRepository(ProductoRepositoryInterface):
             modelo.imagen_content_type = imagen.content_type
             if not modelo.imagen:
                 modelo.imagen = f"/api/productos/{producto_id}/imagen"
-            # La foto cambio: el thumbnail cacheado ya no corresponde.
             modelo.imagen_thumb_bytes = None
             modelo.imagen_thumb_content_type = None
             db.session.commit()
@@ -194,12 +191,6 @@ class ProductoRepository(ProductoRepositoryInterface):
     def primera_imagen_color_por_producto(
         self, producto_ids: list[UUID]
     ) -> dict[UUID, FotoColorCatalogo]:
-        """Foto del primer color de cada producto, en una sola consulta.
-
-        Se resuelve con el menor `orden` de cada producto (el primero que se
-        agrego) usando `min() GROUP BY`, y no con un loop que consultaria una
-        vez por producto: el listado del catalogo puede tener 20+ productos.
-        """
         if not producto_ids:
             return {}
         filas = db.session.execute(
@@ -217,10 +208,6 @@ class ProductoRepository(ProductoRepositoryInterface):
         if not filas:
             return {}
 
-        # Segundo paso: traer el color que quedo primero en cada grupo. El
-        # filtro `imagen_bytes.isnot(None)` es indispensable: sin el, un color
-        # sin foto con `orden=0` le ganaria a uno con foto en `orden=1` y la
-        # tarjeta apuntaria a una URL que devuelve 404.
         pedidos = {f.producto_id for f in filas}
         candidatos = db.session.execute(
             select(
@@ -364,8 +351,6 @@ class ProductoRepository(ProductoRepositoryInterface):
 
         modelo.imagen_bytes = imagen.bytes
         modelo.imagen_content_type = imagen.content_type
-        # La foto cambio: el thumbnail viejo ya no corresponde y se regenera
-        # en el proximo request. Sin esto la tarjeta mostraria la foto anterior.
         modelo.imagen_thumb_bytes = None
         modelo.imagen_thumb_content_type = None
         db.session.commit()
@@ -403,14 +388,6 @@ def _a_entidad(
     tiene_thumb: bool = False,
     tiene_imagen: bool | None = None,
 ) -> Producto:
-    # La foto real vive en `imagen_bytes`; `modelo.imagen` es solo la URL y se
-    # escribe una vez al subir la foto, sin volver a validarse nunca. Cuando el
-    # BLOB no esta pero la URL quedo guardada, la tarjeta pedia una imagen que
-    # responde 404 y el producto se excluia de `listar_con_foto_de_color`, de
-    # modo que las fotos de color nunca llegaban a la tarjeta. El BLOB manda:
-    # sin BLOB no hay foto.
-    # `tiene_imagen=None` significa "esta consulta no lo consulto": se respeta el
-    # valor previo para no cambiar el comportamiento de los otros callers.
     if tiene_imagen is None:
         imagen = modelo.imagen
     else:
@@ -439,6 +416,8 @@ def _a_entidad(
         imagen_thumb=(
             RUTA_THUMB_PRODUCTO.format(producto_id=modelo.id) if tiene_thumb else None
         ),
+        stock_minimo=modelo.stock_minimo,
+        aviso_stock_enviado=bool(modelo.aviso_stock_enviado),
     )
 
 
@@ -462,4 +441,6 @@ def _a_modelo(entidad: Producto) -> ProductoModel:
         precio_original=entidad.precio_original,
         rating=entidad.rating,
         nuevo_lanzamiento=entidad.nuevo_lanzamiento,
+        stock_minimo=entidad.stock_minimo,
+        aviso_stock_enviado=entidad.aviso_stock_enviado,
     )

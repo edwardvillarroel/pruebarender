@@ -1,10 +1,3 @@
-"""Repositorio del carrito persistido en la base de datos (Oracle/Postgres).
-
-Implementa el mismo contrato que `CarritoRepositoryEnMemoria`; la capa de
-aplicación no cambia, solo se sustituye la implementación en el punto de
-composición (`create_app`). Un carrito pertenece a un usuario real: el
-`usuario_id` viene del `sub` del JWT y debe existir en `usuarios`.
-"""
 
 import uuid
 from datetime import datetime
@@ -27,14 +20,6 @@ from app.domain.time import utcnow
 
 
 class CarritoRepositoryBd(CarritoRepository):
-    """Carrito con respaldo en la base de datos.
-
-    `carrito` y `carrito_items` exigen que el usuario (FK a `usuarios`) y el
-    producto (FK a `productos`) existan. Si el producto no existe, el INSERT
-    falla con `IntegrityError` (se hace rollback y se relanza para que la capa
-    de API lo traduzca a un mensaje al cliente).
-    """
-
     def obtener(self, usuario_id: str) -> Carrito | None:
         modelo = self._buscar(usuario_id)
         if modelo is None:
@@ -111,23 +96,6 @@ class CarritoRepositoryBd(CarritoRepository):
         db.session.commit()
 
     def _resolver_imagenes(self, items: list[ItemCarrito]) -> None:
-        """Resuelve la foto de cada linea (la del color, o la del producto).
-
-        `carrito_items.color` guarda el NOMBRE del color, no su id, asi que la
-        linea no puede armar sola la URL `/api/productos/colores/<id>/imagen`:
-        hay que volver del nombre al id. Se resuelve en batch, con una sola
-        consulta para todas las lineas, y no una por linea.
-
-        Se llama en `obtener` Y en `guardar` a proposito: las rutas de carrito
-        devuelven el agregado en las dos (POST/PUT/DELETE responden el carrito
-        entero), y si solo se resolviera en `obtener` el mismo campo volveria
-        con imagen en el GET y sin imagen en el POST. Dos respuestas distintas
-        para el mismo dato es peor que ninguna.
-
-        Manda el BLOB y no la columna `imagen`: si se subio la foto, quedo la
-        URL guardada y despues se perdio el BLOB, la URL responde 404. Es el
-        mismo criterio que aplica `ProductoRepository._a_entidad`.
-        """
         if not items:
             return
 
@@ -146,9 +114,7 @@ class CarritoRepositoryBd(CarritoRepository):
             .where(ProductoModel.id.in_(ids))
         ).all()
 
-        # producto_id -> tiene foto propia
         productos = {f.id: f.tiene_imagen for f in filas}
-        # (producto_id, nombre normalizado) -> (color_id, tiene foto propia)
         colores = {
             (f.id, (f.color_nombre or "").strip().lower()): (f.color_id, f.color_tiene_imagen)
             for f in filas
@@ -157,16 +123,11 @@ class CarritoRepositoryBd(CarritoRepository):
 
         for item in items:
             producto_id = _a_uuid(item.producto_id)
-            # Fallback: la foto del producto.
             imagen = (
                 RUTA_IMAGEN_PRODUCTO.format(producto_id=producto_id)
                 if productos.get(producto_id)
                 else None
             )
-            # Si la linea eligio un color CON foto, manda la del color: es lo
-            # que el usuario compro. El nombre se normaliza con strip+lower
-            # porque el color lo escribe una persona (`POST .../colores`) y
-            # puede volver con otra capitalizacion desde el cliente.
             if item.color:
                 fila = colores.get((producto_id, item.color.strip().lower()))
                 if fila and fila[1]:

@@ -37,6 +37,11 @@ class ProductoModel(db.Model):
     material = db.Column(db.String(100))
     tamano = db.Column(db.String(100))
     color = db.Column(db.String(100))
+    # Umbral propio de "stock bajo" (None = usar el global STOCK_BAJO). Se marca
+    # `aviso_stock_enviado` al cruzar hacia abajo en `descontar_stock` y se
+    # limpia al reponer por encima del umbral.
+    stock_minimo = db.Column(db.Integer)
+    aviso_stock_enviado = db.Column(db.Boolean, nullable=False, default=False)
 
     @property
     def specs(self) -> list[str] | None:

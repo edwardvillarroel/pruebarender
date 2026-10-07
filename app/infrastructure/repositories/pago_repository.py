@@ -1,8 +1,3 @@
-"""Repositorio de pagos (SQLAlchemy) con mapeo ORM -> dominio.
-
-Implementa la interfaz `PagoRepository` de la capa de dominio. Los objetos que
-cruzan la frontera son entidades `Pago`, nunca modelos ORM.
-"""
 
 from __future__ import annotations
 
@@ -50,14 +45,6 @@ class PagoRepository(PagoRepositoryInterface):
         return _a_entidad(modelo) if modelo else None
 
     def get_by_clave_idempotencia(self, clave: str) -> Pago | None:
-        """Pago vivo de la clave; si ya no hay, el mas reciente de esa clave.
-
-        El indice `idx_pago_idempotencia` es parcial (`estado = 'pendiente'`),
-        asi que la clave puede aparecer en varias filas a lo largo del tiempo:
-        primero se busca el pendiente, que es al que un reintento tiene que
-        devolverle la URL, y solo si no hay ninguno se cae al mas reciente para
-        que el caso de uso pueda explicar que la operacion ya concluyo.
-        """
         vivo = db.session.execute(
             select(self.model)
             .where(self.model.clave_idempotencia == clave)
@@ -78,14 +65,7 @@ class PagoRepository(PagoRepositoryInterface):
             db.session.add(_a_modelo(entidad))
             db.session.commit()
         except IntegrityError:
-            # El rollback va SIEMPRE, no solo por la idempotencia: despues de
-            # un error de integridad la sesion queda abortada y cualquier
-            # consulta posterior revienta con "current transaction is aborted".
             db.session.rollback()
-            # Si el choque fue con el indice parcial de idempotencia, es la
-            # carrera del doble click: se informa con la excepcion del dominio.
-            # Cualquier otro error de integridad (FK, CHECK) se propaga tal
-            # cual, porque no es un conflicto de claves y hiding seria peor.
             if entidad.clave_idempotencia is not None and self.get_by_clave_idempotencia(
                 entidad.clave_idempotencia
             ) is not None:

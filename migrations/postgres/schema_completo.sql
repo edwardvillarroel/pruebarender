@@ -141,6 +141,7 @@ CREATE TABLE PEDIDOS
 	CODIGO_SEGUIMIENTO varchar(50) , 
 	ESTADO_SEGUIMIENTO varchar(100) , 
 	SEGUIMIENTO_ACTUALIZADO_EN timestamptz, 
+	TRANSPORTISTA varchar(30) , 
 	 CHECK (estado IN (
                         'pendiente', 'en_produccion', 'enviado',
                         'entregado', 'cancelado'
@@ -176,6 +177,8 @@ CREATE TABLE PRODUCTOS
 	IMAGEN_THUMB_BYTES bytea, 
 	IMAGEN_THUMB_CONTENT_TYPE varchar(50) , 
 	NUEVO_LANZAMIENTO boolean DEFAULT false NOT NULL , 
+	STOCK_MINIMO numeric, 
+	AVISO_STOCK_ENVIADO boolean DEFAULT false NOT NULL , 
 	 CHECK (precio >= 0) , 
 	 CHECK (stock >= 0) , 
 	 PRIMARY KEY (ID)

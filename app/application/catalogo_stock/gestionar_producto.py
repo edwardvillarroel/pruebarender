@@ -67,6 +67,7 @@ class GestionarProducto:
             descuento=dto.descuento,
             precio_original=precio_original,
             nuevo_lanzamiento=dto.nuevo_lanzamiento,
+            stock_minimo=dto.stock_minimo,
         )
         return self._repositorio.add(producto)
 
@@ -202,6 +203,8 @@ class GestionarProducto:
         # un if truthy el producto quedaria marcado para siempre.
         if dto.nuevo_lanzamiento is not None:
             producto.nuevo_lanzamiento = dto.nuevo_lanzamiento
+        if dto.stock_minimo is not None:
+            producto.stock_minimo = dto.stock_minimo
         return self._repositorio.update(producto)
 
     def eliminar(self, producto_id: UUID) -> None:

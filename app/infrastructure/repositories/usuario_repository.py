@@ -5,8 +5,6 @@ from app.infrastructure.repositories.repository_base import RepositoryBase
 
 
 class UsuarioRepository(RepositoryBase):
-    """Repositorio de usuarios (SQLAlchemy)."""
-
     model = UsuarioModel
 
     def get_by_email(self, email: str) -> UsuarioModel | None:

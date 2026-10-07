@@ -67,17 +67,18 @@ export default function Navbar() {
     navigate(path)
   }
 
-  // Abre la confirmación de "Cerrar sesión". Los dos puntos de entrada (menú de
-  // usuario y menú móvil) cierran su menú antes, así el modal queda visible.
   function handlePedirLogout(cerrarMenu) {
     cerrarMenu()
     setConfirmarLogout(true)
   }
 
-  function handleLogout() {
-    setConfirmarLogout(false)
-    logout()
-    navigate('/')
+  async function handleLogout() {
+    try {
+      await logout()
+    } finally {
+      setConfirmarLogout(false)
+      navigate('/')
+    }
   }
 
   return (
@@ -500,9 +501,7 @@ export default function Navbar() {
         <SeguridadModal onClose={() => setSeguridadOpen(false)} />
       )}
 
-      {/* El <header> es sticky y lleva backdrop-filter inline, que crea containing
-          block para position: fixed: sin portal el modal quedaría encerrado en la
-          franja del header en vez de cubrir el viewport. */}
+
       {confirmarLogout && createPortal(
         <ConfirmModal
           onConfirm={handleLogout}

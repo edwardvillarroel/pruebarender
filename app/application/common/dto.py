@@ -16,6 +16,7 @@ class CrearProductoDTO:
     specs: list[str] | None = None
     descuento: int | None = None
     nuevo_lanzamiento: bool = False
+    stock_minimo: int | None = None
 
 
 @dataclass
@@ -33,6 +34,7 @@ class ActualizarProductoDTO:
     specs: list[str] | None = None
     descuento: int | None = None
     nuevo_lanzamiento: bool | None = None
+    stock_minimo: int | None = None
 
 
 @dataclass

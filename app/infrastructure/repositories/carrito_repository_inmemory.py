@@ -6,14 +6,6 @@ from app.domain.interfaces.carrito_repository import CarritoRepository
 
 
 class CarritoRepositoryEnMemoria(CarritoRepository):
-    """Repositorio del carrito en memoria (por usuario/sesión).
-
-    Fase de desarrollo: el carrito vive solo en el proceso del servidor y se
-    pierde al reiniciarlo. Reemplazable por una implementación con SQLAlchemy
-    que cumpla el mismo contrato (`CarritoRepository`), sin tocar la capa de
-    aplicación ni las rutas.
-    """
-
     def __init__(self) -> None:
         self._carritos: dict[str, Carrito] = {}
         self._lock: Lock = threading.Lock()
