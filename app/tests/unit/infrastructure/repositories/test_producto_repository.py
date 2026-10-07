@@ -360,6 +360,72 @@ def test_crear_honora_el_flag_de_lanzamiento(monkeypatch):
         )
     )
 
-    # `crear` arma un modelo nuevo: el flag tiene que haber llegado al `add`.
+# `crear` arma un modelo nuevo: el flag tiene que haber llegado al `add`.
     agregado = db.session.add.call_args[0][0]
     assert agregado.nuevo_lanzamiento is True
+
+
+# --- stock_minimo y aviso_stock_enviado ---------------------------------------
+#
+# `stock_minimo` es un umbral de persistencia: se vuelve a leer al cruzar la
+# frontera. `aviso_stock_enviado` se marca en el cruce del descuento (test de
+# integracion) y se limpia aca, en el update, cuando el stock repuesto queda por
+# encima del umbral: el aviso es por cruce, no acumulativo.
+
+
+def test_el_stock_minimo_llega_del_modelo_a_la_entidad(monkeypatch):
+    producto, modelo = _preparar_producto(activo=True)
+    modelo.stock_minimo = 5
+    _preparar_sesion(monkeypatch, modelo)
+
+    resultado = ProductoRepository().get_by_id(producto.id)
+
+    assert resultado.stock_minimo == 5
+
+
+def test_un_producto_sin_stock_minimo_no_inventa_umbral(monkeypatch):
+    producto, modelo = _preparar_producto(activo=True)
+    modelo.stock_minimo = None
+    _preparar_sesion(monkeypatch, modelo)
+
+    resultado = ProductoRepository().get_by_id(producto.id)
+
+    assert resultado.stock_minimo is None
+
+
+def test_el_stock_minimo_se_persiste_al_actualizar(monkeypatch):
+    producto, modelo = _preparar_producto(activo=True)
+    _preparar_sesion(monkeypatch, modelo)
+
+    GestionarProducto(ProductoRepository()).actualizar(
+        ActualizarProductoDTO(id=producto.id, stock_minimo=4)
+    )
+
+    assert modelo.stock_minimo == 4
+
+
+def test_reponer_por_arriba_del_umbral_limpia_el_aviso(monkeypatch):
+    """El aviso es por cruce: reponer stock apaga el flag para el proximo cruce."""
+    producto, modelo = _preparar_producto(activo=False)
+    modelo.stock_minimo = 3
+    modelo.aviso_stock_enviado = True
+    _preparar_sesion(monkeypatch, modelo)
+    producto.stock = 20
+
+    ProductoRepository().update(producto)
+
+    assert modelo.aviso_stock_enviado is False
+
+
+def test_reponer_sin_salir_del_umbral_mantiene_el_aviso(monkeypatch):
+    """Reponer de 1 a 3 no es reponer por ENCIMA del umbral: el aviso sigue."""
+    producto, modelo = _preparar_producto(activo=False)
+    modelo.stock_minimo = 3
+    modelo.aviso_stock_enviado = True
+    _preparar_sesion(monkeypatch, modelo)
+    producto.stock = 3
+
+    ProductoRepository().update(producto)
+
+    assert modelo.aviso_stock_enviado is True
+    assert producto.stock <= 3

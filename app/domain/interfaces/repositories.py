@@ -136,6 +136,7 @@ class PedidoRepository(RepositoryBase[Pedido], ABC):
         codigo_seguimiento: str | None,
         estado_seguimiento: str | None,
         actualizado_en: datetime | None,
+        transportista: str | None = None,
     ) -> Pedido | None:
 
         raise NotImplementedError

@@ -28,6 +28,7 @@ class _PedidoFalso:
         self.creado_en = None
         self.codigo_seguimiento = None
         self.estado_seguimiento = None
+        self.transportista = None
         self.seguimiento_actualizado_en = None
         self.usuario_id = "00000000-0000-0000-0000-000000000002"
         self.detalles = list(detalles)

@@ -1,10 +1,3 @@
-"""Repositorio de pedidos (SQLAlchemy) con mapeo ORM -> dominio.
-
-Implementa la interfaz `PedidoRepository` de la capa de dominio. Los objetos
-que cruzan la frontera de infraestructura son siempre entidades `Pedido` y
-`DetallePedido`, nunca modelos ORM. La persistencia de `detalle_pedidos` ocurre
-en la misma transacción que el pedido (`crear_con_detalles`).
-"""
 
 from __future__ import annotations
 
@@ -64,20 +57,6 @@ class PedidoRepository(PedidoRepositoryInterface):
         return [_a_entidad(m) for m in modelos]
 
     def list_pagados(self) -> list[Pedido]:
-        """Pedidos con pago `completado`, del más nuevo al más viejo.
-
-        El pedido se crea antes de pagar (`ProcesarPago.iniciar`), así que sin
-        este filtro la vista del admin muestra los carritos abandonados mezclados
-        como pedidos "pendiente". Filtra por `pagos.estado = 'completado'`, que
-        además deja afuera la venta local (`POST /pedidos`, que no genera pago).
-
-        Usa EXISTS y no JOIN porque la pregunta es "¿este pedido TUVO un pago
-        completado?" y eso es un sí/no, no una multiplicación. Con JOIN, un
-        pedido con dos pagos que califican devuelve dos filas de Postgres y el
-        listado queda bien solo porque el ORM deduplica la entidad primaria por
-        clave: una garantia implicita, no un contrato. EXISTS hace que la
-        cantidad de filas sea la cantidad de pedidos por construccion.
-        """
         tiene_pago_completado = (
             select(literal(1))
             .select_from(PagoModel)
@@ -107,6 +86,7 @@ class PedidoRepository(PedidoRepositoryInterface):
             codigo_seguimiento=pedido.codigo_seguimiento,
             estado_seguimiento=pedido.estado_seguimiento,
             seguimiento_actualizado_en=pedido.seguimiento_actualizado_en,
+            transportista=pedido.transportista,
             creado_en=pedido.creado_en,
         )
         for detalle in detalles:
@@ -140,11 +120,13 @@ class PedidoRepository(PedidoRepositoryInterface):
         codigo_seguimiento: str | None,
         estado_seguimiento: str | None,
         actualizado_en: datetime | None,
+        transportista: str | None = None,
     ) -> Pedido | None:
         modelo = db.session.get(self.model, pedido_id)
         if modelo is None:
             return None
         modelo.codigo_seguimiento = codigo_seguimiento
+        modelo.transportista = transportista
         modelo.estado_seguimiento = estado_seguimiento
         modelo.seguimiento_actualizado_en = actualizado_en
         db.session.commit()
@@ -165,6 +147,7 @@ class PedidoRepository(PedidoRepositoryInterface):
         modelo.direccion_envio = entidad.direccion_envio
         modelo.entrega = entidad.entrega
         modelo.codigo_seguimiento = entidad.codigo_seguimiento
+        modelo.transportista = entidad.transportista
         modelo.estado_seguimiento = entidad.estado_seguimiento
         modelo.seguimiento_actualizado_en = entidad.seguimiento_actualizado_en
         db.session.commit()
@@ -189,6 +172,7 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
         codigo_seguimiento=modelo.codigo_seguimiento,
         estado_seguimiento=modelo.estado_seguimiento,
         seguimiento_actualizado_en=modelo.seguimiento_actualizado_en,
+        transportista=modelo.transportista,
         creado_en=modelo.creado_en,
         detalles=[
             DetallePedido(
@@ -216,6 +200,7 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
         codigo_seguimiento=entidad.codigo_seguimiento,
         estado_seguimiento=entidad.estado_seguimiento,
         seguimiento_actualizado_en=entidad.seguimiento_actualizado_en,
+        transportista=entidad.transportista,
         creado_en=entidad.creado_en,
     )
     modelo.detalles = [

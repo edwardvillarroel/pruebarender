@@ -87,6 +87,14 @@ def _stock(producto_id) -> int:
     ).scalar_one()
 
 
+def _aviso(producto_id) -> bool:
+    """`aviso_stock_enviado` leido fresco de la base."""
+    return db.session.execute(
+        db.text("SELECT aviso_stock_enviado FROM productos WHERE id = :i"),
+        {"i": producto_id},
+    ).scalar_one()
+
+
 def test_confirmacion_descuenta_stock(descuento_stock, producto):
     p = producto(stock=10)
     descuento_stock()._descontar_stock(_pedido_con((p.id, 3)))
@@ -185,3 +193,62 @@ def test_descontar_stock_es_atomico_entre_hilos(app, categoria, centinela):
         assert _stock(producto_id) == 0, (
             "el stock quedó en negativo o no llegó a 0: se vendió más de lo que había"
         )
+
+
+# --- Deteccion del cruce de "stock bajo" -------------------------------------
+#
+# `aviso_stock_enviado` se enciende cuando el descuento cruza hacia abajo el
+# umbral (stock_minimo propio o el global STOCK_BAJO=3). Se detecta en el mismo
+# UPDATE del descuento: el SET evalúa el stock viejo de la fila, así la condicion
+# "antes > umbral y ahora <= umbral" describe exactamente lo que va a quedar.
+
+
+def test_descontar_por_debajo_del_umbral_global_marca_el_aviso(descuento_stock, producto):
+    p = producto(stock=5)
+    descuento_stock()._descontar_stock(_pedido_con((p.id, 2)))
+    assert _stock(p.id) == 3
+    assert _aviso(p.id) is True, (
+        "el cruce de 5 a 3 (<= STOCK_BAJO=3) tiene que marcar el aviso"
+    )
+
+
+def test_descontar_sin_cruzar_el_umbral_no_marca_el_aviso(descuento_stock, producto):
+    p = producto(stock=10)
+    descuento_stock()._descontar_stock(_pedido_con((p.id, 2)))
+    assert _stock(p.id) == 8
+    assert _aviso(p.id) is False
+
+
+def test_si_ya_estaba_bajo_el_aviso_no_se_vuelve_a_marcar(descuento_stock, producto):
+    """El aviso se dispara en el CRUCE, no en cada descuento bajo el umbral."""
+    p = producto(stock=2)
+    descuento_stock()._descontar_stock(_pedido_con((p.id, 1)))
+    assert _stock(p.id) == 1
+    assert _aviso(p.id) is False, (
+        "ya estaba bajo el umbral antes de descontar: no es un cruce"
+    )
+
+
+def test_el_stock_minimo_propio_desplaza_al_global(descuento_stock, producto):
+    p = producto(stock=6, stock_minimo=5)
+    descuento_stock()._descontar_stock(_pedido_con((p.id, 2)))
+    assert _stock(p.id) == 4
+    assert _aviso(p.id) is True, (
+        "cruzó 6 -> 4 (<= stock_minimo=5): el umbral propio manda sobre el global"
+    )
+
+
+def test_el_aviso_se_marca_una_sola_vez_y_no_se_apaga_con_descuentos_posteriores(
+    descuento_stock, producto
+):
+    """El flag es por cruce: un descuento bajo el umbral lo enciende una sola vez."""
+    p = producto(stock=10, stock_minimo=3)
+    descuento_stock()._descontar_stock(_pedido_con((p.id, 1)))
+    assert _aviso(p.id) is False
+
+    descuento_stock()._descontar_stock(_pedido_con((p.id, 6)))
+    assert _stock(p.id) == 3
+    assert _aviso(p.id) is True
+
+    descuento_stock()._descontar_stock(_pedido_con((p.id, 1)))
+    assert _aviso(p.id) is True, "ya marcado: otro descuento no lo apaga"

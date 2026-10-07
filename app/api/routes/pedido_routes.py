@@ -115,6 +115,7 @@ def _a_publico_pedido(pedido, admin: bool = False) -> dict:
         "cliente": _cliente(pedido),
         "fecha": pedido.creado_en.isoformat() if pedido.creado_en else None,
         "codigo_seguimiento": pedido.codigo_seguimiento,
+        "transportista": pedido.transportista,
         "estado_seguimiento": pedido.estado_seguimiento,
         "seguimiento_actualizado_en": (
             pedido.seguimiento_actualizado_en.isoformat()
@@ -216,7 +217,7 @@ def registrar_seguimiento(pedido_id: UUID):
     datos = request.get_json(silent=True) or {}
     try:
         pedido = _servicio_seguimiento().registrar_codigo(
-            pedido_id, datos.get("codigo")
+            pedido_id, datos.get("codigo"), datos.get("transportista")
         )
     except ValueError as exc:
         estado = 404 if "no encontrado" in str(exc) else 400
@@ -228,6 +229,7 @@ def _a_publico_seguimiento(pedido, seguimiento) -> dict:
     return {
         "id": str(pedido.id),
         "codigo_seguimiento": pedido.codigo_seguimiento,
+        "transportista": pedido.transportista,
         "estado_seguimiento": pedido.estado_seguimiento,
         "seguimiento_actualizado_en": (
             pedido.seguimiento_actualizado_en.isoformat()

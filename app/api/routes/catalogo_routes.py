@@ -7,6 +7,7 @@ from app.api.middleware.auth import requiere_sesion, rol_requerido
 from app.application.catalogo_stock.gestionar_categoria import GestionarCategoria
 from app.application.catalogo_stock.gestionar_producto import GestionarProducto
 from app.application.common.dto import ActualizarProductoDTO, CrearProductoDTO
+from app.domain.entities.producto import STOCK_BAJO
 
 catalogo_bp = Blueprint("catalogo", __name__)
 
@@ -45,6 +46,14 @@ def _a_publico_producto(producto) -> dict:
         "tamano": producto.tamano,
         "color": producto.color,
         "nuevo_lanzamiento": bool(producto.nuevo_lanzamiento),
+        # Umbral propio de "stock bajo" (None = usar el global STOCK_BAJO). El
+        # flag `stock_bajo` es derivado: basta leer stock vs umbral, asi el
+        # frontend no hardcodea el 3 y el admin puede ajustarlo por producto.
+        "stock_minimo": producto.stock_minimo,
+        "stock_bajo": bool(
+            producto.stock
+            <= (producto.stock_minimo if producto.stock_minimo is not None else STOCK_BAJO)
+        ),
         # Etiqueta de la card, derivada del flag en la frontera y NO persistida:
         # la columna `badge` queda reservada para valores manuales (p.ej.
         # "Best Seller") y asi conviven "Nuevo" y "Best Seller" sin pisarse.
@@ -166,6 +175,11 @@ def crear_producto():
             specs=datos.get("specs"),
             descuento=datos.get("descuento"),
             nuevo_lanzamiento=bool(datos.get("nuevo_lanzamiento", False)),
+            stock_minimo=(
+                int(datos["stock_minimo"])
+                if datos.get("stock_minimo") is not None
+                else None
+            ),
         )
     except (KeyError, ValueError) as e:
         return jsonify(mensaje=f"Datos invalidos: {e}"), 400
@@ -197,6 +211,11 @@ def actualizar_producto(producto_id):
             # Sin `.get(...) or False`: tiene que distinguir "no vino el campo"
             # (None = no tocar) de "vino en False" (apagar el lanzamiento).
             nuevo_lanzamiento=datos.get("nuevo_lanzamiento"),
+            stock_minimo=(
+                int(datos["stock_minimo"])
+                if "stock_minimo" in datos and datos.get("stock_minimo") is not None
+                else None
+            ),
         )
     except (ValueError) as e:
         return jsonify(mensaje=f"Datos invalidos: {e}"), 400

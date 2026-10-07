@@ -119,11 +119,14 @@ export default function AdminLayout() {
   const { logout, user } = useAuth()
   const navigate = useNavigate()
 
-  const handleLogout = () => {
-    setShowConfirm(false)
-    setSidebarOpen(false)
-    logout()
-    navigate('/')
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } finally {
+      setShowConfirm(false)
+      setSidebarOpen(false)
+      navigate('/')
+    }
   }
 
   return (
