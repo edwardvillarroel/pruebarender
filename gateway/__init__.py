@@ -62,6 +62,24 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     return app
 
 
+def _ruta_dist_absoluta(app: Flask) -> Path | None:
+    """Resuelve FRONTEND_DIST a una ruta ABSOLUTA valida, o None.
+
+    `send_from_directory` resuelve el directorio contra `app.root_path`, asi
+    que un valor relativo (el de render.yaml) buscaba los archivos dentro de
+    `gateway/` y devolia 404 para todo el SPA. Ademas sin la guardia de vacio,
+    `Path("").resolve()` seria el CWD (un directorio valido) y se montaria el
+    repo entero.
+    """
+    valor = str(app.config.get("FRONTEND_DIST", "")).strip()
+    if not valor:
+        return None
+    dist = Path(valor).resolve()
+    if not dist.is_dir():
+        return None
+    return dist
+
+
 def _montar_frontend_produccion(app: Flask) -> None:
     """Sirve el build de React (ApoloVibes-frontend/dist) desde el gateway.
 
@@ -70,8 +88,8 @@ def _montar_frontend_produccion(app: Flask) -> None:
     distinto de "/", tambien lo sirve bajo ese prefijo (FRONTEND_BASE_URL).
     Las rutas /api/* se las lleva el proxy (proxy_bp) y jamas llegan aqui.
     """
-    dist = Path(str(app.config.get("FRONTEND_DIST", "")))
-    if not dist.is_dir():
+    dist = _ruta_dist_absoluta(app)
+    if dist is None:
         return
 
     base = str(app.config.get("FRONTEND_BASE_URL", "/")).strip("/")

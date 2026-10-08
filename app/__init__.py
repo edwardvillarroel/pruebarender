@@ -131,6 +131,24 @@ def _configurar_ventas(app: Flask) -> None:
     )
 
 
+def _ruta_dist_absoluta(app: Flask) -> Path | None:
+    """Resuelve FRONTEND_DIST a una ruta ABSOLUTA valida, o None.
+
+    `send_from_directory` resuelve el directorio contra `app.root_path`, asi
+    que un valor relativo (el de render.yaml) buscaba los archivos dentro de
+    `app/` y devolia 404 para todo el SPA. Ademas sin la guardia de vacio,
+    `Path("").resolve()` seria el CWD (un directorio valido) y se montaria el
+    repo entero.
+    """
+    valor = str(app.config.get("FRONTEND_DIST", "")).strip()
+    if not valor:
+        return None
+    dist = Path(valor).resolve()
+    if not dist.is_dir():
+        return None
+    return dist
+
+
 def _montar_frontend_produccion(app: Flask) -> None:
     """Sirve el build de React (ApoloVibes-frontend/dist) si existe.
 
@@ -138,8 +156,8 @@ def _montar_frontend_produccion(app: Flask) -> None:
     bajo ese prefijo (FRONTEND_BASE_URL). Nunca toca las rutas /api/*:
     esas vuelven JSON de error.
     """
-    dist = Path(str(app.config.get("FRONTEND_DIST", "")))
-    if not dist.is_dir():
+    dist = _ruta_dist_absoluta(app)
+    if dist is None:
         return
 
     base = str(app.config.get("FRONTEND_BASE_URL", "/")).strip("/")
