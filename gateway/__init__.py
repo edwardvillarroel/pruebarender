@@ -1,8 +1,9 @@
 
 import logging
 import os
+from pathlib import Path
 
-from flask import Flask
+from flask import Flask, jsonify, redirect, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
@@ -40,6 +41,8 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     register_blueprints(app)
 
+    _montar_frontend_produccion(app)
+
     # B4: fallo ruidoso sin base de datos. Antes esto se tragaba la excepcion y
     # el gateway arrancaba igual, de modo que un `.env` sin DSN se manifestaba
     # mucho despues como un 500 en /auth/login y no como un problema de arranque.
@@ -57,3 +60,42 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         ) from exc
 
     return app
+
+
+def _montar_frontend_produccion(app: Flask) -> None:
+    """Sirve el build de React (ApoloVibes-frontend/dist) desde el gateway.
+
+    Frontend y API quedan en el MISMO origen, asi `const BASE_URL = '/api'`
+    del frontend funciona sin CORS. Como el build de Vite usa un `base`
+    distinto de "/", tambien lo sirve bajo ese prefijo (FRONTEND_BASE_URL).
+    Las rutas /api/* se las lleva el proxy (proxy_bp) y jamas llegan aqui.
+    """
+    dist = Path(str(app.config.get("FRONTEND_DIST", "")))
+    if not dist.is_dir():
+        return
+
+    base = str(app.config.get("FRONTEND_BASE_URL", "/")).strip("/")
+    ruta_base = f"/{base}" if base else ""
+
+    def spa(ruta: str = ""):
+        if ruta.startswith("api/"):
+            return jsonify(mensaje="Recurso no encontrado"), 404
+        archivo = dist / ruta
+        if ruta and archivo.is_file():
+            return send_from_directory(dist, ruta)
+        return send_from_directory(dist, "index.html")
+
+    if ruta_base:
+        @app.get(ruta_base, defaults={"ruta": ""}, strict_slashes=False)
+        @app.get(f"{ruta_base}/<path:ruta>", strict_slashes=False)
+        def spa_con_prefijo(ruta: str = ""):
+            return spa(ruta)
+
+        @app.get("/")
+        def pagina_raiz():
+            return redirect(ruta_base)
+    else:
+        @app.get("/", strict_slashes=False)
+        @app.get("/<path:ruta>", strict_slashes=False)
+        def spa_raiz(ruta: str = ""):
+            return spa(ruta)
