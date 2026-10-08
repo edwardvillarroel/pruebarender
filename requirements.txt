@@ -31,6 +31,11 @@ pillow==11.1.0
 # app sigue funcionando con JPEG/PNG.
 rawpy==0.27.1
 authlib==1.4.1
+# authlib.integrations.requests_client hace `from requests import Session` al
+# importarse, pero authlib NO declara requests como dependencia (la deja como
+# extra). auth_routes.py carga google_oauth al registrar blueprints, asi que
+# sin requests el gateway no arranca (ModuleNotFoundError en Render).
+requests==2.32.5
 
 # --- Cache, colas y tareas en background ---
 redis==8.1.0
