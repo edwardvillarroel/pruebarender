@@ -17,6 +17,7 @@ migrar_imagen_blob.py
 generar_thumbnails.py
 optimizar_imagenes.py
 prueba_stock.py
+probar_tuu.py
 aplicar_colores.py
 aplicar_migraciones_postgres.py
 
