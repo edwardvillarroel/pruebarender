@@ -53,3 +53,5 @@ ApoloVibes-frontend/dist/
 app/uploads/*/*
 !app/uploads/cotizaciones/.gitkeep
 !app/uploads/modelos3d/.gitkeep
+Hunyuan3D/output celda 2.txt
+Hunyuan3D/Hunyuan32.ipynb
