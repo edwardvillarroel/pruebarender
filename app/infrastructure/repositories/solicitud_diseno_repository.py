@@ -5,8 +5,6 @@ from app.infrastructure.repositories.repository_base import RepositoryBase
 
 
 class SolicitudDisenoRepository(RepositoryBase):
-    """Repositorio de solicitudes de diseño (SQLAlchemy)."""
-
     model = SolicitudDisenoModel
 
     def list_por_estado(self, estado: str) -> list[SolicitudDisenoModel]:

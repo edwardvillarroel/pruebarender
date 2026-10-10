@@ -21,6 +21,7 @@ from app.domain.entities.seguimiento_starken import (
     SeguimientoStarken,
 )
 from app.domain.interfaces.starken import StarkenSeguimientoCliente
+from app.domain.time import utcnow
 
 # Fases del proceso de despacho en orden. El estado del pedido se elige según
 # un hash del código para que distintos códigos muestren fases diferentes.
@@ -44,7 +45,7 @@ class StarkenClienteSimulado(StarkenSeguimientoCliente):
             hashlib.md5(codigo.encode("utf-8")).digest()[:2], "big"
         ) % len(FASES)
         estado, descripcion = FASES[indice]
-        ahora = datetime.utcnow()
+        ahora = utcnow()
 
         eventos: list[EventoSeguimiento] = []
         for pos in range(0, indice + 1):

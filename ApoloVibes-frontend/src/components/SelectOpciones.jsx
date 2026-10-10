@@ -41,7 +41,7 @@ export default function SelectOpciones({
   }, [disabled])
 
   const esOscuro = theme === 'dark'
-  const fondo = esOscuro ? 'var(--surface)' : 'var(--bg)'
+  const fondo = esOscuro ? 'var(--surface)' : '#ffff'
   const texto = esOscuro ? 'var(--text)' : 'var(--surface)'
   const lista = options || []
   const valores = lista.map(o => (typeof o === 'string' ? o : o.value))

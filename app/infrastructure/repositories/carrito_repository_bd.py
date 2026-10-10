@@ -1,10 +1,3 @@
-"""Repositorio del carrito persistido en la base de datos (Oracle/Postgres).
-
-Implementa el mismo contrato que `CarritoRepositoryEnMemoria`; la capa de
-aplicación no cambia, solo se sustituye la implementación en el punto de
-composición (`create_app`). Un carrito pertenece a un usuario real: el
-`usuario_id` viene del `sub` del JWT y debe existir en `usuarios`.
-"""
 
 import uuid
 from datetime import datetime
@@ -17,39 +10,40 @@ from app.domain.entities.carrito import Carrito, ItemCarrito
 from app.domain.interfaces.carrito_repository import CarritoRepository
 from app.infrastructure.database.connection import db
 from app.infrastructure.database.models.carrito_model import CarritoItemModel, CarritoModel
+from app.infrastructure.database.models.producto_color_model import ProductoColorModel
+from app.infrastructure.database.models.producto_model import ProductoModel
+from app.infrastructure.repositories.producto_repository import (
+    RUTA_IMAGEN_COLOR,
+    RUTA_IMAGEN_PRODUCTO,
+)
+from app.domain.time import utcnow
 
 
 class CarritoRepositoryBd(CarritoRepository):
-    """Carrito con respaldo en la base de datos.
-
-    `carrito` y `carrito_items` exigen que el usuario (FK a `usuarios`) y el
-    producto (FK a `productos`) existan. Si el producto no existe, el INSERT
-    falla con `IntegrityError` (se hace rollback y se relanza para que la capa
-    de API lo traduzca a un mensaje al cliente).
-    """
-
     def obtener(self, usuario_id: str) -> Carrito | None:
         modelo = self._buscar(usuario_id)
         if modelo is None:
             return None
+        items = [
+            ItemCarrito(
+                id=item.id,
+                producto_id=str(item.producto_id),
+                cantidad=item.cantidad,
+                color=item.color,
+                agregado_en=item.agregado_en,
+            )
+            for item in modelo.items
+        ]
+        self._resolver_imagenes(items)
         return Carrito(
             usuario_id=str(modelo.usuario_id),
             actualizado_en=modelo.actualizado_en,
-            items=[
-                ItemCarrito(
-                    id=item.id,
-                    producto_id=str(item.producto_id),
-                    cantidad=item.cantidad,
-                    color=item.color,
-                    agregado_en=item.agregado_en,
-                )
-                for item in modelo.items
-            ],
+            items=items,
         )
 
     def guardar(self, carrito: Carrito) -> Carrito:
         uid = _a_uuid(carrito.usuario_id)
-        ahora = datetime.utcnow()
+        ahora = utcnow()
         modelo = self._buscar(uid)
 
         if modelo is None:
@@ -91,6 +85,7 @@ class CarritoRepositoryBd(CarritoRepository):
         except IntegrityError:
             db.session.rollback()
             raise
+        self._resolver_imagenes(carrito.items)
         return carrito
 
     def eliminar(self, usuario_id: str) -> None:
@@ -99,6 +94,45 @@ class CarritoRepositoryBd(CarritoRepository):
             return
         db.session.delete(modelo)
         db.session.commit()
+
+    def _resolver_imagenes(self, items: list[ItemCarrito]) -> None:
+        if not items:
+            return
+
+        ids = {_a_uuid(item.producto_id) for item in items}
+        filas = db.session.execute(
+            select(
+                ProductoModel.id,
+                ProductoModel.imagen_bytes.isnot(None).label("tiene_imagen"),
+                ProductoColorModel.id.label("color_id"),
+                ProductoColorModel.nombre.label("color_nombre"),
+                ProductoColorModel.imagen_bytes.isnot(None).label("color_tiene_imagen"),
+            )
+            .outerjoin(
+                ProductoColorModel, ProductoColorModel.producto_id == ProductoModel.id
+            )
+            .where(ProductoModel.id.in_(ids))
+        ).all()
+
+        productos = {f.id: f.tiene_imagen for f in filas}
+        colores = {
+            (f.id, (f.color_nombre or "").strip().lower()): (f.color_id, f.color_tiene_imagen)
+            for f in filas
+            if f.color_id is not None
+        }
+
+        for item in items:
+            producto_id = _a_uuid(item.producto_id)
+            imagen = (
+                RUTA_IMAGEN_PRODUCTO.format(producto_id=producto_id)
+                if productos.get(producto_id)
+                else None
+            )
+            if item.color:
+                fila = colores.get((producto_id, item.color.strip().lower()))
+                if fila and fila[1]:
+                    imagen = RUTA_IMAGEN_COLOR.format(color_id=fila[0])
+            item.imagen = imagen
 
     def _buscar(self, usuario_id: str) -> CarritoModel | None:
         return db.session.execute(

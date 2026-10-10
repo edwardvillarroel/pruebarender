@@ -3,6 +3,7 @@ from pathlib import Path
 from flask import Flask, jsonify, redirect, send_from_directory
 from flask_cors import CORS
 
+from app.api.json_provider import ProveedorJsonApp
 from app.config import Config
 from app.infrastructure.database.connection import db
 
@@ -10,6 +11,7 @@ from app.infrastructure.database.connection import db
 def create_app(config_class: type[Config] = Config) -> Flask:
     app = Flask(__name__, static_folder=None)
     app.config.from_object(config_class)
+    app.json = ProveedorJsonApp(app)
 
     CORS(app, origins=app.config.get("CORS_ORIGINS", "*"))
     db.init_app(app)
@@ -33,12 +35,6 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
 
 def _configurar_carrito(app: Flask) -> None:
-    """Punto de composición del carrito (inyección de dependencias).
-
-    La ruta del carrito lee el servicio desde `app.config`; así la capa API
-    no depende de `infrastructure`. El carrito se persiste en la base de datos
-    (tablas `carrito`/`carrito_items`) y pertenece al usuario del JWT.
-    """
     from app.application.carrito.gestionar_carrito import GestionarCarrito
     from app.infrastructure.repositories.carrito_repository_bd import (
         CarritoRepositoryBd,
@@ -48,15 +44,6 @@ def _configurar_carrito(app: Flask) -> None:
 
 
 def _configurar_catalogo(app: Flask) -> None:
-    """Punto de composición del catálogo (inyección de dependencias).
-
-    Las rutas de catálogo leen los servicios desde `app.config`; así la capa
-    API no depende de `infrastructure`. El catálogo se lee desde la base de
-    datos (tablas `productos`/`categorias`). Importar los repositorios registra
-    los modelos ORM con Flask-SQLAlchemy (productos y categorias). El conversor
-    de imágenes (`CONVERSOR_IMAGEN`, convierte RAW de cámara a JPEG) también
-    se inyecta aquí por la misma razón.
-    """
     from app.application.catalogo_stock.gestionar_categoria import (
         GestionarCategoria,
     )
@@ -78,25 +65,22 @@ def _configurar_catalogo(app: Flask) -> None:
 
 
 def _configurar_pedidos_pagos(app: Flask) -> None:
-    """Punto de composición de pedidos y pago (inyección de dependencias).
-
-    La capa API solo lee los servicios desde `app.config`; así no depende de
-    `infrastructure`. Importar los repositorios y el cliente de TUU aquí
-    registra además los modelos ORM de pedidos/pagos/detalle_pedidos con
-    Flask-SQLAlchemy.
-    """
+    from app.application.pedidos_pagos.cambiar_estado_pedido import (
+        CambiarEstadoPedido,
+    )
     from app.application.pedidos_pagos.consultar_pedido import ConsultarPedido
     from app.application.pedidos_pagos.crear_pedido import CrearPedido
     from app.application.pedidos_pagos.procesar_pago import ProcesarPago
     from app.application.pedidos_pagos.seguimiento_starken import (
         GestionarSeguimientoStarken,
     )
+    from app.infrastructure.correo.emailjs import EmailJsCorreo
     from app.infrastructure.pagos.tuu_client import TuuCliente
     from app.infrastructure.starken.starken_cliente import StarkenCliente
     from app.infrastructure.starken.starken_cliente_simulado import (
         StarkenClienteSimulado,
     )
-    from app.infrastructure.database.models.usuario_model import UsuarioModel  # noqa: F401 (registra "usuarios" para la FK de pedidos)
+    from app.infrastructure.database.models.usuario_model import UsuarioModel 
     from app.infrastructure.repositories.carrito_repository_bd import (
         CarritoRepositoryBd,
     )
@@ -112,12 +96,14 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
 
     app.config["PEDIDO_SERVICE"] = CrearPedido(pedidos, productos)
     app.config["CONSULTA_PEDIDO_SERVICE"] = ConsultarPedido(pedidos)
+    app.config["CAMBIAR_ESTADO_PEDIDO_SERVICE"] = CambiarEstadoPedido(pedidos)
     app.config["PAGO_SERVICE"] = ProcesarPago(
         pedidos,
         pagos,
         productos,
         TuuCliente(app.config),
         CarritoRepositoryBd(),
+        EmailJsCorreo(app.config),
     )
     if str(app.config.get("STARKEN_MODO_SIMULACION", "")).strip().lower() in ("1", "true", "si", "yes"):
         cliente_starken = StarkenClienteSimulado(app.config)
@@ -136,13 +122,31 @@ def _configurar_ventas(app: Flask) -> None:
     ORM de venta local con Flask-SQLAlchemy.
     """
     from app.application.venta_local.gestionar_venta_local import GestionarVentaLocal
-    from app.infrastructure.database.models.usuario_model import UsuarioModel  # noqa: F401  (registra "usuarios" para el FK de sesiones_venta)
+    from app.infrastructure.database.models.usuario_model import UsuarioModel 
     from app.infrastructure.repositories.producto_repository import ProductoRepository
     from app.infrastructure.repositories.venta_local_repository import VentaLocalRepository
 
     app.config["VENTA_SERVICE"] = GestionarVentaLocal(
         VentaLocalRepository(), ProductoRepository()
     )
+
+
+def _ruta_dist_absoluta(app: Flask) -> Path | None:
+    """Resuelve FRONTEND_DIST a una ruta ABSOLUTA valida, o None.
+
+    `send_from_directory` resuelve el directorio contra `app.root_path`, asi
+    que un valor relativo (el de render.yaml) buscaba los archivos dentro de
+    `app/` y devolia 404 para todo el SPA. Ademas sin la guardia de vacio,
+    `Path("").resolve()` seria el CWD (un directorio valido) y se montaria el
+    repo entero.
+    """
+    valor = str(app.config.get("FRONTEND_DIST", "")).strip()
+    if not valor:
+        return None
+    dist = Path(valor).resolve()
+    if not dist.is_dir():
+        return None
+    return dist
 
 
 def _montar_frontend_produccion(app: Flask) -> None:
@@ -152,8 +156,8 @@ def _montar_frontend_produccion(app: Flask) -> None:
     bajo ese prefijo (FRONTEND_BASE_URL). Nunca toca las rutas /api/*:
     esas vuelven JSON de error.
     """
-    dist = Path(str(app.config.get("FRONTEND_DIST", "")))
-    if not dist.is_dir():
+    dist = _ruta_dist_absoluta(app)
+    if dist is None:
         return
 
     base = str(app.config.get("FRONTEND_BASE_URL", "/")).strip("/")

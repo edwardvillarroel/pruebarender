@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
@@ -25,16 +26,6 @@ class UsuarioRepository(RepositoryBase[Usuario], ABC):
 
 
 class ProductoRepository(RepositoryBase[Producto], ABC):
-    """Contrato de persistencia de productos y sus variantes de color.
-
-    Nota sobre el thumbnail: no existe un metodo para invalidarlo a proposito.
-    El thumbnail es un cache derivado del BLOB original, asi que su
-    invalidacion es un invariante de persistencia — si se reemplaza la foto, el
-    cache cae con ella — y ocurre dentro del propio metodo de escritura
-    (`guardar_imagen`/`guardar_color`).     Exponerlo como operacion aparte
-    permitiria el estado incoherente (foto nueva con thumbnail de la vieja) sin
-    que nada lo garantizara.
-    """
 
     @abstractmethod
     def get_by_categoria(self, categoria_id: UUID) -> list[Producto]:
@@ -46,30 +37,22 @@ class ProductoRepository(RepositoryBase[Producto], ABC):
 
     @abstractmethod
     def get_imagen_by_id(self, producto_id: UUID) -> ImagenProducto | None:
-        """Bytes y content-type de la imagen del producto, sin cargar el resto."""
+      
         raise NotImplementedError
 
     @abstractmethod
     def get_thumb_by_id(self, producto_id: UUID) -> ImagenProducto | None:
-        """Thumbnail ya generado del producto, o `None` si todavia no existe.
 
-        El thumbnail se genera la primera vez que se pide y queda guardado; por
-        eso esta lectura no lo produce, solo lo devuelve si ya esta cacheado.
-        """
         raise NotImplementedError
 
     @abstractmethod
     def guardar_thumb(self, producto_id: UUID, thumb: ImagenProducto) -> None:
-        """Guarda el thumbnail generado y descarta el anterior."""
+
         raise NotImplementedError
 
     @abstractmethod
     def list_colores(self, producto_id: UUID) -> list[ColorProducto]:
-        """Colores del producto en orden, sin cargar los bytes de las imagenes.
-
-        `ColorProducto.imagen_url` ya viene resuelta y es `None` cuando el color
-        todavia no tiene foto.
-        """
+ 
         raise NotImplementedError
 
     @abstractmethod
@@ -80,38 +63,38 @@ class ProductoRepository(RepositoryBase[Producto], ABC):
     def primera_imagen_color_por_producto(
         self, producto_ids: list[UUID]
     ) -> dict[UUID, FotoColorCatalogo]:
-        """Foto del primer color de cada producto, en una sola consulta.
 
-        Sirve para que el listado del catalogo muestre una foto en la tarjeta
-        cuando el producto no tiene foto principal pero si variantes de color.
-        Solo devuelve los productos que efectivamente tienen foto de color.
-        """
         raise NotImplementedError
 
     @abstractmethod
     def get_color_imagen_by_id(self, color_id: UUID) -> ImagenProducto | None:
-        """Bytes y content-type de la imagen de un color, sin cargar el resto."""
+    
         raise NotImplementedError
 
     @abstractmethod
     def get_color_thumb_by_id(self, color_id: UUID) -> ImagenProducto | None:
-        """Thumbnail ya generado de un color, o `None` si no existe todavia."""
+ 
         raise NotImplementedError
 
     @abstractmethod
     def guardar_color_thumb(self, color_id: UUID, thumb: ImagenProducto) -> None:
-        """Guarda el thumbnail de un color y descarta el anterior."""
+       
         raise NotImplementedError
 
     @abstractmethod
     def guardar_color(
         self, producto_id: UUID, nombre: str, imagen: ImagenProducto
     ) -> ColorProducto:
-        """Crea o reemplaza el color del producto indicado y su imagen."""
+      
         raise NotImplementedError
 
     @abstractmethod
     def eliminar_color(self, color_id: UUID) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def descontar_stock(self, items: Sequence[tuple[UUID, int]]) -> bool:
+
         raise NotImplementedError
 
 
@@ -126,14 +109,18 @@ class PedidoRepository(RepositoryBase[Pedido], ABC):
 
     @abstractmethod
     def list_todos(self) -> list[Pedido]:
-        """Todos los pedidos, más recientes primero (vista admin con seguimiento)."""
+        
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_pagados(self) -> list[Pedido]:
         raise NotImplementedError
 
     @abstractmethod
     def crear_con_detalles(
         self, pedido: Pedido, detalles: list[DetallePedido]
     ) -> Pedido:
-        """Persiste el pedido y sus líneas en una sola transacción."""
+        
         raise NotImplementedError
 
     @abstractmethod
@@ -149,9 +136,21 @@ class PedidoRepository(RepositoryBase[Pedido], ABC):
         codigo_seguimiento: str | None,
         estado_seguimiento: str | None,
         actualizado_en: datetime | None,
+        transportista: str | None = None,
     ) -> Pedido | None:
-        """Guarda el código de seguimiento (OF) y el último estado sincronizado."""
+
         raise NotImplementedError
+
+
+class ClaveIdempotenciaOcupada(Exception):
+    """Ya hay un pago `pendiente` con esa clave de idempotencia.
+
+    La traduce la infraestructura, que es la unica capa que sabe que la
+    unicidad la garantiza un indice unico de Postgres. `application` recibe
+    esta excepcion en vez de `sqlalchemy.exc.IntegrityError` para no depender
+    del motor: la carrera del doble click es una regla del negocio, no un
+    detalle de SQL.
+    """
 
 
 class PagoRepository(RepositoryBase[Pago], ABC):
@@ -161,6 +160,10 @@ class PagoRepository(RepositoryBase[Pago], ABC):
 
     @abstractmethod
     def get_by_pedido(self, pedido_id: UUID) -> Pago | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_by_clave_idempotencia(self, clave: str) -> Pago | None:
         raise NotImplementedError
 
 

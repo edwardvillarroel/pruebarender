@@ -1,16 +1,8 @@
-"""Caso de uso: crear un pedido a partir de un carrito (sin pago aún).
-
-Valida existencia/actividad/stock, calcula el total (envío + IVA) y persiste
-el pedido con sus líneas en una sola transacción. No descuenta stock: eso
-ocurre al confirmarse el pago (ver `ProcesarPago.confirmar`).
-"""
-
 from __future__ import annotations
-
 import json
 from uuid import UUID
 
-from app.application.common.calculos import calcular_total_con_envio_y_iva
+from app.application.common.calculos import calcular_total_con_envio
 from app.application.common.dto import CrearPedidoDTO
 from app.domain.entities.detalle_pedido import DetallePedido
 from app.domain.entities.pedido import Pedido
@@ -18,8 +10,6 @@ from app.domain.interfaces.repositories import PedidoRepository, ProductoReposit
 
 
 class CrearPedido:
-    """Caso de uso: pedido a partir de las líneas del cliente."""
-
     def __init__(
         self, pedidos: PedidoRepository, productos: ProductoRepository
     ) -> None:
@@ -35,6 +25,7 @@ class CrearPedido:
             direccion_envio=(
                 json.dumps(dto.cliente, ensure_ascii=False) if dto.cliente else None
             ),
+            entrega=dto.entrega,
         )
         detalles = []
         subtotal = 0
@@ -54,10 +45,11 @@ class CrearPedido:
                     cantidad=item.cantidad,
                     precio_unitario=producto.precio,
                     color=getattr(item, "color", None),
+                    nombre=producto.nombre,
                 )
             )
             subtotal += producto.precio * item.cantidad
 
-        pedido.total = calcular_total_con_envio_y_iva(subtotal, dto.entrega)
+        pedido.total = calcular_total_con_envio(subtotal, dto.entrega)
         pedido.detalles = detalles
         return self._pedidos.crear_con_detalles(pedido, detalles)

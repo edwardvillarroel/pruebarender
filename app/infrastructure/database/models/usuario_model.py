@@ -1,13 +1,13 @@
 import uuid
 from datetime import datetime
 
-from app.infrastructure.database.connection import UuidRaw, db
+from app.infrastructure.database.connection import db, utcnow
 
 
 class UsuarioModel(db.Model):
     __tablename__ = "usuarios"
 
-    id = db.Column(UuidRaw, primary_key=True, default=uuid.uuid4)
+    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     nombre = db.Column(db.String(100), nullable=False)
@@ -19,4 +19,4 @@ class UsuarioModel(db.Model):
     google_sub = db.Column(db.String(255))
     mfa_secret = db.Column(db.String(64))
     mfa_activo = db.Column(db.Boolean, nullable=False, default=False)
-    creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)

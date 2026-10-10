@@ -1,10 +1,3 @@
-"""Repositorio de pedidos (SQLAlchemy) con mapeo ORM -> dominio.
-
-Implementa la interfaz `PedidoRepository` de la capa de dominio. Los objetos
-que cruzan la frontera de infraestructura son siempre entidades `Pedido` y
-`DetallePedido`, nunca modelos ORM. La persistencia de `detalle_pedidos` ocurre
-en la misma transacción que el pedido (`crear_con_detalles`).
-"""
 
 from __future__ import annotations
 
@@ -12,17 +5,18 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import literal, select
 from sqlalchemy.orm import selectinload
 
 from app.domain.entities.detalle_pedido import DetallePedido
 from app.domain.entities.pedido import Pedido
-from app.domain.enums import EstadoPedido
+from app.domain.enums import EstadoPago, EstadoPedido
 from app.domain.interfaces.repositories import (
     PedidoRepository as PedidoRepositoryInterface,
 )
 from app.infrastructure.database.connection import db
 from app.infrastructure.database.models.detalle_pedido_model import DetallePedidoModel
+from app.infrastructure.database.models.pago_model import PagoModel
 from app.infrastructure.database.models.pedido_model import PedidoModel
 
 
@@ -62,6 +56,23 @@ class PedidoRepository(PedidoRepositoryInterface):
         ).scalars().all()
         return [_a_entidad(m) for m in modelos]
 
+    def list_pagados(self) -> list[Pedido]:
+        tiene_pago_completado = (
+            select(literal(1))
+            .select_from(PagoModel)
+            .where(PagoModel.pedido_id == self.model.id)
+            .where(PagoModel.estado == EstadoPago.COMPLETADO.value)
+            .exists()
+        )
+        modelos = (
+            db.session.query(self.model)
+            .options(selectinload(self.model.detalles))
+            .filter(tiene_pago_completado)
+            .order_by(self.model.creado_en.desc())
+            .all()
+        )
+        return [_a_entidad(m) for m in modelos]
+
     def crear_con_detalles(
         self, pedido: Pedido, detalles: list[DetallePedido]
     ) -> Pedido:
@@ -71,9 +82,11 @@ class PedidoRepository(PedidoRepositoryInterface):
             estado=pedido.estado.value,
             total=pedido.total,
             direccion_envio=pedido.direccion_envio,
+            entrega=pedido.entrega,
             codigo_seguimiento=pedido.codigo_seguimiento,
             estado_seguimiento=pedido.estado_seguimiento,
             seguimiento_actualizado_en=pedido.seguimiento_actualizado_en,
+            transportista=pedido.transportista,
             creado_en=pedido.creado_en,
         )
         for detalle in detalles:
@@ -84,6 +97,7 @@ class PedidoRepository(PedidoRepositoryInterface):
                     cantidad=detalle.cantidad,
                     precio_unitario=detalle.precio_unitario,
                     color=detalle.color,
+                    nombre=detalle.nombre,
                 )
             )
         db.session.add(modelo)
@@ -106,11 +120,13 @@ class PedidoRepository(PedidoRepositoryInterface):
         codigo_seguimiento: str | None,
         estado_seguimiento: str | None,
         actualizado_en: datetime | None,
+        transportista: str | None = None,
     ) -> Pedido | None:
         modelo = db.session.get(self.model, pedido_id)
         if modelo is None:
             return None
         modelo.codigo_seguimiento = codigo_seguimiento
+        modelo.transportista = transportista
         modelo.estado_seguimiento = estado_seguimiento
         modelo.seguimiento_actualizado_en = actualizado_en
         db.session.commit()
@@ -129,7 +145,9 @@ class PedidoRepository(PedidoRepositoryInterface):
         modelo.estado = entidad.estado.value
         modelo.total = entidad.total
         modelo.direccion_envio = entidad.direccion_envio
+        modelo.entrega = entidad.entrega
         modelo.codigo_seguimiento = entidad.codigo_seguimiento
+        modelo.transportista = entidad.transportista
         modelo.estado_seguimiento = entidad.estado_seguimiento
         modelo.seguimiento_actualizado_en = entidad.seguimiento_actualizado_en
         db.session.commit()
@@ -150,9 +168,11 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
         estado=EstadoPedido(modelo.estado),
         total=modelo.total,
         direccion_envio=modelo.direccion_envio,
+        entrega=modelo.entrega,
         codigo_seguimiento=modelo.codigo_seguimiento,
         estado_seguimiento=modelo.estado_seguimiento,
         seguimiento_actualizado_en=modelo.seguimiento_actualizado_en,
+        transportista=modelo.transportista,
         creado_en=modelo.creado_en,
         detalles=[
             DetallePedido(
@@ -162,6 +182,7 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
                 cantidad=d.cantidad,
                 precio_unitario=d.precio_unitario,
                 color=d.color,
+                nombre=d.nombre,
             )
             for d in modelo.detalles
         ],
@@ -175,9 +196,11 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
         estado=entidad.estado.value,
         total=entidad.total,
         direccion_envio=entidad.direccion_envio,
+        entrega=entidad.entrega,
         codigo_seguimiento=entidad.codigo_seguimiento,
         estado_seguimiento=entidad.estado_seguimiento,
         seguimiento_actualizado_en=entidad.seguimiento_actualizado_en,
+        transportista=entidad.transportista,
         creado_en=entidad.creado_en,
     )
     modelo.detalles = [
@@ -187,6 +210,7 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
             cantidad=d.cantidad,
             precio_unitario=d.precio_unitario,
             color=d.color,
+            nombre=d.nombre,
         )
         for d in entidad.detalles
     ]
