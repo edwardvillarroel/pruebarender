@@ -1,9 +1,3 @@
-"""Repositorio de venta local (SQLAlchemy) con mapeo ORM -> dominio.
-
-Implementa la interfaz `VentaLocalRepository` de la capa de dominio. Los objetos
-que cruzan la frontera de infraestructura son siempre entidades (`SesionVenta`,
-`VentaLocal`), no modelos ORM.
-"""
 
 from __future__ import annotations
 
@@ -17,6 +11,7 @@ from app.domain.entities.venta_local import SesionVenta, VentaLocal, VentaLocalI
 from app.domain.interfaces.venta_local_repository import (
     VentaLocalRepository as VentaLocalRepositoryInterface,
 )
+from app.domain.time import utcnow
 from app.infrastructure.database.connection import db
 from app.infrastructure.database.models.producto_model import ProductoModel
 from app.infrastructure.database.models.venta_local_model import (
@@ -50,8 +45,6 @@ class VentaLocalRepository(VentaLocalRepositoryInterface):
         return _a_entidad_sesion(modelo) if modelo else None
 
     def registrar_venta(self, venta: VentaLocal) -> VentaLocal:
-        # Descuenta stock atómicamente y persiste la venta + items en UNA transacción.
-        # Cada UPDATE con guard stock >= cantidad protege contra stock agotado entre validación y persistencia.
         for item in venta.items:
             resultado = db.session.execute(
                 update(ProductoModel)
@@ -77,7 +70,7 @@ class VentaLocalRepository(VentaLocalRepositoryInterface):
         if modelo is None:
             return None
         modelo.estado = "cerrada"
-        modelo.cerrada_en = datetime.utcnow()
+        modelo.cerrada_en = utcnow()
         db.session.commit()
         return _a_entidad_sesion(modelo)
 
@@ -127,7 +120,6 @@ def _a_entidad_sesion(modelo: SesionVentaModel) -> SesionVenta:
 
 
 def producto_disponible(producto_id: UUID) -> int:
-    """Stock actual del producto para un mensaje de error (consulta previa al flush cruzado)."""
     stock = db.session.execute(
         select(ProductoModel.stock).where(ProductoModel.id == producto_id)
     ).scalar_one_or_none()

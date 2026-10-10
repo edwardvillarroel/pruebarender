@@ -1,10 +1,5 @@
 import { api } from './api.js'
 
-// Cache de imagenes por color. El carrito y el checkout reciben del backend el
-// producto_id y el color de cada linea, pero no la foto: el backend no la
-// incluye porque las imagenes se sirven por URL. Guardamos aqui el color ->
-// imagen que se cargo al abrir el detalle, para que la linea del carrito
-// muestre la foto del color elegido y no la principal del producto.
 const imagenesPorColor = new Map()
 
 function claveColor(productoId, color) {

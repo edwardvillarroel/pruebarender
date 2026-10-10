@@ -91,6 +91,10 @@ export default function Inventario() {
     return productos.filter(p => p.categoria_id === filtroCat);
   }, [productos, filtroCat]);
 
+  const productosStockBajo = useMemo(() => productos.filter(p => p.stock_bajo),
+    [productos]
+  );
+
   useEffect(() => {
     setPagina(1);
   }, [filtroCat]);
@@ -149,6 +153,26 @@ export default function Inventario() {
         <p style={{ color: 'var(--text-dim)' }}>No hay productos en la base de datos.</p>
       ) : (
         <>
+          {productosStockBajo.length > 0 && (
+            <div
+              role="alert"
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16,
+                padding: '12px 14px', borderRadius: 10,
+                background: 'rgba(250,204,21,.14)', border: '1px solid rgba(250,204,21,.4)',
+                fontSize: 13, color: 'var(--text)',
+              }}
+            >
+              <AlertTriangle size={16} color="#b45309" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <strong style={{ color: "#b45309" }}>{productosStockBajo.length} {productosStockBajo.length === 1 ? 'producto tiene' : 'productos tienen'} stock bajo. </strong>
+                <div style={{ color: 'var(--text-dim)', marginTop: 2 }}>
+                  {productosStockBajo.map(p => `${p.nombre} (${p.stock})`).join(' · ')}
+                </div>
+              </div>
+            </div>
+          )}
+
           {mensaje && (
             <p style={{ color: mensaje.tipo === 'ok' ? 'var(--green, #22c55e)' : 'var(--red, #ef4444)', margin: '0 0 16px', fontSize: 13 }}>
               {mensaje.texto}
@@ -188,7 +212,24 @@ export default function Inventario() {
                     <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.color || '—'}</td>
                     <td style={{ padding: '13px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>${p.precio.toLocaleString('es-CL')}</td>
                     <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.descuento || 0}%</td>
-                    <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{p.stock}</td>
+                    <td style={{ padding: '13px 10px' }}>
+                      {(() => {
+                        const agotado = p.stock <= 0;
+                        const bajo = !agotado && p.stock_bajo;
+                        return (
+                          <span
+                            title={agotado ? 'Sin stock' : bajo ? 'Stock bajo' : undefined}
+                            style={{
+                              display: 'inline-block', minWidth: 20, padding: '3px 10px', borderRadius: 999,
+                              fontSize: 12, fontWeight: 600, background: agotado ? 'rgba(239, 68, 68 .16)' : bajo ? 'rgba(250,204,21,.18)' : 'transparent',
+                              color: agotado ? 'var(--red, #ef4444)' : bajo ? '#b45309' : 'var(--text-dim)',
+                            }}
+                          >
+                            {p.stock}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td style={{ padding: '13px 10px', color: 'var(--text-dim)', cursor: 'pointer' }} onClick={() => setModal(p)}>
                       <Pencil size={16} color='var(--green)' />
                     </td>

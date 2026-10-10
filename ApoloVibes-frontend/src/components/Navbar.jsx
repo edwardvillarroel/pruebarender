@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
-import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck, ClipboardList, Minus, Plus, Trash2, ArrowRight, ShieldCheck } from 'lucide-react'
+import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck, ClipboardList, Minus, Plus, Trash2, ShieldCheck } from 'lucide-react'
 import LoginModal from './LoginModal.jsx'
 import SeguridadModal from './SeguridadModal.jsx'
 import ConfirmModal from './ConfirmModal.jsx'
@@ -67,17 +67,18 @@ export default function Navbar() {
     navigate(path)
   }
 
-  // Abre la confirmación de "Cerrar sesión". Los dos puntos de entrada (menú de
-  // usuario y menú móvil) cierran su menú antes, así el modal queda visible.
   function handlePedirLogout(cerrarMenu) {
     cerrarMenu()
     setConfirmarLogout(true)
   }
 
-  function handleLogout() {
-    setConfirmarLogout(false)
-    logout()
-    navigate('/')
+  async function handleLogout() {
+    try {
+      await logout()
+    } finally {
+      setConfirmarLogout(false)
+      navigate('/')
+    }
   }
 
   return (
@@ -226,14 +227,14 @@ export default function Navbar() {
                       </button>
                     </div>
                   ) : (
-                    items.map(item => (
+                    items.map((item, index) => (
                       <div
-                        key={item.id}
+                        key={item.itemId}
                         style={{
                           display: 'flex',
                           gap: 12,
                           padding: '12px 16px',
-                          borderBottom: '1px solid var(--bg)',
+                          borderBottom: index < items.length - 1 ? '1px solid var(--surface-3)' : 'none',
                         }}
                       >
                         <div
@@ -328,7 +329,6 @@ export default function Navbar() {
                       style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', background: 'var(--surface)' }}
                     >
                       Continuar con la compra
-                      <ArrowRight size={16} color="var(--text)" />
                     </button>
                   </div>
                 )}
@@ -501,9 +501,7 @@ export default function Navbar() {
         <SeguridadModal onClose={() => setSeguridadOpen(false)} />
       )}
 
-      {/* El <header> es sticky y lleva backdrop-filter inline, que crea containing
-          block para position: fixed: sin portal el modal quedaría encerrado en la
-          franja del header en vez de cubrir el viewport. */}
+
       {confirmarLogout && createPortal(
         <ConfirmModal
           onConfirm={handleLogout}

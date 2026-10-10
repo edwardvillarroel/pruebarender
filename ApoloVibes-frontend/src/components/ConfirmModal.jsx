@@ -1,4 +1,5 @@
 import { mediaPath } from '../utils/media.js'
+import { useState } from 'react'
 
 export default function ConfirmModal({
   onConfirm,
@@ -7,9 +8,30 @@ export default function ConfirmModal({
   titulo = 'Cerrar sesión',
   textoCancelar = 'No, quedarme',
   textoConfirmar = 'Sí, salir',
+  textoCargando = 'Saliendo...',
   confirmarPeligro = true,
+  colorConfirmar = null,
+  colorTextoConfirmar = '#fff',
   mostrarLogo = true,
 }) {
+
+  const [cargando, setCargando] = useState(false)
+
+  async function confirmar() {
+    if (cargando) return
+    setCargando(true)
+    try {
+      await onConfirm()
+    } finally {
+      setCargando(false)
+    }
+  }
+
+  function cancelar(){
+    if (cargando) return
+    onCancel()
+  }
+
   return (
     <div
       style={{
@@ -17,7 +39,7 @@ export default function ConfirmModal({
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 9999, backdropFilter: 'blur(4px)',
       }}
-      onClick={onCancel}
+      onClick={cancelar}
     >
       <div
         style={{
@@ -27,7 +49,6 @@ export default function ConfirmModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ fontSize: 36, marginBottom: 12 }}></div>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
           {mostrarLogo && (
             <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ width: 60, height: 60 }} />
@@ -41,27 +62,31 @@ export default function ConfirmModal({
         </p>
         <div style={{ display: 'flex', gap: 10 }}>
           <button
-            onClick={onCancel}
+            onClick={cancelar}
+            disabled={cargando}
             style={{
               flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid var(--line)',
               background: 'transparent', color: 'var(--text)', fontSize: 13, fontWeight: 500,
-              cursor: 'pointer',
+              cursor: cargando ? 'not-allowed' : 'pointer',
+              opacity: cargando ? 0.5 : 1,
             }}
           >
             {textoCancelar}
           </button>
           <button
-            onClick={onConfirm}
+            onClick={confirmar}
+            disabled={cargando}
             style={{
               flex: 1, padding: '10px 0', borderRadius: 10,
-              border: confirmarPeligro ? 'none' : '1px solid var(--line)',
-              background: confirmarPeligro ? '#b60303' : 'var(--surface-3)',
-              color: confirmarPeligro ? '#fff' : 'var(--text)',
+              border: confirmarPeligro || colorConfirmar ? 'none' : '1px solid var(--line)',
+              background: colorConfirmar ?? (confirmarPeligro ? '#b60303' : 'var(--surface-3)'),
+              color: colorConfirmar ? colorTextoConfirmar : (confirmarPeligro ? '#fff' : 'var(--text)'),
               fontSize: 13, fontWeight: 600,
-              cursor: 'pointer',
+              cursor: cargando ? 'not-allowed' : 'pointer',
+              opacity: cargando ? 0.7 : 1
             }}
           >
-            {textoConfirmar}
+            {cargando ? textoCargando : textoConfirmar}
           </button>
         </div>
       </div>

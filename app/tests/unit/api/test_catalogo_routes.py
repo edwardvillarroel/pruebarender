@@ -98,6 +98,32 @@ def test_el_flag_siempre_viaja_como_booleano():
     assert isinstance(publico["nuevo_lanzamiento"], bool)
 
 
+# --- Stock bajo --------------------------------------------------------------
+
+
+def test_un_producto_bajo_stock_viaja_con_el_flag_prendido():
+    """El frontend deja de hardcodear el 3: `stock_bajo` llega derivado del
+    backend, con el umbral global `STOCK_BAJO` o el `stock_minimo` propio."""
+    publico = _a_publico_producto(_producto(stock=3))
+
+    assert publico["stock_bajo"] is True
+    assert isinstance(publico["stock_bajo"], bool)
+    assert publico["stock_minimo"] is None
+
+
+def test_un_producto_con_stock_de_sobra_no_es_stock_bajo():
+    publico = _a_publico_producto(_producto(stock=10))
+
+    assert publico["stock_bajo"] is False
+
+
+def test_el_stock_minimo_propio_manda_sobre_el_global():
+    publico = _a_publico_producto(_producto(stock=5, stock_minimo=6))
+
+    assert publico["stock_bajo"] is True
+    assert publico["stock_minimo"] == 6
+
+
 # --- Cache de las fotos servidas ---------------------------------------------
 
 

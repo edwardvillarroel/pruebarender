@@ -33,14 +33,11 @@ export function AuthProvider({ children }) {
     setAuth(prev => (prev ? { ...prev, user: nuevoUser } : prev))
   }
 
-  function logout() {
-    api.logout()
+  async function logout() {
+    await api.logout()
     setAuth(null)
   }
 
-  // Callback de Google OAuth: el gateway redirige aquí con ?login=google.
-  // Al volver del navegador, completa la sesión vía /auth/refresh (el hook
-  // httpOnly `refresh_token` ya quedó seteado por el gateway).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     if (params.get('login') !== 'google') return

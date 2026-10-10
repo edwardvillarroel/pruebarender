@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: apolovibes
+    runtime: python
+    plan: free
+    region: ohio
+    buildCommand: pip install -r requirements.txt && cd ApoloVibes-frontend && npm install && npm run build
+    startCommand: bash scripts/iniciar_render.sh
+    healthCheckPath: /health
+    envVars:
+      - { key: PYTHON_VERSION, value: "3.13.5" }
+      - { key: DB_BACKEND, value: postgres }
+      - { key: GATEWAY_SECRET_KEY, generateValue: true }
+      - { key: SECRET_KEY, generateValue: true }
+      - { key: GATEWAY_COOKIE_SECURE, value: "true" }
+      - { key: BACKEND_INTERNAL_URL, value: "http://127.0.0.1:8000" }
+      - { key: FRONTEND_DIST, value: ApoloVibes-frontend/dist }
+      - { key: FRONTEND_BASE_URL, value: /ApoloVibes3D-Frontend/ }
+      - { key: FRONTEND_URL, sync: false }
+      - { key: CORS_ORIGINS, sync: false }
+      - { key: DATABASE_URL, sync: false }
+      - { key: GOOGLE_CLIENT_ID, sync: false }
+      - { key: GOOGLE_CLIENT_SECRET, sync: false }
+      - { key: GOOGLE_REDIRECT_URI, sync: false }
+      - { key: RECAPTCHA_SITE_KEY, sync: false }
+      - { key: RECAPTCHA_SECRET_KEY, sync: false }
+      - { key: VITE_RECAPTCHA_SITE_KEY, sync: false }
+      - { key: EMAILJS_PUBLIC_KEY, sync: false }
+      - { key: EMAILJS_PRIVATE_KEY, sync: false }
+      - { key: EMAILJS_SERVICE_ID, sync: false }
+      - { key: EMAILJS_TEMPLATE_ID, sync: false }
+      - { key: EMAILJS_TEMPLATE_ALERTA, sync: false }
+      - { key: EMAILJS_TEMPLATE_COMPROBANTE, sync: false }
+      - { key: TUU_URL_CALLBACK, sync: false }
+      - { key: TUU_URL_COMPLETE, sync: false }
+      - { key: TUU_URL_CANCEL, sync: false }
+      - { key: STARKEN_API_KEY, sync: false }

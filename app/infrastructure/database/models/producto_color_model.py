@@ -10,15 +10,15 @@ from datetime import datetime
 from sqlalchemy import LargeBinary
 from sqlalchemy.orm import deferred
 
-from app.infrastructure.database.connection import UuidRaw, db
+from app.infrastructure.database.connection import db, utcnow
 
 
 class ProductoColorModel(db.Model):
     __tablename__ = "producto_colores"
 
-    id = db.Column(UuidRaw, primary_key=True, default=uuid.uuid4)
+    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
     producto_id = db.Column(
-        UuidRaw, db.ForeignKey("productos.id"), nullable=False, index=True
+        db.Uuid, db.ForeignKey("productos.id"), nullable=False, index=True
     )
     nombre = db.Column(db.String(50), nullable=False)
     imagen_bytes = deferred(db.Column(LargeBinary))
@@ -28,4 +28,4 @@ class ProductoColorModel(db.Model):
     imagen_thumb_bytes = deferred(db.Column(LargeBinary))
     imagen_thumb_content_type = db.Column(db.String(50))
     orden = db.Column(db.Integer, nullable=False, default=0)
-    creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)

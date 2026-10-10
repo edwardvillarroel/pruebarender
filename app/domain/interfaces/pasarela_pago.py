@@ -27,6 +27,10 @@ class SolicitudPago:
     nombre_cliente: str
     email_cliente: str
     telefono_cliente: str
+    # TUU separa `x_customer_first_name` de `x_customer_last_name` y rechaza el
+    # intento si el apellido viene vacío, así que el nombre NO se mandaJoined
+    # en un solo campo.
+    apellido_cliente: str = ""
 
 
 @dataclass

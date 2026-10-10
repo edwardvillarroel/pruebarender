@@ -1,15 +1,14 @@
 import { X } from 'lucide-react'
 import { mediaPath } from '../utils/media.js'
-
-
+import { fechaLegalLarga } from '../services/legal.js'
 
 const CONTENT = {
   terminos: {
     titulo: 'Términos y Condiciones',
-    texto: `Última actualización: 29 de septiembre de 2026
+    texto: `Última actualización: ${fechaLegalLarga()}
 
 1. Identificación del Proveedor
-El sitio de Apolo Vibes 3D (en adelante, "el Sitio") es operado por [nombre completo o razón social], RUT [xx.xxx.xxx-x], con domicilio en [dirección], Viña del Mar, Chile. Puede contactarnos en [correo] o al [teléfono].
+El sitio de Apolo Vibes 3D es operado por Apolo Vibes SPA, RUT: 78.064.166-5 con domicilio en calle Pasaje el Boldo Nro:33, Viña del Mar, Chile. Puede contactarnos en pabla.rojas@hotmail.com.
 
 2. Aceptación de los Términos
 Al acceder y utilizar el Sitio, usted acepta estos Términos y Condiciones. Si no está de acuerdo con ellos, le solicitamos no utilizar el Sitio.
@@ -38,7 +37,7 @@ Ejercer o no el retracto no afecta su derecho a la garantía legal.
 
 9. Garantía Legal
 Si un producto presenta fallas o defectos, o no es apto para su uso, usted tiene derecho a la garantía legal de 6 meses desde la recepción del producto (para productos nuevos). Puede elegir entre la reparación gratuita, la reposición del producto o la devolución de lo pagado, en los términos de los artículos 19 a 21 de la Ley 19.496.
-Para solicitarla, escríbanos a [correo] con su número de pedido y, si es posible, fotografías del problema. No se aplica cuando el defecto se debe a mal uso, manipulación indebida o desgaste normal.
+Para solicitarla, escríbanos a pabla.rojas@hotmail.com con su número de pedido y, si es posible, fotografías del problema. No se aplica cuando el defecto se debe a mal uso, manipulación indebida o desgaste normal.
 
 10. Pedidos Personalizados y Cancelación
 Los diseños a medida, incluidos los generados con nuestra herramienta de IA, son orientativos: el producto final puede diferir de la visualización generada. La fabricación comienza una vez aprobado el diseño definitivo y confirmado el pago.
@@ -54,7 +53,7 @@ Los textos, gráficos, logotipos, imágenes, modelos 3D y software del Sitio son
 Apolo Vibes 3D responde en los términos que establece la ley. Nada en estos Términos limita o excluye los derechos irrenunciables que la Ley 19.496 reconoce a los consumidores.
 
 14. Reclamos y Solución de Controversias
-Si tiene un problema, escríbanos primero a [correo] y buscaremos una solución. También puede acudir al SERNAC o al Juzgado de Policía Local competente, conforme a la Ley 19.496.
+Si tiene un problema, escríbanos primero a pabla.rojas@hotmail.com y buscaremos una solución. También puede acudir al SERNAC o al Juzgado de Policía Local competente, conforme a la Ley 19.496.
 
 15. Legislación Aplicable
 Estos Términos se rigen por las leyes de la República de Chile.
@@ -63,14 +62,14 @@ Estos Términos se rigen por las leyes de la República de Chile.
 Podemos modificar estos Términos en cualquier momento. Los cambios se aplican desde su publicación en el Sitio y no afectan las compras ya realizadas.
 
 17. Contacto
-Para consultas sobre estos Términos: [correo].`,
+Para consultas sobre estos Términos: pabla.rojas@hotmail.com.`,
   },
   privacidad: {
     titulo: 'Política de Privacidad',
-    texto: `Última actualización: 29 septiembre de 2026
+    texto: `Última actualización: ${fechaLegalLarga()}
 
 1. Responsable del Tratamiento
-El responsable de sus datos personales es [nombre completo o razón social], RUT [xx.xxx.xxx-x], con domicilio en [dirección], Viña del Mar, Chile. Contacto: [correo] / [teléfono].
+El responsable de sus datos personales es Apolo Vibes SPA, con domicilio en calle Pasaje el Boldo Nro:33, Viña del Mar, Chile. Contacto: pabla.rojas@hotmail.com.
 
 2. Datos que Recopilamos
 - Datos de identificación y contacto: nombre, apellidos, correo y teléfono.
@@ -124,9 +123,8 @@ El Sitio no está dirigido a menores de 18 años y no recopilamos intencionalmen
 Podemos actualizar esta Política. Publicaremos los cambios en esta página con la fecha de última actualización.
 
 13. Contacto
-- Correo: [correo]
-- Teléfono: [teléfono]
-- Dirección: [dirección], Viña del Mar, Chile`,
+- Correo: pabla.rojas@hotmail.com
+- Dirección: calle Pasaje el Boldo Nro:33, Viña del Mar, Chile.`,
   },
 }
 

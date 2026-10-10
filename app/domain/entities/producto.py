@@ -1,6 +1,11 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID, uuid4
+from app.domain.time import utcnow
+
+# Umbral global de "stock bajo" para productos sin `stock_minimo` propio. Lo usa
+# la detección del cruce en `descontar_stock` y el campo `stock_bajo` del JSON.
+STOCK_BAJO = 3
 
 
 @dataclass
@@ -13,7 +18,7 @@ class Producto:
     imagen: str | None = None
     activo: bool = True
     id: UUID = field(default_factory=uuid4)
-    creado_en: datetime = field(default_factory=datetime.utcnow)
+    creado_en: datetime = field(default_factory=utcnow)
     specs: list[str] | None = None
     descuento: int | None = None
     badge: str | None = None
@@ -30,6 +35,13 @@ class Producto:
     # no tiene foto o cuando su foto ya es chica y no necesita reduccion: en
     # ese caso el consumidor debe usar `imagen`.
     imagen_thumb: str | None = None
+    # Umbral propio de "stock bajo". None = usar el global `STOCK_BAJO`.
+    stock_minimo: int | None = None
+    # Se marca al cruzar hacia abajo el umbral en `descontar_stock` y se limpia
+    # al reponer stock por encima del umbral. Queda reservado para la futura
+    # notificacion al dueño: sin el aviso el admin no sabe si el cruce ya se
+    # disparo una vez.
+    aviso_stock_enviado: bool = False
 
 
 @dataclass
@@ -68,4 +80,4 @@ class ColorProducto:
     imagen_url: str | None = None
     # URL del thumbnail del color. None si la foto ya es chica: se usa `imagen_url`.
     imagen_thumb_url: str | None = None
-    creado_en: datetime = field(default_factory=datetime.utcnow)
+    creado_en: datetime = field(default_factory=utcnow)

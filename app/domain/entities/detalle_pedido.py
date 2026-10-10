@@ -9,4 +9,5 @@ class DetallePedido:
     cantidad: int
     precio_unitario: int
     color: str | None = None
+    nombre: str | None = None
     id: UUID = field(default_factory=uuid4)

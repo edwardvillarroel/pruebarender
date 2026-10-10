@@ -31,6 +31,7 @@ export default function ProductoDetalle() {
   const [cantidad, setCantidad] = useState(1)
   const [colores, setColores] = useState([])
   const [colorElegido, setColorElegido] = useState(null)
+  const [agregando, setAgregando] = useState(false)
 
   useEffect(() => {
     let vigente = true
@@ -73,6 +74,20 @@ export default function ProductoDetalle() {
   const colorActual = colores.find(c => c.id === colorElegido) || null
   const faltaElegirColor = tieneVariantes && !colorActual
   const fotoActual = (tieneVariantes && colorActual?.imagen) ? colorActual.imagen : producto.imagen
+  const rating = Number(producto.rating) || 0
+
+  const handleAgregar = async () => {
+    if (agregando) return
+    setAgregando(true)
+    try {
+      await agregarProducto(
+        {...producto, color: colorActual?.nombre ?? producto.color, imagen: fotoActual },
+        cantidad
+      )
+    } finally {
+      setAgregando(false)
+    }
+  }
 
   return (
     <section className="wrap" style={{ paddingTop: '25px', paddingBottom: '80px' }}>
@@ -264,22 +279,6 @@ export default function ProductoDetalle() {
             </p>
           )}
 
-          {producto.rating && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  size={18}
-                  fill={i < producto.rating ? '#FA7F19' : 'none'}
-                  color={i < producto.rating ? '#FA7F19' : 'var(--line)'}
-                />
-              ))}
-              <span style={{ fontSize: 13, color: 'var(--text-dim)', marginLeft: 4 }}>
-                {producto.rating}.0
-              </span>
-            </div>
-          )}
-
           <p style={{ fontSize: 14, color: 'var(--surface)', lineHeight: 1.6, marginBottom: 12, textAlign: 'left' }}>
             Detalles:
           </p>
@@ -315,6 +314,22 @@ export default function ProductoDetalle() {
               </li>
             ))}
           </ul>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  size={18}
+                  fill={i < rating ? '#FA7F19' : 'none'}
+                  color={i < rating ? '#FA7F19' : 'var(--line)'}
+                />
+              ))}
+              {rating > 0 && (
+                 <span style={{ fontSize: 13, color: 'var(--text-dim)', marginLeft: 4 }}>
+                {producto.rating}.0
+              </span>
+              )}
+            </div>
 
           <div style={{
             display: 'flex',
@@ -380,23 +395,20 @@ export default function ProductoDetalle() {
 
             <button
               className="btn btn-primary"
-              disabled={producto.sinStock || faltaElegirColor}
-              onClick={() => agregarProducto(
-                { ...producto, color: colorActual.nombre, imagen: fotoActual },
-                cantidad
-              )}
+              disabled={producto.sinStock || faltaElegirColor || agregando}
+              onClick={handleAgregar}
               style={{
                 flex: 1,
                 background: producto.sinStock || faltaElegirColor ? 'var(--surface-2)' : COLOR_BUTTON,
                 color: producto.sinStock || faltaElegirColor ? 'var(--text-dim)' : '#FFFFFF',
-                cursor: producto.sinStock || faltaElegirColor ? 'not-allowed' : 'pointer',
+                cursor: producto.sinStock || faltaElegirColor ? 'not-allowed' : agregando ? 'wait' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8
               }}
             >
-              {!producto.sinStock && !faltaElegirColor && (
+              {!producto.sinStock && !faltaElegirColor && !agregando && (
                 <img
                   src={mediaPath('cart.png')}
                   alt=""
@@ -405,7 +417,7 @@ export default function ProductoDetalle() {
               )}
               {producto.sinStock
                 ? 'Sin Stock'
-                : faltaElegirColor ? 'Elegí un color' : 'Agregar al carrito'}
+                : faltaElegirColor ? 'Elige un color' : agregando ? 'Agregando...' : 'Agregar al carrito'}
             </button>
             {faltaElegirColor && (
               <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-dim)' }}>
@@ -416,6 +428,7 @@ export default function ProductoDetalle() {
           <div style={{
             marginTop: 16,
             padding: '12px 16px',
+            textAlign: 'center',
             background: 'var(--surface-3)',
             borderRadius: 8,
             fontSize: 13,

@@ -16,6 +16,7 @@ class CrearProductoDTO:
     specs: list[str] | None = None
     descuento: int | None = None
     nuevo_lanzamiento: bool = False
+    stock_minimo: int | None = None
 
 
 @dataclass
@@ -32,10 +33,8 @@ class ActualizarProductoDTO:
     color: str | None = None
     specs: list[str] | None = None
     descuento: int | None = None
-    # `None` = no tocar el flag. Distinguir `None` de `False` es lo que permite
-    # apagar un lanzamiento: con un `if dto.nuevo_lanzamiento` (truthy) el False
-    # nunca se aplicaria y el producto quedaria marcado para siempre.
     nuevo_lanzamiento: bool | None = None
+    stock_minimo: int | None = None
 
 
 @dataclass
@@ -65,6 +64,8 @@ class IniciarPagoDTO:
     items: list[ItemPedidoDTO]
     entrega: str = "retiro"
     cliente: dict | None = None
+    total_esperado: int | None = None
+    clave_idempotencia: str | None = None
 
 
 @dataclass
@@ -72,3 +73,4 @@ class ResultadoConfirmacionPago:
     estado: str
     pedido_id: str
     mensaje: str
+    correo_enviado: bool | None = None

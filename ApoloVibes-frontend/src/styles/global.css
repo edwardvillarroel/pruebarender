@@ -134,7 +134,7 @@ video {
 .btn-ghost {
   border-color: var(--line);
   color: var(--text);
-  background: var(--red);
+  background: var(--accent);
 }
 
 .btn-ghost:hover {
@@ -797,4 +797,34 @@ label {
     right: 12px;
     left: 12px;
   }
+}
+
+
+.checkout-form input:not([type="checkbox"]):not([type="radio"]),
+.checkout-form select,
+.checkout-form textarea,
+.checkout-form .input-prefijo {
+  background: #fff !important;
+  background-color: #fff !important;
+  color: #1E3A5F !important;
+  caret-color: #1E3A5F;
+  color-scheme: light;
+}
+
+
+.checkout-form .input-prefijo input {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.checkout-form input::placeholder {
+  color: #8a94a3 !important;
+  opacity: 1;
+}
+
+.checkout-form input:-webkit-autofill,
+.checkout-form input:-webkit-autofill:hover,
+.checkout-form input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #1E3A5F !important;
+  -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
 }

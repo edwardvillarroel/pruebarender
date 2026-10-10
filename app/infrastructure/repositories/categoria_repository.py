@@ -1,9 +1,3 @@
-"""Repositorio de categorías (SQLAlchemy) con mapeo ORM -> dominio.
-
-Implementa la interfaz `CategoriaRepository` de la capa de dominio; devuelve
-entidades `Categoria`, no modelos ORM.
-"""
-
 from __future__ import annotations
 
 from typing import Any

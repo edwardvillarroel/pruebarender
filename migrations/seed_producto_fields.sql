@@ -1,5 +1,4 @@
--- Seed: poblar campos nuevos en productos existentes
--- Ejecutar despues de add_producto_fields.sql
+
 
 -- Bulbasaur (impresora resina)
 UPDATE productos SET

@@ -5,8 +5,6 @@ from app.infrastructure.database.connection import db
 
 
 class RepositoryBase:
-    """Implementación CRUD genérica sobre SQLAlchemy (Flask-SQLAlchemy)."""
-
     model = None
 
     def get_by_id(self, entity_id: UUID) -> Any:

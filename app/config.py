@@ -32,14 +32,29 @@ def _oracle_uri():
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL", "postgresql://app:app@localhost:5432/print3d_dev"
-    )
-    SQLALCHEMY_ENGINE_OPTIONS = {}
-    _oracle_uri, _oracle_engine_options = _oracle_uri()
-    if _oracle_uri:
-        SQLALCHEMY_DATABASE_URI = _oracle_uri
+
+    _oracle_uri_val, _oracle_engine_options = _oracle_uri()
+
+    _backend = os.getenv("DB_BACKEND", "postgres").strip().lower()
+
+    if _backend == "oracle":
+        if not _hay_oracle:
+            raise RuntimeError(
+                "DB_BACKEND=oracle pero falta ORACLE_DSN u ORACLE_PASSWORD en el entorno"
+            )
+        SQLALCHEMY_DATABASE_URI = _oracle_uri_val
         SQLALCHEMY_ENGINE_OPTIONS = _oracle_engine_options
+    elif _backend == "postgres":
+        SQLALCHEMY_DATABASE_URI = os.getenv(
+            "DATABASE_URL", "postgresql://app:app@localhost:5432/print3d_dev"
+        )
+
+        SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    else:
+        raise RuntimeError(
+            f"DB_BACKEND invalido: {_backend!r}. Valores validos: 'oracle' o 'postgres'."
+        )
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     LLM_API_KEY = os.getenv("LLM_API_KEY", "")
@@ -66,15 +81,17 @@ class Config:
     )
     TUU_URL_CANCEL = os.getenv("TUU_URL_CANCEL", "http://localhost:5173/checkout")
 
-    # Seguimiento Starken (portal developers.starken.cl). Credenciales de la
-    # cuenta de la PYME; sin STARKEN_API_KEY el seguimiento queda deshabilitado.
     STARKEN_API_URL = os.getenv("STARKEN_API_URL", "https://gateway.starken.cl")
     STARKEN_API_KEY = os.getenv("STARKEN_API_KEY", "")
     STARKEN_SEGUIMIENTO_RUTA = os.getenv("STARKEN_SEGUIMIENTO_RUTA", "/orden-flete/of/")
     STARKEN_TIMEOUT = int(os.getenv("STARKEN_TIMEOUT", "10"))
-    # Modo desarrollador: con STARKEN_MODO_SIMULACION activo se inyecta un
-    # cliente simulado (estados deterministas por código) en vez del real.
+
     STARKEN_MODO_SIMULACION = os.getenv("STARKEN_MODO_SIMULACION", "")
+
+    EMAILJS_PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY", "")
+    EMAILJS_PRIVATE_KEY = os.getenv("EMAILJS_PRIVATE_KEY", "")
+    EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID", "")
+    EMAILJS_TEMPLATE_COMPROBANTE = os.getenv("EMAILJS_TEMPLATE_COMPROBANTE", "")
 
     MAX_UPLOAD_SIZE = 10 * 1024 * 1024
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "glb", "stl"}
@@ -96,10 +113,36 @@ class DevelopmentConfig(Config):
 
 class TestingConfig(Config):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "TEST_DATABASE_URL", "postgresql://app:app@localhost:5432/print3d_test"
-    )
-    SQLALCHEMY_ENGINE_OPTIONS = {}
+    _backend_test = os.getenv("TEST_DB_BACKEND", "postgres").strip().lower()
+
+    if _backend_test == "oracle":
+        _test_dsn = os.getenv("TEST_ORACLE_DSN", "")
+        if not _test_dsn:
+            raise RuntimeError(
+                "TEST_DB_BACKEND=oracle exige TEST_ORACLE_DSN. No se cae al "
+                "ORACLE_DSN del .env a proposito: los tests de integracion "
+                "escriben en la base y el esquema de Oracle es la fuente de "
+                "verdad de la migracion."
+            )
+        _wallet_test = os.getenv("TEST_ORACLE_WALLET_DIR", "")
+        _args_test: dict = {}
+        if _wallet_test:
+            _args_test["config_dir"] = _wallet_test
+            _args_test["wallet_location"] = _wallet_test
+        if os.getenv("TEST_ORACLE_WALLET_PASSWORD"):
+            _args_test["wallet_password"] = os.getenv("TEST_ORACLE_WALLET_PASSWORD")
+        SQLALCHEMY_DATABASE_URI = _test_dsn
+        SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": _args_test}
+    elif _backend_test == "postgres":
+        SQLALCHEMY_DATABASE_URI = os.getenv(
+            "TEST_DATABASE_URL", "postgresql://app:app@localhost:5432/print3d_test"
+        )
+        SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    else:
+        raise RuntimeError(
+            f"TEST_DB_BACKEND invalido: {_backend_test!r}. "
+            "Valores validos: 'oracle' o 'postgres'."
+        )
 
 
 class ProductionConfig(Config):

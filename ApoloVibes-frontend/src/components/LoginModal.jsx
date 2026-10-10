@@ -110,8 +110,6 @@ export default function LoginModal({ onClose }) {
     const [codigoMfa, setCodigoMfa] = useState('')
     const [esperaBlanqueoMfa, setEsperaBlanqueoMfa] = useState(0)
 
-    // En el paso de MFA el modal muestra SOLO el código de verificación: sin
-    // divisor "o continua con", sin botón de Google y sin enlace de registro.
     const enPasoMfa = modo === 'login' && Boolean(modoMfa)
 
     // --- reCAPTCHA ---
