@@ -1,5 +1,7 @@
 import os
 from datetime import timedelta
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -40,3 +42,10 @@ class Config:
 
     # --- URL del frontend (callback de Google redirige aquí) ---
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+    # --- Build estático de React que el gateway sirve en producción ---
+    FRONTEND_DIST = os.getenv(
+        "FRONTEND_DIST",
+        str(Path(__file__).resolve().parents[1] / "ApoloVibes-frontend" / "dist"),
+    )
+    FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "/ApoloVibes3D-Frontend/")
