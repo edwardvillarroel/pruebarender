@@ -21,3 +21,7 @@ class Pedido:
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=utcnow)
     detalles: list[DetallePedido] = field(default_factory=list)
+    # 1 si el pedido esta `entregado` y tiene al menos un producto sin resena
+    # del usuario; 0 en el resto. Derivado (no es columna de la tabla): lo
+    # calcula `PedidoRepository.list_by_usuario` con una subquery.
+    resenas_pendientes: int = 0

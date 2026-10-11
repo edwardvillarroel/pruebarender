@@ -23,6 +23,7 @@ export const productoApi = {
   listarCategorias: () => api.get('/categorias'),
   eliminar: (id) => api.del(`/productos/${id}`),
   listarColores: (id) => api.get(`/productos/${id}/colores`),
+  listarResenas: (id) => api.get(`/productos/${id}/resenas`),
   guardarColor: (id, color, archivo) => {
     const fd = new FormData()
     fd.append('color', color)

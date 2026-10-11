@@ -20,6 +20,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     _configurar_catalogo(app)
     _configurar_pedidos_pagos(app)
     _configurar_ventas(app)
+    _configurar_resenas(app)
 
     from app.api import register_blueprints
 
@@ -128,6 +129,27 @@ def _configurar_ventas(app: Flask) -> None:
 
     app.config["VENTA_SERVICE"] = GestionarVentaLocal(
         VentaLocalRepository(), ProductoRepository()
+    )
+
+
+def _configurar_resenas(app: Flask) -> None:
+    """Punto de composición de las reseñas (inyección de dependencias).
+
+    La ruta de reseñas lee el servicio desde `app.config`; así la capa API no
+    depende de `infrastructure`. Importar el repo registra `ResenaModel` con
+    Flask-SQLAlchemy (mismo motivo que el import de `UsuarioModel` en
+    `_configurar_pedidos_pagos`).
+    """
+    from app.application.resenas.gestionar_resena import GestionarResena
+    from app.infrastructure.database.models.resena_model import ResenaModel  # noqa: F401
+    from app.infrastructure.repositories.pedido_repository import PedidoRepository
+    from app.infrastructure.repositories.producto_repository import (
+        ProductoRepository,
+    )
+    from app.infrastructure.repositories.resena_repository import ResenaRepository
+
+    app.config["RESENA_SERVICE"] = GestionarResena(
+        ResenaRepository(), PedidoRepository(), ProductoRepository()
     )
 
 

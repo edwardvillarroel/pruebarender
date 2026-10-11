@@ -203,6 +203,36 @@ function reversarAgregar(producto) {
     fireAndReconcile(() => carritoApi.vaciar())
   }
 
+  async function repetirPedido(itemsPedido) {
+    if (!isLoggedIn) {
+      abrirLogin()
+      return false
+    }
+    if (!Array.isArray(itemsPedido) || itemsPedido.length === 0) return false
+    setError(null)
+    const fallidos = []
+    let ultimoCarrito = null
+    for (const it of itemsPedido) {
+      try {
+        const { carrito } = await carritoApi.agregarProducto(it.producto_id, it.cantidad, it.color ?? null)
+        ultimoCarrito = carrito
+      } catch {
+        fallidos.push(it.nombre || 'Producto')
+      }
+    }
+    if (ultimoCarrito) syncItems(ultimoCarrito)
+    if (fallidos.length < itemsPedido.length) {
+      mostrarToast(
+        fallidos.length === 0
+          ? 'Pedido agregado al carrito'
+          : `Se agregaron los productos disponibles. Sin stock: ${fallidos.join(', ')}`
+      )
+      return true
+    }
+    setError('Los productos de este pedido no están disponibles por ahora')
+    return false
+  }
+
   const total = useMemo(
     () => items.reduce((acc, i) => acc + i.precio * i.cantidad, 0),
     [items]
@@ -219,7 +249,7 @@ function reversarAgregar(producto) {
         items, total, cantidadTotal, cargando, error,
         requiereLogin: !isLoggedIn, solicitarLogin,
         cargarCarrito, abrirLogin, cerrarLogin,
-        agregarProducto, quitarItem, actualizarCantidadItem, vaciarCarrito,
+        agregarProducto, quitarItem, actualizarCantidadItem, vaciarCarrito, repetirPedido,
       }}
     >
       {children}

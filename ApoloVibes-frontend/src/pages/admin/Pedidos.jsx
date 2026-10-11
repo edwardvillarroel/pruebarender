@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { Pencil, RefreshCw, AlertTriangle, Eye, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, RefreshCw, AlertTriangle, Eye, Search, ChevronLeft, ChevronRight, X, CircleCheck, MapPin, Package } from 'lucide-react';
 import { pedidosApi, TRANSPORTISTAS } from '../../services/orders.js';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
 import { mediaPath } from '../../utils/media.js';
+import { useBloqueoScroll } from '../../hooks/useBloqueoScroll.js';
 
 const ETIQUETAS_ESTADO = {
   pendiente: 'Pendiente',
@@ -10,6 +11,16 @@ const ETIQUETAS_ESTADO = {
   enviado: 'Enviado',
   entregado: 'Entregado',
   cancelado: 'Cancelado',
+};
+
+// Mismos colores de chip que el detalle de MisPedidos, para que el modal de
+// admin se vea igual (mismo lenguaje visual en toda la app).
+const ESTILO_ESTADO = {
+  pendiente: { bg: '#FFF1D6', color: '#7A4B00' },
+  en_produccion: { bg: '#DCE9FF', color: '#123F8C' },
+  enviado: { bg: '#E3DCFF', color: '#3C2A8C' },
+  entregado: { bg: '#D7F5D3', color: '#0F5A0B' },
+  cancelado: { bg: '#FFD9D9', color: '#8C1212' },
 };
 
 const ETIQUETA_ENTREGA = {
@@ -64,9 +75,11 @@ function LogoModal({ archivo = 'apolo-vibes-logo.png', alt = 'Logo' }) {
 }
 
 function DetalleModal({ pedido, onClose }) {
+  useBloqueoScroll();
   const cliente = pedido.cliente || {};
   const esFactura = cliente.tipoDocumento === 'factura';
-  const lineaDetalle = `${pedido.id.slice(0, 8)} · ${ETIQUETAS_ESTADO[pedido.estado] || pedido.estado} · ${fechaTexto(pedido.fecha)}`;
+  const itemsPedido = pedido.items || [];
+  const estilo = ESTILO_ESTADO[pedido.estado] || { bg: '#E5E7EB', color: '#374151' };
   const campos = [
     ['Cliente', [cliente.nombre, cliente.apellido].filter(Boolean).join(' ')],
     ['Teléfono', cliente.telefono],
@@ -96,94 +109,133 @@ function DetalleModal({ pedido, onClose }) {
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.49)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 9999, backdropFilter: 'blur(4px)',
+        zIndex: 9999, backdropFilter: 'blur(4px)', padding: 16,
       }}
       onClick={onClose}
     >
       <div
         style={{
-          background: 'var(--surface)', borderRadius: 16, padding: '32px 28px',
-          width: '100%', maxWidth: 560, boxShadow: '0 20px 60px rgba(0,0,0,.3)',
-          textAlign: 'left', maxHeight: '86vh', overflowY: 'auto', boxSizing: 'border-box',
+          position: 'relative', background: 'var(--surface)', borderRadius: 16, padding: '28px 24px 24px',
+          width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,.3)',
+          textAlign: 'left', maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box',
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        <button
+          onClick={onClose}
+          aria-label="Cerrar"
+          style={{
+            position: 'absolute', top: 14, right: 14, background: 'none', border: 'none',
+            color: '#B9C6DA', cursor: 'pointer', padding: 4, display: 'flex',
+          }}
+        >
+          <X size={20} />
+        </button>
+
         <LogoModal />
-        <h3 style={{ margin: '0 0 10px', fontSize: 18, fontWeight: 700, color: 'var(--text)', textAlign: 'center' }}>
+        <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#FFFFFF', textAlign: 'center' }}>
           Detalle del pedido
         </h3>
-        <div className="separador-suave" style={{ marginBottom: 18 }} />
-        <p style={{ margin: '0 0 16px', fontSize: 12, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
-          {lineaDetalle}
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: '#B9C6DA', textAlign: 'center' }}>
+          Pedido #{pedido.id.slice(0, 8).toUpperCase()} · {fechaTexto(pedido.fecha)}
         </p>
-        <div className="separador-suave" style={{ marginBottom: 18 }} />
 
-        <div style={{ marginBottom: 16, fontSize: 13, color: 'var(--text)' }}>
-          <span style={{ color: 'var(--text-dim)' }}>Tipo de entrega: </span>
-          <strong>{ETIQUETA_ENTREGA[pedido.entrega] || pedido.entrega}</strong>
-          {pedido.entrega === 'retiro' && (
-            <span style={{ color: 'var(--text-dim)' }}> · {DIRECCION_RETIRO}</span>
-          )}
+        <div style={{ textAlign: 'center', marginBottom: 18 }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: estilo.bg, color: estilo.color,
+            fontSize: 13, fontWeight: 600, padding: '4px 12px', borderRadius: 999,
+          }}>
+            <CircleCheck size={15} />
+            {ETIQUETAS_ESTADO[pedido.estado] || pedido.estado}
+          </span>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 16 }}>
-          <thead>
-            <tr style={{ color: 'var(--text-dim)', fontSize: 11, textTransform: 'uppercase' }}>
-              <th style={{ padding: '0 8px 8px 0', textAlign: 'left' }}>Producto</th>
-              <th style={{ padding: '0 8px 8px', textAlign: 'center' }}>Cant.</th>
-              <th style={{ padding: '0 8px 8px', textAlign: 'right' }}>Precio</th>
-              <th style={{ padding: '0 0 8px 8px', textAlign: 'right' }}>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(pedido.items || []).map(item => (
-              <tr key={item.producto_id} style={{ borderTop: '1px solid var(--surface-3)' }}>
-                <td style={{ padding: '10px 8px 10px 0', color: 'var(--text)' }}>
-                  {item.nombre || 'Producto'}
-                  {item.color && (
-                    <span style={{ color: 'var(--text-dim)' }}> · {item.color}</span>
-                  )}
-                </td>
-                <td style={{ padding: '10px 8px', textAlign: 'center', color: 'var(--text)' }}>
-                  {item.cantidad}
-                </td>
-                <td style={{ padding: '10px 8px', textAlign: 'right', color: 'var(--text-dim)' }}>
-                  {formatoPesos(item.precio_unitario)}
-                </td>
-                <td style={{ padding: '10px 0 10px 8px', textAlign: 'right', color: 'var(--text)' }}>
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10,
+          background: 'rgba(255,255,255,.07)', borderRadius: 10, padding: '12px 14px', marginBottom: 18,
+        }}>
+          <MapPin size={25} color="#FA7F19" style={{ marginTop: 5, flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#FFFFFF' }}>
+              {pedido.entrega === 'retiro' ? 'Retiro ' : (ETIQUETA_ENTREGA[pedido.entrega] || pedido.entrega)}
+            </div>
+            {pedido.entrega === 'retiro' && (
+              <div style={{ fontSize: 13, color: '#B9C6DA' }}>{DIRECCION_RETIRO}</div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ borderTop: '1px solid rgba(255,255,255,.18)' }}>
+          {itemsPedido.map((item, i) => (
+            <div
+              key={`${item.producto_id}-${item.color || ''}-${i}`}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0',
+                borderBottom: '1px solid rgba(255,255,255,.18)',
+              }}
+            >
+              <div style={{
+                width: 56, height: 56, borderRadius: 10, background: '#FFFFFF', flexShrink: 0,
+                overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {item.imagen ? (
+                  <img src={item.imagen} alt={item.nombre || 'Producto'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <Package size={24} color="#8A94A3" />
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{item.nombre || 'Producto'} ( {item.cantidad} )</div>
+                <div style={{ fontSize: 13, color: '#B9C6DA' }}>
+                  {item.color ? `Color: ${item.color}` : ''}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', whiteSpace: 'nowrap' }}>
                   {formatoPesos(item.precio_unitario * item.cantidad)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div style={{ textAlign: 'right', fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 18 }}>
-          Total: {formatoPesos(pedido.total)}
+                </div>
+                <div style={{ fontSize: 12, color: '#B9C6DA', whiteSpace: 'nowrap' }}>
+                  {formatoPesos(item.precio_unitario)} c/u
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="separador-suave" style={{ marginBottom: 18 }} />
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '16px 0 20px' }}>
+          <span style={{ fontSize: 14, color: '#B9C6DA' }}>Total (IVA incluido)</span>
+          <span style={{ fontSize: 22, fontWeight: 700, color: '#FFFFFF' }}>{formatoPesos(pedido.total)}</span>
+        </div>
 
         {campos.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 20 }}>
-            <tbody>
-              {campos.map(([etiqueta, valor]) => (
-                <tr key={etiqueta}>
-                  <td style={{ padding: '4px 8px 4px 0', color: 'var(--text-dim)', width: '32%', verticalAlign: 'top' }}>
-                    {etiqueta}
-                  </td>
-                  <td style={{ padding: '4px 0', color: 'var(--text)' }}>{valor}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ background: 'rgba(255,255,255,.07)', borderRadius: 10, padding: '14px 16px', marginBottom: 18 }}>
+            <div style={{
+              fontSize: 12, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase',
+              color: '#B9C6DA', marginBottom: 10,
+            }}>
+              {esFactura ? 'Datos de facturación' : 'Datos del cliente'}
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <tbody>
+                {campos.map(([etiqueta, valor]) => (
+                  <tr key={etiqueta}>
+                    <td style={{ padding: '3px 8px 3px 0', color: '#B9C6DA', width: '36%', verticalAlign: 'top' }}>
+                      {etiqueta}
+                    </td>
+                    <td style={{ padding: '3px 0', color: '#FFFFFF' }}>{valor}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         <button
           onClick={onClose}
           style={{
-            width: '100%', padding: '10px 0', borderRadius: 10, border: '1px solid var(--line)',
-            backgroundColor: 'var(--accent)', color: 'var(--text)', fontSize: 13, fontWeight: 500,
-            cursor: 'pointer',
+            width: '100%', padding: '12px 0', borderRadius: 10, border: 'none',
+            background: 'var(--accent)', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer',
           }}
         >
           Cerrar

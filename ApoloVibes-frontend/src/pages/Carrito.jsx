@@ -26,7 +26,8 @@ export default function Carrito() {
 
   function irAlCheckout() {
     setRedirigiendo(true)
-  setTimeout(() => navigate('/checkout'), 3000)  }
+    setTimeout(() => navigate('/checkout'), 3000)
+  }
 
 
   if (requiereLogin) {
@@ -47,7 +48,11 @@ export default function Carrito() {
   if (items.length === 0) {
     return (
       <div className="wrap" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center' }} >
-        <ShoppingCart size={64} strokeWidth={1.5} style={{ marginBottom: 20, color: 'var(--text-dim)' }} />
+        <img
+          src={mediaPath('carritoVacio.png')}
+          alt="Logo"
+          style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 10px' }}
+        />
         <p style={{ color: 'var(--text-dim)', marginBottom: 20 }}> Tu carrito está vacío. </p>
         <Link to="/categorias" className="btn btn-primary"> Ver catálogo
         </Link>
@@ -245,17 +250,17 @@ export default function Carrito() {
                 <span>IVA (19%)</span>
                 <span>${montoIva.toLocaleString('es-CL')}</span>
               </div>
-               <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)', marginBottom: 20 }}></div>
+              <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)', marginBottom: 20 }}></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, color: 'var(--text-dim)', marginBottom: 8, fontWeight: 600 }}>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface)' }}>Total</span>
                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--surface)' }}>${montoConIva.toLocaleString('es-CL')}</span>
               </div>
             </div>
-             <h1 style={{ fontSize: 14, color: 'var(--surface)', textAlign: 'justify', margin: '0 0 5px' }}>
-             Información Del Pago
+            <h1 style={{ fontSize: 14, color: 'var(--surface)', textAlign: 'justify', margin: '0 0 5px' }}>
+              Información Del Pago
             </h1>
             <p style={{ fontSize: 11, marginTop: -5, color: 'var(--text-dim)', textAlign: 'justify', margin: '0 0 10px' }}>
-             Todas las transacciones son realizadas mediante conexión segura. La información de tu tarjetas no se guarda en este sitio*
+              Todas las transacciones son realizadas mediante conexión segura. La información de tu tarjetas no se guarda en este sitio*
             </p>
 
             <button

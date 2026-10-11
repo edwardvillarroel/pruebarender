@@ -7,6 +7,7 @@ from app.domain.entities.categoria import Categoria
 from app.domain.entities.detalle_pedido import DetallePedido
 from app.domain.entities.pago import Pago
 from app.domain.entities.pedido import Pedido
+from app.domain.entities.resena import Resena, ResenaPublica
 from app.domain.entities.producto import (
     ColorProducto,
     FotoColorCatalogo,
@@ -170,4 +171,44 @@ class PagoRepository(RepositoryBase[Pago], ABC):
 class SolicitudDisenoRepository(RepositoryBase[SolicitudDiseno], ABC):
     @abstractmethod
     def list_por_estado(self, estado: str) -> list[SolicitudDiseno]:
+        raise NotImplementedError
+
+
+class ResenaDuplicadaError(Exception):
+    """Ya existe una reseña del usuario para ese producto en ese pedido.
+
+    La traduce la infraestructura, que es la única capa que sabe que la
+    unicidad la garantiza el `UNIQUE (usuario_id, pedido_id, producto_id)` de
+    Postgres. `application` recibe esta excepción en vez de
+    `sqlalchemy.exc.IntegrityError` para no depender del motor: el doble
+    submit del modal es una regla del negocio, no un detalle de SQL.
+    """
+
+
+class ResenaRepository(RepositoryBase[Resena], ABC):
+    @abstractmethod
+    def crear(self, resena: Resena) -> Resena:
+        """INSERTa la reseña y recalcula `productos.rating`/`resenas_count`
+        en la misma transacción. `ResenaDuplicadaError` si el triple ya existe.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def listar_por_pedido(self, pedido_id: UUID) -> list[Resena]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def listar_por_producto(self, producto_id: UUID) -> list[ResenaPublica]:
+        """Resenas publicas de un producto, de la mas reciente a la mas vieja."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def obtener(
+        self, usuario_id: UUID, pedido_id: UUID, producto_id: UUID
+    ) -> Resena | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def recalcular_stats_producto(self, producto_id: UUID) -> None:
+        """Re-sincroniza los stats denormalizados del producto (re-seed/reparación)."""
         raise NotImplementedError
