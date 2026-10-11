@@ -129,9 +129,16 @@ def _a_publico_pedido(pedido, admin: bool = False) -> dict:
                 "precio_unitario": detalle.precio_unitario,
                 "nombre": detalle.nombre,
                 "color": detalle.color,
+                # Foto de la línea: ruta del BLOB (la del color elegido si
+                # tiene, si no la del producto), resuelta por el repositorio.
+                # El carrito la expone igual; MisPedidos la usa como miniatura.
+                "imagen": detalle.imagen,
             }
             for detalle in pedido.detalles
         ],
+        # Badge de "pendiente por reseñar" (0|1). Lo deriva el repositorio en
+        # `list_by_usuario`; en el detalle/consulta puntual queda 0 (default).
+        "resenas_pendientes": pedido.resenas_pendientes or 0,
     }
     if admin:
         datos["usuario_id"] = str(pedido.usuario_id)

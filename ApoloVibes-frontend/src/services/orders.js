@@ -16,4 +16,7 @@ export const pedidosApi = {
     api.post(`/pedidos/${id}/seguimiento`, { codigo, transportista }),
   sincronizarSeguimiento: (id) => api.get(`/pedidos/${id}/seguimiento`),
   cambiarEstado: (id, estado) => api.patch(`/pedidos/${id}/estado`, { estado }),
+  resenas: (id) => api.get(`/pedidos/${id}/resenas`),
+  resenar: (id, producto_id, estrellas, comentario = null) => 
+    api.post(`/pedidos/${id}/resenas`, { producto_id, estrellas, comentario }),
 }

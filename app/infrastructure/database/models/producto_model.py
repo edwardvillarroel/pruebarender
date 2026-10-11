@@ -33,7 +33,10 @@ class ProductoModel(db.Model):
     descuento = db.Column(db.Integer)
     badge = db.Column(db.String(50))
     precio_original = db.Column(db.Integer)
-    rating = db.Column(db.Integer)
+    # 1-5 con un decimal (numeric en el DDL base; el ORM seguía en Integer).
+    rating = db.Column(db.Numeric(3, 1))
+    # Conteo denormalizado de reseñas, recalculado junto a `rating`.
+    resenas_count = db.Column(db.Integer, nullable=False, default=0)
     material = db.Column(db.String(100))
     tamano = db.Column(db.String(100))
     color = db.Column(db.String(100))

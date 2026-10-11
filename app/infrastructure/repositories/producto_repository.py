@@ -408,7 +408,9 @@ def _a_entidad(
         descuento=modelo.descuento,
         badge=modelo.badge,
         precio_original=modelo.precio_original,
-        rating=modelo.rating,
+        # `numeric` vuelve como `Decimal`; la entity promete `float | None`.
+        rating=float(modelo.rating) if modelo.rating is not None else None,
+        resenas_count=modelo.resenas_count or 0,
         material=modelo.material,
         tamano=modelo.tamano,
         color=modelo.color,
@@ -440,6 +442,7 @@ def _a_modelo(entidad: Producto) -> ProductoModel:
         badge=entidad.badge,
         precio_original=entidad.precio_original,
         rating=entidad.rating,
+        resenas_count=entidad.resenas_count,
         nuevo_lanzamiento=entidad.nuevo_lanzamiento,
         stock_minimo=entidad.stock_minimo,
         aviso_stock_enviado=entidad.aviso_stock_enviado,

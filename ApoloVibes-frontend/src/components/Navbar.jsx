@@ -4,7 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
-import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Home, Moon, Sun, CircleCheck, ClipboardList, Minus, Plus, Trash2, ShieldCheck } from 'lucide-react'
+import { mediaPath } from '../utils/media.js'
+import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Moon, Sun, CircleCheck, ClipboardList, Minus, Plus, Trash2, ShieldCheck, Calculator, ChevronRight } from 'lucide-react'
+import { useProductos } from '../context/ProductContext.jsx'
 import LoginModal from './LoginModal.jsx'
 import SeguridadModal from './SeguridadModal.jsx'
 import ConfirmModal from './ConfirmModal.jsx'
@@ -22,6 +24,7 @@ export default function Navbar() {
   const userMenuRef = useRef(null)
   const cartMenuRef = useRef(null)
   const navigate = useNavigate()
+  const { categorias } = useProductos()
 
   useEffect(() => {
     const alScrollear = () => setScrolled(window.scrollY > 40)
@@ -105,11 +108,19 @@ export default function Navbar() {
         }}
       >
         {/* LOGO */}
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 18, color: '#FBF7EE' }}>
-          <Home size={20} />
-          Apolo Vibes 3D
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            className="hamburger"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Abrir menú"
+          >
+            <Menu size={24} />
+          </button>
 
+          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 18, color: '#FBF7EE' }}>
+            <img src={mediaPath('nombrelogo2.png')} alt="Logo" style={{ height: 50, width: 'auto' }} />
+          </Link>
+        </div>
         {/* Desktop nav */}
         <nav className="nav-links hide-mobile">
           <Link to="/categorias">Catálogo</Link>
@@ -136,6 +147,118 @@ export default function Navbar() {
           >
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
+
+          {/* Desktop auth */}
+          <div style={{ position: 'relative' }} ref={userMenuRef}>
+            <button
+              onClick={() => isLoggedIn ? setUserMenuOpen(v => !v) : abrirLogin()}
+              aria-label="Mi cuenta"
+              style={{
+                width: 34, height: 34, borderRadius: '50%',
+                border: '1.5px solid rgba(251,247,238,.3)',
+                background: 'rgba(251,247,238,.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: '#FBF7EE',
+                transition: 'border-color .2s, background .2s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(251,247,238,.6)'; e.currentTarget.style.background = 'rgba(251,247,238,.15)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(251,247,238,.3)'; e.currentTarget.style.background = 'rgba(251,247,238,.1)' }}
+            >
+              <User size={18} />
+            </button>
+
+            {/* Dropdown */}
+            {userMenuOpen && isLoggedIn && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                background: 'rgba(250,127,25,1)',
+                border: '1px solid var(--line)',
+                borderRadius: 12,
+                minWidth: 200,
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.55)',
+                overflow: 'hidden',
+                zIndex: 200,
+              }}>
+                <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--bg)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+                      {user?.nombre || user?.email}
+                    </span>
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      color: '#02ff5f', fontSize: 11, fontWeight: 700, letterSpacing: .3,
+                    }}>
+                      Activo<CircleCheck size={13} />
+                    </span>
+                  </div>
+                </div>
+                {isAdmin && (
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/admin') }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '12px 16px', border: 'none', background: 'none',
+                      color: 'var(--text)', fontSize: 13, cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background .15s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                  >
+                    <LayoutDashboard size={16} color="var(--text)" />
+                    Panel Administrador
+                  </button>
+                )}
+                {!isAdmin && (
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/mis-pedidos') }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '12px 16px', border: 'none', background: 'none',
+                      color: 'var(--text)', fontSize: 13, cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background .15s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                  >
+                    <ClipboardList size={16} color="var(--text)" />
+                    Mis pedidos
+                  </button>
+                )}
+                <button
+                  onClick={() => { setUserMenuOpen(false); setSeguridadOpen(true) }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                    padding: '12px 16px', border: 'none', background: 'none',
+                    color: 'var(--text)', fontSize: 13, cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background .15s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                >
+                  <ShieldCheck size={16} color="var(--text)" />
+                  Seguridad
+                </button>
+                <button
+                  onClick={() => handlePedirLogout(() => setUserMenuOpen(false))}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                    padding: '12px 16px', border: 'none', background: 'none',
+                    color: '#b60303', fontSize: 13, cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background .15s',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239,68,68,.08)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                >
+                  <LogOut size={16} />
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="cart-icon" ref={cartMenuRef} style={{ position: 'relative', color: '#FBF7EE' }}>
             <button
@@ -214,7 +337,11 @@ export default function Navbar() {
                     </div>
                   ) : items.length === 0 ? (
                     <div style={{ padding: '32px 16px', textAlign: 'center' }}>
-                      <ShoppingCart size={40} strokeWidth={1.5} style={{ display: 'block', margin: '0 auto 12px', color: 'var(--text-dim)' }} />
+                        <img
+                        src={mediaPath('carritoVacio.png')}
+                        alt="Logo"
+                        style={{ display: 'block', height: 80, width: 'auto', margin: '0 auto 10px' }}
+                    />
                       <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
                         Tu carrito está vacío.
                       </p>
@@ -335,163 +462,97 @@ export default function Navbar() {
               </div>
             )}
           </div>
-
-          {/* Desktop auth */}
-          <div className="hide-mobile" style={{ position: 'relative' }} ref={userMenuRef}>
-            <button
-              onClick={() => isLoggedIn ? setUserMenuOpen(v => !v) : abrirLogin()}
-              aria-label="Mi cuenta"
-              style={{
-                width: 34, height: 34, borderRadius: '50%',
-                border: '1.5px solid rgba(251,247,238,.3)',
-                background: 'rgba(251,247,238,.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: '#FBF7EE',
-                transition: 'border-color .2s, background .2s',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(251,247,238,.6)'; e.currentTarget.style.background = 'rgba(251,247,238,.15)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(251,247,238,.3)'; e.currentTarget.style.background = 'rgba(251,247,238,.1)' }}
-            >
-              <User size={18} />
-            </button>
-
-            {/* Dropdown */}
-            {userMenuOpen && isLoggedIn && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', right: 0,
-                background: 'rgba(250,127,25,1)',
-                border: '1px solid var(--line)',
-                borderRadius: 12,
-                minWidth: 200,
-                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.55)',
-                overflow: 'hidden',
-                zIndex: 200,
-              }}>
-                <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--bg)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', margin: 0 }}>
-                      {user?.nombre || user?.email}
-                    </span>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      color: '#02ff5f', fontSize: 11, fontWeight: 700, letterSpacing: .3,
-                    }}>
-                      Activo<CircleCheck size={13} />
-                    </span>
-                  </div>
-                </div>
-                {isAdmin && (
-                  <button
-                    onClick={() => { setUserMenuOpen(false); navigate('/admin') }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                      padding: '12px 16px', border: 'none', background: 'none',
-                      color: 'var(--text)', fontSize: 13, cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'background .15s',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-                  >
-                    <LayoutDashboard size={16} color="var(--text)" />
-                    Panel Administrador
-                  </button>
-                )}
-                {!isAdmin && (
-                  <button
-                    onClick={() => { setUserMenuOpen(false); navigate('/mis-pedidos') }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                      padding: '12px 16px', border: 'none', background: 'none',
-                      color: 'var(--text)', fontSize: 13, cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'background .15s',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-                  >
-                    <ClipboardList size={16} color="var(--text)" />
-                    Mis pedidos
-                  </button>
-                )}
-                <button
-                  onClick={() => { setUserMenuOpen(false); setSeguridadOpen(true) }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                    padding: '12px 16px', border: 'none', background: 'none',
-                    color: 'var(--text)', fontSize: 13, cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'background .15s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-                >
-                  <ShieldCheck size={16} color="var(--text)" />
-                  Seguridad
-                </button>
-                <button
-                  onClick={() => handlePedirLogout(() => setUserMenuOpen(false))}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                    padding: '12px 16px', border: 'none', background: 'none',
-                    color: '#b60303', fontSize: 13, cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'background .15s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239,68,68,.08)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
-                >
-                  <LogOut size={16} />
-                  Cerrar sesión
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Hamburger */}
-          <button
-            className="hamburger"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Abrir menú"
-          >
-            <Menu size={24} />
-          </button>
         </div>
       </div>
 
       {/* Mobile menu overlay */}
-      <div
-        className={`nav-mobile-overlay ${mobileOpen ? 'open' : ''}`}
-        onClick={() => setMobileOpen(false)}
-      >
-        <div className="nav-mobile-menu" onClick={e => e.stopPropagation()}>
-          <div className="close-btn">
-            <button onClick={() => setMobileOpen(false)} aria-label="Cerrar menú">
-              <X size={24} />
-            </button>
-          </div>
-          <button onClick={() => handleMobileNav('/')}>Inicio</button>
-          <button onClick={() => handleMobileNav('/categorias')}>Catálogo</button>
-          <button onClick={() => handleMobileNav('/cotizar')}>Cotiza tu producto</button>
-          <button onClick={() => handleMobileNav('/carrito')}>Carrito ({cantidadTotal})</button>
-          {isLoggedIn ? (
-            <>
-              <button onClick={() => handleMobileNav('/mis-pedidos')}>Mis pedidos</button>
-              {isAdmin && <button onClick={() => handleMobileNav('/admin')}>Panel admin</button>}
-              <button onClick={() => handlePedirLogout(() => setMobileOpen(false))} style={{ color: '#b60303' }}>
-                Cerrar sesión
+      {createPortal(
+        <div
+          className={`nav-mobile-overlay ${mobileOpen ? 'open' : ''}`}
+          onClick={() => setMobileOpen(false)}
+        >
+          <div className="nav-mobile-menu" onClick={e => e.stopPropagation()}>
+            {/* Bloque superior: usuario o login + X a la derecha */}
+            <div className="nm-header">
+              <div className="nm-header-top">
+                {isLoggedIn ? (
+                  <div className="nm-user">
+                    <User size={22} />
+                    <span>{user?.nombre || user?.email}</span>
+                  </div>
+                ) : (
+                  <div className="nm-user">
+                    <User size={22} />
+                    <span>¡Te damos la bienvenida!</span>
+                  </div>
+                )}
+                <button className="nm-close" onClick={() => setMobileOpen(false)} aria-label="Cerrar menú">
+                  <X size={24} />
+                </button>
+              </div>
+              {!isLoggedIn && (
+                <button className="nm-login" onClick={() => { setMobileOpen(false); abrirLogin() }}>
+                  Inicia sesión
+                </button>
+              )}
+            </div>
+
+            {/* Mis pedidos (o panel admin) */}
+            {isLoggedIn && (
+              <div className="nm-section">
+                {isAdmin ? (
+                  <button className="nm-item" onClick={() => handleMobileNav('/admin')}>
+                    <LayoutDashboard size={18} /> Panel admin
+                  </button>
+                ) : (
+                  <button className="nm-item" onClick={() => handleMobileNav('/mis-pedidos')}>
+                    <ClipboardList size={18} /> Mis pedidos
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="nm-section">
+              <button className="nm-item" onClick={() => handleMobileNav('/cotizar')}>
+                <Calculator size={18} /> Cotiza tu producto
               </button>
-            </>
-          ) : (
-            <button onClick={() => { setMobileOpen(false); abrirLogin() }}>
-              Iniciar sesión
-            </button>
-          )}
-          <button onClick={toggleTheme} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {theme === 'dark' ? <><Sun size={16} /> Modo claro</> : <><Moon size={16} /> Modo oscuro</>}
-          </button>
-        </div>
-      </div>
+            </div>
+
+
+            {/* Categorías */}
+            <div className="nm-section">
+              <div className="nm-title">Categorías</div>
+              <button className="nm-item" onClick={() => handleMobileNav('/categorias')}>
+                Ver todo el catálogo <ChevronRight size={18} className="nm-chevron" />
+              </button>
+              {categorias.map(c => (
+                <button
+                  key={c.id}
+                  className="nm-item"
+                  onClick={() => handleMobileNav(`/categorias?cat=${c.id}`)}
+                >
+                  {c.nombre} <ChevronRight size={18} className="nm-chevron" />
+                </button>
+              ))}
+            </div>
+
+            {/* Resto */}
+
+            <div className="nm-section">
+              {isLoggedIn && (
+                <button className="nm-item" onClick={() => { setMobileOpen(false); setSeguridadOpen(true) }}>
+                  <ShieldCheck size={18} /> Seguridad
+                </button>
+              )}
+            </div>
+             <div className="nm-section">
+              <button className="nm-item" onClick={toggleTheme}>
+                {theme === 'dark' ? <><Sun size={18} /> Modo claro</> : <><Moon size={18} /> Modo oscuro</>}
+              </button>
+            </div>
+          </div> 
+        </div>,
+        document.body
+      )}
 
       {solicitarLogin && (
         <LoginModal onClose={cerrarLogin} />

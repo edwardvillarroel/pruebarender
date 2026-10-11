@@ -23,7 +23,13 @@ class Producto:
     descuento: int | None = None
     badge: str | None = None
     precio_original: int | None = None
-    rating: int | None = None
+    # Promedio de las estrellas de las reseñas, con 1 decimal. None = sin
+    # reseñas todavía (el frontend lo tolera con `Number(rating) || 0`).
+    rating: float | None = None
+    # Conteo denormalizado de reseñas, recalculado en la misma transaccion que
+    # inserta cada resena. Va junto a `rating` para que el catalogo no tenga
+    # que contar en cada request.
+    resenas_count: int = 0
     material: str | None = None
     tamano: str | None = None
     color: str | None = None

@@ -4,8 +4,9 @@ import { useState, useMemo, useEffect } from 'react'
 import { useProductos } from '../context/ProductContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
 import { Minus, Plus, Star } from 'lucide-react'
-import ProductCard from '../components/ProductCard.jsx'
+import ProductCarousel from '../components/ProductCarousel.jsx'
 import { productoApi, registrarColores } from '../services/products.js'
+import ResenasSeccion from '../components/ResenasSeccion.jsx'
 
 const COLOR_NUEVO = '#2fa018'
 const COLOR_DESCUENTO = '#FA7F19'
@@ -32,6 +33,9 @@ export default function ProductoDetalle() {
   const [colores, setColores] = useState([])
   const [colorElegido, setColorElegido] = useState(null)
   const [agregando, setAgregando] = useState(false)
+  const [resenas, setResenas] = useState([])
+  const [cargandoResenas, setCargandoResenas] = useState(true)
+  const [errorResenas, setErrorResenas] = useState(null)
 
   useEffect(() => {
     let vigente = true
@@ -56,11 +60,34 @@ export default function ProductoDetalle() {
     return () => { vigente = false }
   }, [id])
 
+  useEffect(() => {
+    let vigente = true
+    if (!id) {
+      setResenas([])
+      setCargandoResenas(false)
+      return
+    }
+    setCargandoResenas(true)
+    setErrorResenas(null)
+    productoApi.listarResenas(id)
+      .then((data) => {
+        if (!vigente) return
+        setResenas(data.resenas || [])
+      })
+      .catch(() => {
+        if (!vigente) return
+        setErrorResenas('No se pudieron cargar las reseñas.')
+        setResenas([])
+      })
+      .finally(() => {
+        if (vigente) setCargandoResenas(false)
+      })
+    return () => { vigente = false }
+  }, [id])
+
   const recomendados = useMemo(
     () => (producto
-      ? productos
-        .filter(p => p.categoria_id === producto.categoria_id && p.id !== producto.id)
-        .slice(0, 4)
+      ? productos.filter(p => p.categoria_id === producto.categoria_id && p.id !== producto.id)
       : []),
     [productos, producto]
   )
@@ -81,7 +108,7 @@ export default function ProductoDetalle() {
     setAgregando(true)
     try {
       await agregarProducto(
-        {...producto, color: colorActual?.nombre ?? producto.color, imagen: fotoActual },
+        { ...producto, color: colorActual?.nombre ?? producto.color, imagen: fotoActual },
         cantidad
       )
     } finally {
@@ -316,20 +343,23 @@ export default function ProductoDetalle() {
           </ul>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  size={18}
-                  fill={i < rating ? '#FA7F19' : 'none'}
-                  color={i < rating ? '#FA7F19' : 'var(--line)'}
-                />
-              ))}
-              {rating > 0 && (
-                 <span style={{ fontSize: 13, color: 'var(--text-dim)', marginLeft: 4 }}>
-                {producto.rating}.0
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star
+                key={i}
+                size={18}
+                fill={i < rating ? '#FA7F19' : 'none'}
+                color={i < rating ? '#FA7F19' : 'var(--line)'}
+              />
+            ))}
+            {rating > 0 && (
+              <span style={{ fontSize: 13, color: 'var(--text-dim)', marginLeft: 4 }}>
+                {Number(producto.rating).toFixed(1)}
+                {producto.resenas_count > 0 && (
+                  <span style={{ color: 'var(--text-dim)' }}> · {producto.resenas_count} reseña{producto.resenas_count === 1 ? '' : 's'}</span>
+                )}
               </span>
-              )}
-            </div>
+            )}
+          </div>
 
           <div style={{
             display: 'flex',
@@ -448,7 +478,6 @@ export default function ProductoDetalle() {
           </div>
         </div>
       </div>
-      {/*ACA MOSTRAR SOLO 4 PERO LO MAS VENDIDOS !!!*/}
       {recomendados.length > 0 && (
         <div style={{ marginTop: 64 }}>
           <hr className="separador" />
@@ -461,17 +490,16 @@ export default function ProductoDetalle() {
           }}>
             También te recomendamos
           </h2>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 20,
-          }}>
-            {recomendados.map((p, i) => (
-              <ProductCard key={p.id} producto={p} index={i} />
-            ))}
-          </div>
+          <ProductCarousel productos={recomendados} />
         </div>
       )}
+
+      <ResenasSeccion
+        producto={producto}
+        resenas={resenas}
+        cargando={cargandoResenas}
+        error={errorResenas}
+      />
     </section>
   )
 }

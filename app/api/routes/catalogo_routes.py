@@ -42,6 +42,10 @@ def _a_publico_producto(producto) -> dict:
         "specs": producto.specs,
         "descuento": producto.descuento,
         "precio_original": producto.precio_original,
+        # Superficie pública de reseñas: promedio 1 decimal (o null si nadie
+        # reseñó) + contador. `usuario_id` NUNCA sale de la base.
+        "rating": float(producto.rating) if producto.rating is not None else None,
+        "resenas_count": producto.resenas_count or 0,
         "material": producto.material,
         "tamano": producto.tamano,
         "color": producto.color,

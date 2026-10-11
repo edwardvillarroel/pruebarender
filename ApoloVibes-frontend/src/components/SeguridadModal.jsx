@@ -245,13 +245,10 @@ export default function SeguridadModal({ onClose }) {
                         padding: '15px 52px 8px', background: 'var(--surface)',
                         borderBottom: '1px solid var(--line)',
                     }}>
-                        <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ height: 60, width: 'auto', marginBottom: -10 }} />
+                        <img src={mediaPath('ApoloSeguridad.png')} alt="Logo" style={{ height: 100, width: 'auto', marginBottom: -10 }} />
                         <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>
-                            Seguridad
+                            Seguridad ApoloVibes
                         </h2>
-                        <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 8px', textAlign: 'center' }}>
-                            Protege tu cuenta con autenticación de dos factores y gestiona tu contraseña.
-                        </p>
                     </div>
 
                     <div style={{ padding: '20px 32px 28px' }}>
@@ -443,7 +440,7 @@ export default function SeguridadModal({ onClose }) {
                                         placeholder="Código de tu app"
                                         value={codigoMfa}
                                         onChange={(e) => { setCodigoMfa(e.target.value.replace(/\D/g, '').slice(0, 6)); setMensajeMfa({ ok: '', error: '' }) }}
-                                        style={{ ...inputStyle, letterSpacing: 6, textAlign: 'center', fontSize: 18, marginBottom: 10 }}
+                                        style={{ ...inputStyle, letterSpacing: 6, textAlign: 'center', fontSize: 12, marginBottom: 10 }}
                                     />
                                     {mensajeMfa.error && <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 10px' }}>{mensajeMfa.error}</p>}
                                     <button
@@ -462,6 +459,9 @@ export default function SeguridadModal({ onClose }) {
                             )}
                         </div>
                     </div>
+                    <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', marginTop: -30, marginBottom: 10 }}>
+                        Protege tu cuenta con autenticación de dos factores y gestiona tu contraseña.
+                    </p>
                 </div>
                 <div style={{ padding: '20px 32px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }} />
             </div>

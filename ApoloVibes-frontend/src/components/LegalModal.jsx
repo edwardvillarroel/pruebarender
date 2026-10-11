@@ -5,9 +5,9 @@ import { fechaLegalLarga } from '../services/legal.js'
 const CONTENT = {
   terminos: {
     titulo: 'Términos y Condiciones',
-    texto: `Última actualización: ${fechaLegalLarga()}
-
-1. Identificación del Proveedor
+    actualizacion: fechaLegalLarga(),
+    texto: 
+`1. Identificación del Proveedor
 El sitio de Apolo Vibes 3D es operado por Apolo Vibes SPA, RUT: 78.064.166-5 con domicilio en calle Pasaje el Boldo Nro:33, Viña del Mar, Chile. Puede contactarnos en pabla.rojas@hotmail.com.
 
 2. Aceptación de los Términos
@@ -66,9 +66,9 @@ Para consultas sobre estos Términos: pabla.rojas@hotmail.com.`,
   },
   privacidad: {
     titulo: 'Política de Privacidad',
-    texto: `Última actualización: ${fechaLegalLarga()}
-
-1. Responsable del Tratamiento
+    actualizacion: fechaLegalLarga(),
+    texto: 
+`1. Responsable del Tratamiento
 El responsable de sus datos personales es Apolo Vibes SPA, con domicilio en calle Pasaje el Boldo Nro:33, Viña del Mar, Chile. Contacto: pabla.rojas@hotmail.com.
 
 2. Datos que Recopilamos
@@ -130,7 +130,7 @@ Podemos actualizar esta Política. Publicaremos los cambios en esta página con 
 
 export default function LegalModal({ tipo, onClose }) {
   if (!tipo || !CONTENT[tipo]) return null
-  const { titulo, texto } = CONTENT[tipo]
+  const { titulo, actualizacion, texto } = CONTENT[tipo]
 
   return (
     <div
@@ -163,8 +163,11 @@ export default function LegalModal({ tipo, onClose }) {
           padding: '15px 52px 13px', background: 'var(--surface)',
           borderBottom: '1px solid var(--line)',
         }}>
-          <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ height: 60, width: 'auto', marginBottom: -10 }} />
+          <img src={mediaPath('politicasSeguridad.png')} alt="Logo" style={{ height: 100, width: 'auto', marginBottom: -10 }} />
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, margin: 0, color: 'var(--text)' }}>{titulo}</h2>
+          <p style={{ fontSize: 12, margin: '-4px 0 0', color: 'var(--text-dim)', textAlign: 'center',}}>
+            Última actualizacion: {actualizacion}
+          </p>
           <button
             onClick={onClose}
             style={{

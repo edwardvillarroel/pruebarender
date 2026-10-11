@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import literal, select
+from sqlalchemy import and_, case, exists, literal, select
 from sqlalchemy.orm import selectinload
 
 from app.domain.entities.detalle_pedido import DetallePedido
@@ -18,6 +18,13 @@ from app.infrastructure.database.connection import db
 from app.infrastructure.database.models.detalle_pedido_model import DetallePedidoModel
 from app.infrastructure.database.models.pago_model import PagoModel
 from app.infrastructure.database.models.pedido_model import PedidoModel
+from app.infrastructure.database.models.producto_color_model import ProductoColorModel
+from app.infrastructure.database.models.producto_model import ProductoModel
+from app.infrastructure.database.models.resena_model import ResenaModel
+from app.infrastructure.repositories.producto_repository import (
+    RUTA_IMAGEN_COLOR,
+    RUTA_IMAGEN_PRODUCTO,
+)
 
 
 class PedidoRepository(PedidoRepositoryInterface):
@@ -29,7 +36,7 @@ class PedidoRepository(PedidoRepositoryInterface):
             .options(selectinload(self.model.detalles))
             .where(self.model.id == entity_id)
         ).scalar_one_or_none()
-        return _a_entidad(modelo) if modelo else None
+        return self._con_imagenes([_a_entidad(modelo)])[0] if modelo else None
 
     def list(self, *filters: Any) -> list[Pedido]:
         consulta = db.session.query(self.model).options(
@@ -37,16 +44,52 @@ class PedidoRepository(PedidoRepositoryInterface):
         )
         if filters:
             consulta = consulta.filter(*filters)
-        return [_a_entidad(m) for m in consulta.all()]
+        return self._con_imagenes([_a_entidad(m) for m in consulta.all()])
 
     def list_by_usuario(self, usuario_id: UUID) -> list[Pedido]:
-        modelos = db.session.execute(
-            select(self.model)
+        """Pedidos del usuario con `resenas_pendientes` (0|1) calculado en SQL.
+
+        El badge es 1 solo si el pedido está `entregado` y existe al menos un
+        detalle cuyo producto no tiene reseña de ESTE usuario en ESTE pedido.
+        Una subquery en el mismo SELECT evita el N+1 de consultar reseñas
+        pedido por pedido desde la ruta.
+        """
+        sin_resena_de_este = ~exists(
+            select(literal(1))
+            .select_from(ResenaModel)
+            .where(ResenaModel.usuario_id == usuario_id)
+            .where(ResenaModel.pedido_id == PedidoModel.id)
+            .where(ResenaModel.producto_id == DetallePedidoModel.producto_id)
+        )
+        hay_producto_pendiente = exists(
+            select(literal(1))
+            .select_from(DetallePedidoModel)
+            .where(DetallePedidoModel.pedido_id == PedidoModel.id)
+            .where(sin_resena_de_este)
+        )
+        resenas_pendientes = case(
+            (
+                and_(
+                    PedidoModel.estado == EstadoPedido.ENTREGADO.value,
+                    hay_producto_pendiente,
+                ),
+                literal(1),
+            ),
+            else_=literal(0),
+        ).label("resenas_pendientes")
+
+        filas = db.session.execute(
+            select(self.model, resenas_pendientes)
             .options(selectinload(self.model.detalles))
             .where(self.model.usuario_id == usuario_id)
             .order_by(self.model.creado_en.desc())
-        ).scalars().all()
-        return [_a_entidad(m) for m in modelos]
+        ).all()
+        pedidos = []
+        for modelo, pendientes in filas:
+            entidad = _a_entidad(modelo)
+            entidad.resenas_pendientes = int(pendientes)
+            pedidos.append(entidad)
+        return self._con_imagenes(pedidos)
 
     def list_todos(self) -> list[Pedido]:
         modelos = db.session.execute(
@@ -54,7 +97,7 @@ class PedidoRepository(PedidoRepositoryInterface):
             .options(selectinload(self.model.detalles))
             .order_by(self.model.creado_en.desc())
         ).scalars().all()
-        return [_a_entidad(m) for m in modelos]
+        return self._con_imagenes([_a_entidad(m) for m in modelos])
 
     def list_pagados(self) -> list[Pedido]:
         tiene_pago_completado = (
@@ -71,7 +114,16 @@ class PedidoRepository(PedidoRepositoryInterface):
             .order_by(self.model.creado_en.desc())
             .all()
         )
-        return [_a_entidad(m) for m in modelos]
+        return self._con_imagenes([_a_entidad(m) for m in modelos])
+
+    def _con_imagenes(self, pedidos: list[Pedido]) -> list[Pedido]:
+        """Completa la foto de cada línea en UNA sola consulta (evita N+1).
+
+        Los pedidos ya vienen con sus `detalles`, así que se juntan todos los
+        ítems de todos los pedidos y se resuelven de una vez.
+        """
+        _resolver_imagenes([detalle for pedido in pedidos for detalle in pedido.detalles])
+        return pedidos
 
     def crear_con_detalles(
         self, pedido: Pedido, detalles: list[DetallePedido]
@@ -159,6 +211,53 @@ class PedidoRepository(PedidoRepositoryInterface):
             raise ValueError("Pedido no encontrado en BD")
         db.session.delete(modelo)
         db.session.commit()
+
+
+def _resolver_imagenes(detalles: list[DetallePedido]) -> None:
+    """Completa `imagen` de cada detalle con la ruta pública del BLOB.
+
+    Mismo criterio que `CarritoRepositoryBd._resolver_imagenes`: la foto del
+    color elegido si esa variante tiene imagen, si no la del producto. Se
+    resuelve en UNA sola consulta para todos los detalles (evita N+1) y solo se
+    setea una URL cuando la imagen existe; si no, queda `None` y el frontend
+    cae al icono genérico.
+    """
+    if not detalles:
+        return
+
+    ids = {detalle.producto_id for detalle in detalles}
+    filas = db.session.execute(
+        select(
+            ProductoModel.id,
+            ProductoModel.imagen_bytes.isnot(None).label("tiene_imagen"),
+            ProductoColorModel.id.label("color_id"),
+            ProductoColorModel.nombre.label("color_nombre"),
+            ProductoColorModel.imagen_bytes.isnot(None).label("color_tiene_imagen"),
+        )
+        .outerjoin(
+            ProductoColorModel, ProductoColorModel.producto_id == ProductoModel.id
+        )
+        .where(ProductoModel.id.in_(ids))
+    ).all()
+
+    productos = {f.id: f.tiene_imagen for f in filas}
+    colores = {
+        (f.id, (f.color_nombre or "").strip().lower()): (f.color_id, f.color_tiene_imagen)
+        for f in filas
+        if f.color_id is not None
+    }
+
+    for detalle in detalles:
+        imagen = (
+            RUTA_IMAGEN_PRODUCTO.format(producto_id=detalle.producto_id)
+            if productos.get(detalle.producto_id)
+            else None
+        )
+        if detalle.color:
+            fila = colores.get((detalle.producto_id, detalle.color.strip().lower()))
+            if fila and fila[1]:
+                imagen = RUTA_IMAGEN_COLOR.format(color_id=fila[0])
+        detalle.imagen = imagen
 
 
 def _a_entidad(modelo: PedidoModel) -> Pedido:

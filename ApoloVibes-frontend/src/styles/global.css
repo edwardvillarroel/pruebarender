@@ -431,12 +431,6 @@ label {
   }
 }
 
-/* Hero en pantallas angostas: recién acá se reduce el bloque de texto. En pantalla
-   completa conserva su tamaño original (h1 46px, p 16px, bloque 460px) porque esos
-   valores van en style inline y ganarle a un clamp los dejaba reducidos en todas
-   las pantallas. Los !important son obligatorios por eso. Este bloque tiene que
-   quedar FUERA del @media de 768px: anidado, un @media exige AMBAS condiciones y
-   terminaba aplicándose recién a <=768px. */
 @media (max-width: 1024px) {
   .hero-eyebrow {
     font-size: 11px !important;
@@ -461,13 +455,34 @@ label {
     margin-bottom: 0 !important;
   }
 
-  /* Baja los botones para que no queden pegados al párrafo ni tapen el logo. */
   .hero-buttons {
     margin-top: 20px !important;
   }
 }
 
-/* Mobile: ≤ 768px */
+
+.hero-section .hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+
+@media (min-width: 769px) {
+  .hero-section .hero-content {
+    position: absolute;
+    top: 46%;
+    left: 5%;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 0 !important;  
+  }
+
+  .hero-section .hero-buttons {
+    margin-top: 0 !important;
+  }
+}
+
 @media (max-width: 768px) {
   .grid-4 {
     grid-template-columns: 1fr;
@@ -497,15 +512,11 @@ label {
     white-space: normal;
   }
 
-  /* Navbar collapses to hamburger */
   .nav-links {
     display: none;
   }
 
-  /* Móvil: el header muestra solo logo + botón hamburguesa */
-  /* !important vence al display:flex inline del botón de tema */
-  .theme-toggle,
-  .cart-icon {
+  .theme-toggle {
     display: none !important;
   }
 
@@ -515,8 +526,18 @@ label {
     justify-content: center;
   }
 
-  /* Móvil: el header reduce su padding lateral para pegar la hamburguesa al borde
-     y usa 2 columnas (logo | acciones) para que la hamburguesa quede al extremo */
+    .cart-icon {
+    position: static !important;
+  }
+
+  .cart-icon > div {
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+
+ 
   header .wrap {
     grid-template-columns: 1fr auto !important;
     padding: 16px 16px !important;
@@ -534,54 +555,126 @@ label {
   .nav-mobile-overlay.open {
     display: flex;
     align-items: flex-start;
-    justify-content: flex-end;
+    justify-content: flex-start;
   }
 
   .nav-mobile-menu {
     background: rgba(250, 127, 25, 1);
-    width: 280px;
+    width: 300px;
+    max-width: 85vw;
     height: 100%;
-    padding: 24px 20px;
+    padding: 0;                
     display: flex;
     flex-direction: column;
-    gap: 0;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, .3);
+    overflow-y: auto;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, .3);
   }
 
-  .nav-mobile-menu a,
-  .nav-mobile-menu button {
-    display: block;
-    padding: 14px 0;
+  .nm-header {
+    padding: 18px 20px 20px;
+    border-bottom: 1px solid rgba(251, 247, 238, .4);
+  }
+
+  .nm-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .nm-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
     font-size: 15px;
-    color: var(--text);
-    border-bottom: 1px solid rgba(251, 247, 238, .22);
-    text-decoration: none;
+    font-weight: 600;
+    color: #FBF7EE;
+  }
+
+  .nm-user span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+    .nm-section {
+    border-bottom: 1px solid rgba(251, 247, 238, .45);
+    padding: 4px 0;
+  }
+
+  .nm-section-last {
+    border-bottom: none;
+  }
+
+  .nm-close {
+    display: flex;
     background: none;
-    border-left: none;
-    border-right: none;
-    border-top: none;
-    text-align: left;
-    width: 100%;
+    border: none;
+    padding: 4px;
+    color: #FBF7EE;
     cursor: pointer;
   }
 
-  .nav-mobile-menu a:first-child,
-  .nav-mobile-menu button:first-child {
-    border-top: 1px solid rgba(251, 247, 238, .22);
+  .nm-login {
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px;
+    border: none;
+    border-radius: 999px;
+    background: #FFFFFF;
+    color: #FA7F19;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
   }
 
-  .nav-mobile-menu .close-btn {
+  .nm-login:hover { background: #fff1e4; }
+  .nm-login:active { transform: scale(.98); }
+
+  .nm-title {
+    padding: 18px 20px 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: rgba(251, 247, 238, .85);
+  }
+
+  .nm-item {
     display: flex;
-    justify-content: flex-end;
-    padding: 0 0 12px;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 15px 20px;
+    background: none;
     border: none;
+    color: #FBF7EE;
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s;
   }
 
-  .nav-mobile-menu .close-btn button {
-    border: none;
-    padding: 8px;
-    font-size: 24px;
-    color: rgba(251, 247, 238, .9);
+  .nm-item:hover,
+  .nm-item:active {
+    background: rgba(251, 247, 238, .2);
+  }
+
+  .nm-chevron {
+    margin-left: auto;
+    opacity: .85;
+  }
+
+  .nm-danger {
+    color: #8f0000;
+    font-weight: 600;
+  }
+
+  .nm-danger:hover,
+  .nm-danger:active {
+    background: rgba(143, 0, 0, .12);
   }
 
 
@@ -687,22 +780,53 @@ label {
     aspect-ratio: auto !important;
   }
 
-  .hero-content {
-    padding: 50px 16px 0 !important;
+  .hero-section .hero-content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 16px;
+    width: 100%;
+    margin: 0;
+    padding: 0 16px !important;
   }
-
-  /* h1 y p usan clamp() en HeroVideo.jsx: el tamaño escala solo entre 22 y 34px
-     (h1) y 13 y 15px (p), así que acá ya no hacen falta overrides !important
-     que aparte el tamaño en dos fuentes de verdad. */
 
   .hero-buttons {
     flex-direction: column !important;
+    margin-top: 0 !important;
+    gap: 10px !important;
   }
 
   .hero-buttons a {
     width: 100%;
     text-align: center;
     justify-content: center;
+    padding: 12px 20px !important;
+  }
+ 
+
+  .hero-section .hero-content {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 16px;
+    width: 100%;
+    margin: 0;
+    padding: 0 16px !important;
+  }
+
+  .hero-buttons {
+    flex-direction: column !important;
+    margin-top: 0 !important;
+    gap: 10px !important;
+  }
+
+  .hero-buttons a {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+    padding: 12px 20px !important;
   }
 
   /* Login modal responsive */
