@@ -109,6 +109,7 @@ export default function LoginModal({ onClose }) {
     const [modoMfa, setModoMfa] = useState(null)
     const [codigoMfa, setCodigoMfa] = useState('')
     const [esperaBlanqueoMfa, setEsperaBlanqueoMfa] = useState(0)
+    const mfaBloqueado = esperaBlanqueoMfa > 0
 
     const enPasoMfa = modo === 'login' && Boolean(modoMfa)
 
@@ -145,6 +146,7 @@ export default function LoginModal({ onClose }) {
 
     const verificarMfa = async () => {
         if (!codigoMfa.trim()) return
+        if (mfaBloqueado) return
         setCargando(true)
         setError('')
         try {
@@ -196,6 +198,22 @@ export default function LoginModal({ onClose }) {
         id = setInterval(tick, 1000)
         return () => clearInterval(id)
     }, [expiraRecupEn])
+
+    useEffect(() => {
+        if (esperaBlanqueoMfa <= 0) return
+        let id
+        const tick = () => {
+            setEsperaBlanqueoMfa(s => {
+                if (s <= 1) {
+                    clearInterval(id)
+                    return 0
+                }
+                return s - 1
+            })
+        }
+        id = setInterval(tick, 1000)
+        return () => clearInterval(id)
+    }, [esperaBlanqueoMfa])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -767,33 +785,35 @@ export default function LoginModal({ onClose }) {
                                     setCodigoMfa(valor)
                                     setError('')
                                 }}
+                                disabled={mfaBloqueado || cargando}
                                 style={{ ...inputStyle, color: 'var(--surface)', letterSpacing: modoMfa === 'respaldo' ? 2 : 6, textAlign: 'center', fontSize: 18 }}
                             />
                             <p style={errorSlotStyle}>{error}</p>
                             {esperaBlanqueoMfa > 0 && (
                                 <p style={{ fontSize: 11, color: '#ef4444', margin: '0 0 12px', textAlign: 'center' }}>
-                                    Demasiados intentos. Vuelve a iniciar sesión dentro de {Math.ceil(esperaBlanqueoMfa / 60)} min.
+                                    Demasiados intentos. Vuelve a intentarlo en {formatearTiempo(esperaBlanqueoMfa)}.
                                 </p>
                             )}
                             <button
                                 type="submit"
-                                disabled={cargando || !codigoMfa.trim()}
+                                disabled={mfaBloqueado || cargando || !codigoMfa.trim()}
                                 style={{
                                     width: '100%', padding: '13px 0', borderRadius: 10, border: 'none',
                                     background: 'var(--accent)', color: '#ffffff', fontSize: 14, fontWeight: 600,
-                                    cursor: cargando || !codigoMfa.trim() ? 'default' : 'pointer', marginBottom: 10, display: 'flex', alignItems: 'center',
-                                    justifyContent: 'center', gap: 8, transition: 'opacity .2s', opacity: cargando || !codigoMfa.trim() ? .7 : 1,
+                                    cursor: (mfaBloqueado || cargando || !codigoMfa.trim()) ? 'not-allowed' : 'pointer', marginBottom: 10, display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', gap: 8, transition: 'opacity .2s', opacity: (mfaBloqueado || cargando || !codigoMfa.trim()) ? .7 : 1,
                                 }}
-                                onMouseEnter={(e) => { if (!cargando && codigoMfa.trim()) e.currentTarget.style.opacity = '.9' }}
-                                onMouseLeave={(e) => { if (!cargando && codigoMfa.trim()) e.currentTarget.style.opacity = '1' }}
+                                onMouseEnter={(e) => { if (!mfaBloqueado && !cargando && codigoMfa.trim()) e.currentTarget.style.opacity = '.9' }}
+                                onMouseLeave={(e) => { if (!mfaBloqueado && !cargando && codigoMfa.trim()) e.currentTarget.style.opacity = '1' }}
                             >
                                 {cargando ? 'Verificando...' : 'Verificar'} <span></span>
                             </button>
                             {modoMfa === 'codigo' && (
                                 <button
                                     type="button"
-                                    style={{ ...botonFlechaRegistro, width: '100%', marginBottom: 10 }}
-                                    onClick={() => { setModoMfa('respaldo'); setCodigoMfa(''); setError('') }}
+                                    disabled={mfaBloqueado}
+                                    style={{ ...botonFlechaRegistro, width: '100%', marginBottom: 10, opacity: mfaBloqueado ? .7 : 1, cursor: mfaBloqueado ? 'not-allowed' : 'pointer' }}
+                                    onClick={() => { if (mfaBloqueado) return; setModoMfa('respaldo'); setCodigoMfa(''); setError('') }}
                                 >
                                     Usar código de respaldo
                                 </button>

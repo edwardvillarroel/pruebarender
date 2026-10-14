@@ -3,6 +3,17 @@ from flask import current_app
 
 _cliente = httpx.Client(timeout=30)
 
+_WHITELIST = (
+    "content-type",
+    "cache-control",
+    "etag",
+    "last-modified",
+    "expires",
+    "vary",
+    "accept-ranges",
+    "content-disposition",
+)
+
 def reenviar(ruta, datos_metodo, cabeceras_internas):
     url = f"{current_app.config['BACKEND_INTERNAL_URL']}/api/{ruta}"
     cabeceras = {
@@ -20,6 +31,14 @@ def reenviar(ruta, datos_metodo, cabeceras_internas):
             headers=cabeceras,
         )
     except httpx.RequestError:
-        return b'{"mensaje": "backend no disponible"}', 502
-    return respuesta.content, respuesta.status_code
+        return (
+            b'{"mensaje": "backend no disponible"}',
+            502,
+            {"Content-Type": "application/json; charset=utf-8"},
+        )
+    cabeceras_out = {}
+    for clave, valor in respuesta.headers.items():
+        if clave.lower() in _WHITELIST:
+            cabeceras_out[clave] = valor
+    return respuesta.content, respuesta.status_code, cabeceras_out
 

@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
 import { useCart } from '../context/CartContext.jsx'
 import { useProductos } from '../context/ProductContext.jsx'
 import { Star, ImageOff } from 'lucide-react'
 import { useState } from 'react'
+import { productoApi } from '../services/products.js'
 
 const ACENTOS = ['#FA7F19', '#F6D976', '#E8863E']
 const COLOR_NUEVO = '#2fa018'
@@ -18,11 +19,33 @@ export default function ProductCard({ producto, index = 0 }) {
   const categoria = categorias.find(c => c.id === producto.categoria_id)
   const imagenTarjeta = producto.imagen_thumb || producto.imagen
   const [agregando, setAgregando] = useState(false)
+  const navigate = useNavigate()
 
   const handleAgregar = async () => {
     if (agregando) return
     setAgregando(true)
     try {
+      let colores
+      try {
+        const resp = await productoApi.listarColores(producto.id)
+        colores = resp.colores || []
+      } catch (e) {
+        // Sin saber los colores no se agrega a ciegas: va al detalle a elegir.
+        navigate('/producto/' + producto.id)
+        return
+      }
+      if (colores.length > 1) {
+        navigate('/producto/' + producto.id)
+        return
+      }
+      if (colores.length === 1) {
+        await agregarProducto({
+          ...producto,
+          color: colores[0].nombre,
+          imagen: colores[0].imagen || producto.imagen,
+        })
+        return
+      }
       await agregarProducto(producto)
     } finally {
       setAgregando(false)

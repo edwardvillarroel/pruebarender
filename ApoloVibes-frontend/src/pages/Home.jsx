@@ -3,6 +3,8 @@ import HeroVideo from '../components/HeroVideo.jsx'
 import ProductCarousel from '../components/ProductCarousel.jsx'
 import { useProductos } from '../context/ProductContext.jsx'
 import { mediaPath } from '../utils/media.js'
+import { Link } from 'react-router-dom'
+import { rutaDeCategoria } from '../utils/categorias.js'
 
 const CATEGORY_BACKGROUNDS = {
   videoJuegos: mediaPath('banerAnime.png'),
@@ -11,7 +13,13 @@ const CATEGORY_BACKGROUNDS = {
   diseno: mediaPath('banerdiseño.png'),
   accesorios: mediaPath('AccesoriosBaner.png'),
   articulados: mediaPath('ArticuladosBaner.png')
+}
 
+if (typeof window !== 'undefined') {
+  Object.values(CATEGORY_BACKGROUNDS).forEach(src => {
+    const img = new Image()
+    img.src = src
+  })
 }
 
 function fondoDeCategoria(nombre) {
@@ -43,7 +51,6 @@ export default function Home() {
   return (
     <>
       <HeroVideo />
-
       <section className="wrap section-py-mobile" style={{ paddingTop: '80px' }}>
         <hr className="separador" />
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Los más vendidos de la semana</h2>
@@ -93,9 +100,14 @@ export default function Home() {
       )}
 
 
+<style>{`
+  .cat-titulo { color: inherit; text-decoration: none; cursor: pointer; }
+  .cat-titulo:hover { text-decoration: underline; }
+`}</style>
+
       <section className="wrap section-py-mobile" style={{ paddingBottom: '80px' }}>
         <hr className="separador" />
-        {cargando ? (
+        {cargando && categorias.length === 0 ? (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Cargando categorías…</p>
         ) : (
           <div className="grid-3" style={{ rowGap: 8 }}>
@@ -130,7 +142,11 @@ export default function Home() {
                     }} />
                   )}
                   <div style={{ position: 'relative', zIndex: 1, padding: '0 16px' }}>
-                    <h3 style={{ fontSize: 18, marginTop: -5, color: bg ? '#fff' : 'var(--text)' }}>{cat.nombre}</h3>
+                    <h3 style={{ fontSize: 18, marginTop: -5, color: bg ? '#fff' : 'var(--text)' }}>
+                      <Link to={rutaDeCategoria(cat)} className="cat-titulo">
+                      {cat.nombre}
+                      </Link>
+                    </h3>
                     {cat.cantidad > 0 && (
                       <span style={{ display: 'block', marginTop: -5, fontSize: 12, color: bg ? 'rgba(255,255,255,.75)' : 'var(--text-dim)' }}>
                         {cat.cantidad} {cat.cantidad === 1 ? 'producto' : 'productos'}

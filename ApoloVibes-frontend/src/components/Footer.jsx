@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import LegalModal from './LegalModal.jsx'
+import { slugDeCategoria } from '../utils/categorias.js'
 
 const ICONOS_SOCIALES = [
   {
@@ -17,14 +18,8 @@ const ICONOS_SOCIALES = [
   },
 ]
 
-const ENLACES_TIENDA = [
-  { nombre: 'Videojuegos y Cine', href: '/categorias?cat=videojuegos-cine' },
-  { nombre: 'Articulados', href: '/categorias?cat=articulados' },
-  { nombre: 'Llaveros', href: '/categorias?cat=llaveros' },
-  { nombre: 'Animales', href: '/categorias?cat=animales' },
-  { nombre: 'Accesorios', href: '/categorias?cat=accesorios' },
-  { nombre: 'Diseños a medida', href: '/categorias?cat=disenos-a-medida' },
-]
+const ENLACES_TIENDA = ['Videojuegos y Cine', 'Articulados', 'Llaveros', 'Animales', 'Accesorios', 'Diseños a medida'].map(
+  nombre => ({ nombre, href: `/categorias?cat=${slugDeCategoria(nombre)}`}))
 
 const ENLACES_EMPRESA = [
   { nombre: 'Nosotros', href: '/' },
@@ -204,7 +199,7 @@ export default function Footer() {
               abierta={seccionesAbiertas.contacto}
               alAlternar={() => alternar('contacto')}
             >
-              <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>pabla.rojas@hotmail.com</span>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>apolovibes3d@gmail.com</span>
               <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>Viña del Mar, Chile</span>
             </SeccionFooter>
           </div>

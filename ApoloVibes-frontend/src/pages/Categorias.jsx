@@ -1,6 +1,7 @@
 import { useSearchParams } from 'react-router-dom'
 import ProductCard from '../components/ProductCard.jsx'
 import { useProductos } from '../context/ProductContext.jsx'
+import { mediaPath } from '../utils/media.js'
 
 const slugify = (texto) =>
   texto
@@ -65,11 +66,18 @@ export default function Categorias() {
           Error al cargar productos: {error}
         </p>
       ) : filtrados.length === 0 ? (
+        <div style={{ textAling: 'center', padding: '40px 0' }}>
+          <img
+          src={mediaPath('sinproductos.png')}
+          alt="Logo"
+          style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
+        />
         <p style={{
-          textAlign: 'center', color: 'var(--text-dim)', padding: '40px 0'
+          textAlign: 'center', color: 'var(--text-dim)', padding: '15px 0'
         }}>
           No hay productos en esta categoría todavía.
         </p>
+        </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 }}>
           {filtrados.map((p, i) => <ProductCard key={p.id} producto={p} index={i} />)}

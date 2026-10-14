@@ -116,12 +116,6 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
 
 
 def _configurar_ventas(app: Flask) -> None:
-    """Punto de composición de la venta local (inyección de dependencias).
-
-    La ruta de ventas lee el servicio desde `app.config`; así la capa API no
-    depende de `infrastructure`. Importar los repositorios registra los modelos
-    ORM de venta local con Flask-SQLAlchemy.
-    """
     from app.application.venta_local.gestionar_venta_local import GestionarVentaLocal
     from app.infrastructure.database.models.usuario_model import UsuarioModel 
     from app.infrastructure.repositories.producto_repository import ProductoRepository
@@ -133,13 +127,6 @@ def _configurar_ventas(app: Flask) -> None:
 
 
 def _configurar_resenas(app: Flask) -> None:
-    """Punto de composición de las reseñas (inyección de dependencias).
-
-    La ruta de reseñas lee el servicio desde `app.config`; así la capa API no
-    depende de `infrastructure`. Importar el repo registra `ResenaModel` con
-    Flask-SQLAlchemy (mismo motivo que el import de `UsuarioModel` en
-    `_configurar_pedidos_pagos`).
-    """
     from app.application.resenas.gestionar_resena import GestionarResena
     from app.infrastructure.database.models.resena_model import ResenaModel  # noqa: F401
     from app.infrastructure.repositories.pedido_repository import PedidoRepository
@@ -154,14 +141,6 @@ def _configurar_resenas(app: Flask) -> None:
 
 
 def _ruta_dist_absoluta(app: Flask) -> Path | None:
-    """Resuelve FRONTEND_DIST a una ruta ABSOLUTA valida, o None.
-
-    `send_from_directory` resuelve el directorio contra `app.root_path`, asi
-    que un valor relativo (el de render.yaml) buscaba los archivos dentro de
-    `app/` y devolia 404 para todo el SPA. Ademas sin la guardia de vacio,
-    `Path("").resolve()` seria el CWD (un directorio valido) y se montaria el
-    repo entero.
-    """
     valor = str(app.config.get("FRONTEND_DIST", "")).strip()
     if not valor:
         return None
@@ -172,12 +151,6 @@ def _ruta_dist_absoluta(app: Flask) -> Path | None:
 
 
 def _montar_frontend_produccion(app: Flask) -> None:
-    """Sirve el build de React (ApoloVibes-frontend/dist) si existe.
-
-    Como el build de Vite usa un `base` distinto de "/", también lo sirve
-    bajo ese prefijo (FRONTEND_BASE_URL). Nunca toca las rutas /api/*:
-    esas vuelven JSON de error.
-    """
     dist = _ruta_dist_absoluta(app)
     if dist is None:
         return
