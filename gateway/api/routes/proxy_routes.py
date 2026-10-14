@@ -23,5 +23,10 @@ def proxy(ruta):
             "X-User-Id": claims.get("sub") or "",
             "X-User-Rol": claims.get("rol") or "",
         }
-    contenido, status = reenviar(ruta, request, cabeceras_internas)
-    return Response(contenido, status=status, content_type="application/json; charset=utf-8")
+    contenido, status, cabeceras = reenviar(ruta, request, cabeceras_internas)
+    tipo = cabeceras.get("Content-Type") or cabeceras.get("content-type") or "application/json; charset=utf-8"
+    respuesta = Response(contenido, status=status, content_type=tipo)
+    for clave, valor in cabeceras.items():
+        if clave.lower() != "content-type":
+            respuesta.headers[clave] = valor
+    return respuesta

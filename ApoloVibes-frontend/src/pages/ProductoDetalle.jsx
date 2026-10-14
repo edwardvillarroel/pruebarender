@@ -49,7 +49,13 @@ export default function ProductoDetalle() {
         if (!vigente) return
         const lista = [...(colores || [])].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))
         setColores(lista)
-        setColorElegido(lista[0]?.id ?? null)
+        if (lista.length > 1) {
+          setColorElegido(null)
+        } else if (lista.length === 1) {
+          setColorElegido(lista[0].id)
+        } else {
+          setColorElegido(null)
+        }
         registrarColores(id, lista)
       })
       .catch(() => {
@@ -451,7 +457,7 @@ export default function ProductoDetalle() {
             </button>
             {faltaElegirColor && (
               <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-dim)' }}>
-                Seleccioná el color para continuar.
+                Selecciona el color para continuar.
               </p>
             )}
           </div>

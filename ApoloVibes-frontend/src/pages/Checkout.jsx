@@ -4,10 +4,13 @@ import { Navigate, Link } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { iniciarPago } from '../services/payment.js'
 import SelectOpciones from '../components/SelectOpciones.jsx'
+import LegalModal from '../components/LegalModal.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { REGIONES, COMUNAS_POR_REGION } from '../services/regiones.js'
-import { calcularErrores, clienteParaEnvio, datosDesdeUsuario, edadDesde, esMayorDeEdad,
-   hoyISO, normalizarCiudad, normalizarNombre, normalizarDireccion, normalizarDpto, normalizarEmpresa, normalizarIdentificacion, normalizarTelefono, soloDigitos,} from '../utils/validacionescheckout.js'
+import {
+  calcularErrores, clienteParaEnvio, datosDesdeUsuario, edadDesde, esMayorDeEdad,
+  hoyISO, normalizarCiudad, normalizarNombre, normalizarDireccion, normalizarDpto, normalizarEmpresa, normalizarIdentificacion, normalizarTelefono, soloDigitos,
+} from '../utils/validacionescheckout.js'
 
 
 const ENVIO_GRATIS_DESDE = 50000
@@ -19,7 +22,7 @@ const estiloError = { color: '#ef4444', fontSize: 12, margin: '6px 0 0' }
 const sinBorde = { border: 'none', padding: 0, margin: 0 }
 
 const CLIENTE_INICIAL = {
-   email: '',
+  email: '',
   nombre: '',
   apellido: '',
   region: '',
@@ -38,11 +41,11 @@ const CLIENTE_INICIAL = {
 }
 
 const OPCIONES_ENTREGA = [
-  { valor: 'envio', titulo: 'Envío estándar', detalle: 'Plazos y costo según la empresa de transporte'},
-  { valor: 'retiro', titulo: 'Retiro', detalle: 'Disponible en 24 horas en Álvarez 1106, Viña del Mar'},
+  { valor: 'envio', titulo: 'Envío estándar', detalle: 'Plazos y costo según la empresa de transporte' },
+  { valor: 'retiro', titulo: 'Retiro', detalle: 'Disponible en 24 horas en Álvarez 1106, Viña del Mar' },
 ]
 
-function Campo({ id, label, error, ayuda, style, children }){
+function Campo({ id, label, error, ayuda, style, children }) {
   return (
     <div style={{ marginBottom: 16, ...style }} >
       <label htmlFor={id}>{label}</label>
@@ -56,7 +59,7 @@ function Campo({ id, label, error, ayuda, style, children }){
 export default function Checkout() {
   const { items, total } = useCart()
   const { user } = useAuth()
-  const claveRef  = useRef(null)
+  const claveRef = useRef(null)
   const enviandoRef = useRef(false)
   if (claveRef.current === null) claveRef.current = crypto.randomUUID()
 
@@ -68,9 +71,10 @@ export default function Checkout() {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState(null)
   const [tocado, setTocado] = useState({})
+  const [modalAbierto, setModalAbierto] = useState(null)
 
-    useEffect(() => {
-    const d =  datosDesdeUsuario(user)
+  useEffect(() => {
+    const d = datosDesdeUsuario(user)
     setCliente(prev => ({
       ...prev,
       email: d.email || prev.email,
@@ -93,7 +97,7 @@ export default function Checkout() {
   const errorDe = campo => (tocado[campo] ? errores[campo] : '')
   const borde = campo => (errorDe(campo) ? { borderColor: '#ef4444' } : undefined)
   const sinErrores = campos => campos.every(c => !errores[c])
-  const marcar = campo => setTocado(prev => (prev[campo] ? prev : {...prev, [campo]: true }))
+  const marcar = campo => setTocado(prev => (prev[campo] ? prev : { ...prev, [campo]: true }))
 
   const contactoCompleto = sinErrores(['email'])
   const direccionCompleta = contactoCompleto && sinErrores(['nombre', 'apellido', 'region', 'comuna', 'codigoPostal', 'direccion', 'dpto', 'numero', 'ciudad', 'telefono'])
@@ -113,33 +117,34 @@ export default function Checkout() {
   }
 
   function cambiarRegion(valor) {
-    setCliente(prev => ({ ...prev, region: valor, comuna: '',
+    setCliente(prev => ({
+      ...prev, region: valor, comuna: '',
       ciudad: prev.ciudad === prev.comuna ? '' : prev.ciudad,
-     }))
+    }))
   }
 
-  function cambiarComuna(valor){
+  function cambiarComuna(valor) {
     setCliente(prev => ({
       ...prev, comuna: valor, ciudad: !prev.ciudad || prev.ciudad === prev.comuna ? valor : prev.ciudad,
     }))
   }
 
   function cambiarTipoIdentificacion(valor) {
-    setCliente(prev => ({ ...prev, tipoIdentificacion: valor, rut: ''}))
-    setTocado(prev => ({ ...prev, rut: false}))
+    setCliente(prev => ({ ...prev, tipoIdentificacion: valor, rut: '' }))
+    setTocado(prev => ({ ...prev, rut: false }))
   }
 
-  function cambiarTipoDocumento(valor){
+  function cambiarTipoDocumento(valor) {
     setCliente(prev => ({
       ...prev,
       tipoDocumento: valor,
-      ...(valor === 'factura' && prev.tipoIdentificacion === 'pasaporte' ? { tipoIdentificacion: 'rut', rut: ''} : {}),
+      ...(valor === 'factura' && prev.tipoIdentificacion === 'pasaporte' ? { tipoIdentificacion: 'rut', rut: '' } : {}),
     }))
-    setTocado(prev => ({...prev, rut: false}))
+    setTocado(prev => ({ ...prev, rut: false }))
   }
 
   //prop
-  function campo (nombre, normalizar){
+  function campo(nombre, normalizar) {
     const hayError = !!errorDe(nombre)
     return {
       id: nombre,
@@ -150,7 +155,7 @@ export default function Checkout() {
         const recortado = cliente[nombre].trim()
         if (recortado !== cliente[nombre]) actualizar(nombre, recortado)
       },
-    'aria-invalid': hayError || undefined,
+      'aria-invalid': hayError || undefined,
       'aria-describedby': hayError ? `${nombre}-error` : undefined,
     }
   }
@@ -159,20 +164,20 @@ export default function Checkout() {
     e.preventDefault()
     setError(null)
     if (!entregaSeleccionada || enviandoRef.current) return
-    
+
     enviandoRef.current = true
     setEnviando(true)
     try {
-      await iniciarPago({ 
-        items, 
+      await iniciarPago({
+        items,
         cliente: clienteParaEnvio(cliente),
         entrega,
         totalEsperado: totalFinal,
         claveIdempotencia: claveRef.current,
         guardarDatos,
-      mayorEdad: esMayor, 
-      aceptaTerminos,
-    })
+        mayorEdad: esMayor,
+        aceptaTerminos,
+      })
     } catch (err) {
       setError(err.message || 'No pudimos iniciar el pago. Intenta nuevamente.')
       enviandoRef.current = false
@@ -189,7 +194,7 @@ export default function Checkout() {
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <img src={mediaPath('nombrelogo.png')} alt='logo' className='nombre-logo'></img>
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
-          ({items.length} {items.length === 1 ? 'producto' : 'productos'}) &nbsp; 
+          ({items.length} {items.length === 1 ? 'producto' : 'productos'}) &nbsp;
         </p>
       </div>
 
@@ -198,20 +203,20 @@ export default function Checkout() {
           {/* Paso 1: Contacto */}
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Contacto</h2>
           <Campo
-          id="email"
-          label="Email"
-          error={errorDe('email')}
-          ayuda={emailDeCuenta ? 'Este es el email de tu cuenta. Aquí te enviaremos la confirmación del pedido.' : undefined}
-          style={{ marginBottom: 24 }}  
+            id="email"
+            label="Email"
+            error={errorDe('email')}
+            ayuda={emailDeCuenta ? 'Este es el email de tu cuenta. Aquí te enviaremos la confirmación del pedido.' : undefined}
+            style={{ marginBottom: 24 }}
           >
             <input
-            {...campo('email')}
+              {...campo('email')}
               required
               type="email"
               autoComplete="email"
               maxLength={120}
               readOnly={emailDeCuenta}
-              style={emailDeCuenta ? { opacity: 0.7, cursor: 'not-allowed'} : borde('email')}
+              style={emailDeCuenta ? { opacity: 0.7, cursor: 'not-allowed' } : borde('email')}
             />
           </Campo>
 
@@ -226,28 +231,28 @@ export default function Checkout() {
 
             <div className="grid-2" style={{ marginBottom: 16 }}>
               <Campo
-              id="nombre"
-              label="Nombre"
-              error={errorDe('nombre')}
-              style={{ marginBottom: 0}}>
+                id="nombre"
+                label="Nombre"
+                error={errorDe('nombre')}
+                style={{ marginBottom: 0 }}>
                 <input
-                {...campo('nombre', normalizarNombre)}
-                required
-                autoComplete="given-name"
-                maxLength={60}
-                style={borde('nombre')}/>
+                  {...campo('nombre', normalizarNombre)}
+                  required
+                  autoComplete="given-name"
+                  maxLength={60}
+                  style={borde('nombre')} />
               </Campo>
               <Campo
-              id="apellido"
-              label="Apellido"
-              error={errorDe('apellido')}
-              style={{ marginBottom: 0}}>
+                id="apellido"
+                label="Apellido"
+                error={errorDe('apellido')}
+                style={{ marginBottom: 0 }}>
                 <input
-                {...campo('apellido', normalizarNombre)}
-                required
-                autoComplete="family-name"
-                maxLength={60}
-              style={borde('apellido')}/>
+                  {...campo('apellido', normalizarNombre)}
+                  required
+                  autoComplete="family-name"
+                  maxLength={60}
+                  style={borde('apellido')} />
               </Campo>
             </div>
 
@@ -278,54 +283,54 @@ export default function Checkout() {
               </div>
             </div>
 
-             <Campo id="codigoPostal" label="Código postal" error={errorDe('codigoPostal')} ayuda="7 dígitos.">
-                <input
+            <Campo id="codigoPostal" label="Código postal" error={errorDe('codigoPostal')} ayuda="7 dígitos.">
+              <input
                 {...campo('codigoPostal', v => soloDigitos(v, 7))}
                 required
                 inputMode='numeric'
                 autoComplete="postal-code"
                 maxLength={7}
-              style={borde('codigoPostal')}/>
-              </Campo>
+                style={borde('codigoPostal')} />
+            </Campo>
 
             <Campo id="direccion" label="Dirección" error={errorDe('direccion')}>
-                <input
+              <input
                 {...campo('direccion', normalizarDireccion)}
                 required
                 placeholder="Calle"
                 autoComplete="address-line1"
                 maxLength={100}
-              style={borde('direccion')}/>
-              </Campo>
+                style={borde('direccion')} />
+            </Campo>
 
 
             <div className="grid-2" style={{ marginBottom: 16 }}>
-             <Campo id="numero" label="Número de calle" error={errorDe('numero')} style={{ marginBottom: 0 }}>
+              <Campo id="numero" label="Número de calle" error={errorDe('numero')} style={{ marginBottom: 0 }}>
                 <input
-                {...campo('numero', v => soloDigitos(v, 6))}
-                required
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={6}
-              style={borde('numero')}/>
+                  {...campo('numero', v => soloDigitos(v, 6))}
+                  required
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={6}
+                  style={borde('numero')} />
               </Campo>
               <Campo id="dpto" label="Dpto/Block/Piso" error={errorDe('dpto')} style={{ marginBottom: 0 }}>
                 <input
-                {...campo('dpto', normalizarDpto)}
-                autoComplete="address-line2"
-                maxLength={30}
-                style={borde('dpto')} />
+                  {...campo('dpto', normalizarDpto)}
+                  autoComplete="address-line2"
+                  maxLength={30}
+                  style={borde('dpto')} />
               </Campo>
             </div>
 
-             <Campo id="ciudad" label="Ciudad" error={errorDe('ciudad')}>
-                <input
+            <Campo id="ciudad" label="Ciudad" error={errorDe('ciudad')}>
+              <input
                 {...campo('ciudad', normalizarCiudad)}
                 required
                 autoComplete="address-level2"
                 maxLength={60}
-                style={borde('ciudad')}/>
-              </Campo>
+                style={borde('ciudad')} />
+            </Campo>
 
             <Campo
               id="telefono"
@@ -386,7 +391,7 @@ export default function Checkout() {
           >
             <h2 style={tituloSeccion}>Datos personales</h2>
 
-             <Campo id="tipoDocumento" label="Tipo de documento">
+            <Campo id="tipoDocumento" label="Tipo de documento">
               <SelectOpciones
                 id="tipoDocumento"
                 options={[{ value: 'boleta', label: 'Boleta' }, { value: 'factura', label: 'Factura' }]}
@@ -396,10 +401,10 @@ export default function Checkout() {
               />
             </Campo>
 
-             <Campo id="tipoIdentificacion" label="Identificación">
+            <Campo id="tipoIdentificacion" label="Identificación">
               <SelectOpciones
                 id="tipoIdentificacion"
-                options={esFactura ? [{ value: 'rut', label: 'RUT' }] : [{ value: 'rut', label: 'RUT'}, { value: 'pasaporte', label: 'Pasaporte' }]}
+                options={esFactura ? [{ value: 'rut', label: 'RUT' }] : [{ value: 'rut', label: 'RUT' }, { value: 'pasaporte', label: 'Pasaporte' }]}
                 value={cliente.tipoIdentificacion}
                 onChange={cambiarTipoIdentificacion}
                 placeholder="Selecciona una opción"
@@ -437,25 +442,25 @@ export default function Checkout() {
             )}
 
             <Campo
-            id="fechaNacimiento"
-            label="Fecha de nacimiento"
-            error={errorDe('fechaNacimiento')}
-            ayuda="Solo la usamos para comprobar que eres mayor de edad; no la guardamos."
-            style={{ marginTop: 30, marginBottom: 20}}
-            >
-              <input 
               id="fechaNacimiento"
-              type="date"
-              required
-              max={hoyISO()}
-              autoComplete="bday"
-              value={fechaNacimiento}
-              onChange={e => setFechaNacimiento(e.target.value)}
-              onBlur={() => marcar('fechaNacimiento')}
-              aria-invalid={errorDe('fechaNacimiento') ? true : undefined}
-              aria-describedby={errorDe('fechaNacimiento') ? 'fechaNacimiento-error' : undefined}
-              style={borde('fechaNacimiento')}
-              />       
+              label="Fecha de nacimiento"
+              error={errorDe('fechaNacimiento')}
+              ayuda="Solo la usamos para comprobar que eres mayor de edad; no la guardamos."
+              style={{ marginTop: 30, marginBottom: 20 }}
+            >
+              <input
+                id="fechaNacimiento"
+                type="date"
+                required
+                max={hoyISO()}
+                autoComplete="bday"
+                value={fechaNacimiento}
+                onChange={e => setFechaNacimiento(e.target.value)}
+                onBlur={() => marcar('fechaNacimiento')}
+                aria-invalid={errorDe('fechaNacimiento') ? true : undefined}
+                aria-describedby={errorDe('fechaNacimiento') ? 'fechaNacimiento-error' : undefined}
+                style={borde('fechaNacimiento')}
+              />
             </Campo>
 
             <div style={{ marginBottom: 24 }}>
@@ -472,8 +477,14 @@ export default function Checkout() {
                   style={{ margin: '2px 0 0', flexShrink: 0, width: 16, height: 16 }}
                 />
                 <label htmlFor="aceptaTerminos" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
-                  Acepto los <a href="/terminos" target="_blank" rel="noreferrer">Términos y condiciones</a> y la{' '}
-                  <a href="/privacidad" target="_blank" rel="noreferrer">Política de privacidad</a>
+                  Acepto los{' '}
+                  <a 
+                  href="/terminos" 
+                  onClick={e =>{
+                    e.preventDefault();
+                    setModalAbierto('terminos')}}
+                  style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
+                  >Términos y condiciones</a> 
                 </label>
               </div>
               {errorDe('aceptaTerminos') && (
@@ -483,7 +494,7 @@ export default function Checkout() {
           </fieldset>
 
           <div className="separador-suave" style={{ marginBottom: 24 }} />
-        {/* Paso 4: Opciones de entrega — bloqueado hasta completar datos personales */}
+          {/* Paso 4: Opciones de entrega — bloqueado hasta completar datos personales */}
           <fieldset
             disabled={!datosPersonalesCompletos}
             style={{ ...sinBorde, opacity: datosPersonalesCompletos ? 1 : 0.4 }}
@@ -494,7 +505,7 @@ export default function Checkout() {
                 Envío gratis en compras desde {clp(ENVIO_GRATIS_DESDE)}. Te faltan {clp(ENVIO_GRATIS_DESDE - total)}.
               </p>
             )}
- 
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
               {OPCIONES_ENTREGA.map(op => {
                 const activa = entrega === op.valor
@@ -562,7 +573,7 @@ export default function Checkout() {
             }}
           >
             {enviando ? 'Redirigiendo a' : 'Pagar con'}
-              <img src={mediaPath('tuu.png')} alt="Tuu" style={{ height: 16, verticalAlign: 'middle' }} />
+            <img src={mediaPath('tuu.png')} alt="Tuu" style={{ height: 16, verticalAlign: 'middle' }} />
           </button>
         </form>
 
@@ -626,41 +637,59 @@ export default function Checkout() {
             </p>
             {items.map(item => (
               <div key={item.itemId ?? item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <div
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    background: item.imagen ? '#FFFFFF' : 'var(--surface-2)',
-                    flexShrink: 0,
-                  }}
-                >
-                  {item.imagen && (
-                    <img
-                      src={item.imagen}
-                      alt={item.nombre}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  )}
-                </div>
+                <div style={{ position: 'relative', width: 56, height: 56, flexShrink: 0 }}>
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: 8,
+                      overflow: 'hidden',
+                      background: item.imagen ? '#FFFFFF' : 'var(--surface-2)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.imagen && (
+                      <img
+                        src={item.imagen}
+                        alt={item.nombre}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    )}
+                  </div>
+                  <span
+                    aria-label={`Cantidad: ${item.cantidad}`}
+                    style={{
+                      position: 'absolute', top: -8, right: -8, minWidth: 20, height: 20, padding: '0 6px',
+                      borderRadius: 10, background: 'var(--accent)', color: '#fff', fontSize: 11, fontWeight: 700,
+                      lineHeight: '20px', textAlign: 'center', boxSizing: 'border-box', boxShadow: '0 0 0 2px var(--surface-3)',
+                    }}
+                  >
+                    {item.cantidad}
+                  </span>
+                  </div>
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--surface)' }}>{item.nombre} ( {item.cantidad} )</p>
-                  {item.color && (
-                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
-                      Color: {item.color}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--surface)' }}>{item.nombre}</p>
+                    {item.color && (
+                      <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
+                        Color: {item.color}
+                      </p>
+                    )}
+                    <p style={{ fontSize: 13, color: 'var(--text-dim)', flexShrink: 0 }}>
+                      ${item.precio.toLocaleString('es-CL')}
                     </p>
-                  )}
-                  <p style={{ fontSize: 13, color: 'var(--text-dim)', flexShrink: 0 }}>
-                    ${item.precio.toLocaleString('es-CL')}
-                  </p>
+                  </div>
                 </div>
-              </div>
             ))}
           </div>
         </aside>
       </div>
+      {modalAbierto && (
+        <LegalModal
+        tipo={modalAbierto}
+        onClose={() => setModalAbierto(null)}
+        />
+      )}
     </section>
   )
 }

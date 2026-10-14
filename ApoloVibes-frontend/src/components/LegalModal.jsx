@@ -6,9 +6,9 @@ const CONTENT = {
   terminos: {
     titulo: 'Términos y Condiciones',
     actualizacion: fechaLegalLarga(),
-    texto: 
-`1. Identificación del Proveedor
-El sitio de Apolo Vibes 3D es operado por Apolo Vibes SPA, RUT: 78.064.166-5 con domicilio en calle Pasaje el Boldo Nro:33, Viña del Mar, Chile. Puede contactarnos en pabla.rojas@hotmail.com.
+    texto:
+      `1. Identificación del Proveedor
+El sitio de Apolo Vibes 3D es operado por Apolo Vibes SPA, RUT: 78.064.166-5 con domicilio en calle Pasaje el Boldo Nro:33, Viña del Mar, Chile. Puede contactarnos en apolovibes3d@gmail.com.
 
 2. Aceptación de los Términos
 Al acceder y utilizar el Sitio, usted acepta estos Términos y Condiciones. Si no está de acuerdo con ellos, le solicitamos no utilizar el Sitio.
@@ -31,13 +31,13 @@ Los plazos de entrega se informan durante la compra y pueden variar según la ub
 
 8. Derecho de Retracto
 De acuerdo con la Ley 19.496, en las compras realizadas a través del Sitio usted puede arrepentirse dentro de 10 días contados desde la recepción del producto, sin necesidad de expresar causa.
-Para ejercerlo, escríbanos a [correo] indicando su número de pedido. El producto debe devolverse [sin uso, completo y con su embalaje original]. Le reembolsaremos el precio pagado por el mismo medio de pago, dentro del plazo legal. Los costos de devolución serán [de cargo del cliente / de cargo de Apolo Vibes 3D].
+Para ejercerlo, escríbanos a apolovibes3d@gmail.com indicando su número de pedido. El producto debe devolverse [sin uso, completo y con su embalaje original]. Le reembolsaremos el precio pagado por el mismo medio de pago, dentro del plazo legal. Los costos de devolución serán de cargo del cliente.
 El retracto no aplica a productos confeccionados según las especificaciones del cliente o claramente personalizados (por ejemplo, diseños a medida), ni a los demás casos de exclusión que establece la ley.
 Ejercer o no el retracto no afecta su derecho a la garantía legal.
 
 9. Garantía Legal
-Si un producto presenta fallas o defectos, o no es apto para su uso, usted tiene derecho a la garantía legal de 6 meses desde la recepción del producto (para productos nuevos). Puede elegir entre la reparación gratuita, la reposición del producto o la devolución de lo pagado, en los términos de los artículos 19 a 21 de la Ley 19.496.
-Para solicitarla, escríbanos a pabla.rojas@hotmail.com con su número de pedido y, si es posible, fotografías del problema. No se aplica cuando el defecto se debe a mal uso, manipulación indebida o desgaste normal.
+Si un producto presenta fallas o defectos, o no es apto para su uso, usted tiene derecho a la garantía legal de 6 meses desde la recepción del producto (para productos nuevos). Puede elegir la reposición del producto o la devolución de lo pagado, en los términos de los artículos 19 a 21 de la Ley 19.496.
+Para solicitarla, escríbanos a apolovibes3d@gmail.com con su número de pedido y, si es posible, fotografías del problema. No se aplica cuando el defecto se debe a mal uso, manipulación indebida o desgaste normal.
 
 10. Pedidos Personalizados y Cancelación
 Los diseños a medida, incluidos los generados con nuestra herramienta de IA, son orientativos: el producto final puede diferir de la visualización generada. La fabricación comienza una vez aprobado el diseño definitivo y confirmado el pago.
@@ -53,7 +53,7 @@ Los textos, gráficos, logotipos, imágenes, modelos 3D y software del Sitio son
 Apolo Vibes 3D responde en los términos que establece la ley. Nada en estos Términos limita o excluye los derechos irrenunciables que la Ley 19.496 reconoce a los consumidores.
 
 14. Reclamos y Solución de Controversias
-Si tiene un problema, escríbanos primero a pabla.rojas@hotmail.com y buscaremos una solución. También puede acudir al SERNAC o al Juzgado de Policía Local competente, conforme a la Ley 19.496.
+Si tiene un problema, escríbanos primero a apolovibes3d@gmail.com y buscaremos una solución. También puede acudir al SERNAC o al Juzgado de Policía Local competente, conforme a la Ley 19.496.
 
 15. Legislación Aplicable
 Estos Términos se rigen por las leyes de la República de Chile.
@@ -62,14 +62,14 @@ Estos Términos se rigen por las leyes de la República de Chile.
 Podemos modificar estos Términos en cualquier momento. Los cambios se aplican desde su publicación en el Sitio y no afectan las compras ya realizadas.
 
 17. Contacto
-Para consultas sobre estos Términos: pabla.rojas@hotmail.com.`,
+Para consultas sobre estos Términos: apolovibes3d@gmail.com`,
   },
   privacidad: {
     titulo: 'Política de Privacidad',
     actualizacion: fechaLegalLarga(),
-    texto: 
-`1. Responsable del Tratamiento
-El responsable de sus datos personales es Apolo Vibes SPA, con domicilio en calle Pasaje el Boldo Nro:33, Viña del Mar, Chile. Contacto: pabla.rojas@hotmail.com.
+    texto:
+      `1. Responsable del Tratamiento
+El responsable de sus datos personales es Apolo Vibes SPA, con domicilio en calle Pasaje el Boldo Nro:33, Viña del Mar, Chile. Contacto: apolovibes3d@gmail.com.
 
 2. Datos que Recopilamos
 - Datos de identificación y contacto: nombre, apellidos, correo y teléfono.
@@ -123,7 +123,7 @@ El Sitio no está dirigido a menores de 18 años y no recopilamos intencionalmen
 Podemos actualizar esta Política. Publicaremos los cambios en esta página con la fecha de última actualización.
 
 13. Contacto
-- Correo: pabla.rojas@hotmail.com
+- Correo: apolovibes3d@gmail.com
 - Dirección: calle Pasaje el Boldo Nro:33, Viña del Mar, Chile.`,
   },
 }
@@ -155,6 +155,15 @@ export default function LegalModal({ tipo, onClose }) {
           overflow: 'hidden',
         }}
       >
+      <style>{`
+        .modal-scroll::-webkit-scrollbar { width: 6px; }
+        .modal-scroll::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
+        .modal-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }}
+        .modal-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+        .modal-scroll { scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+      `}</style>
+
+
         {/* Header */}
         <div style={{
           position: 'sticky', top: 0, zIndex: 3,
@@ -165,7 +174,7 @@ export default function LegalModal({ tipo, onClose }) {
         }}>
           <img src={mediaPath('politicasSeguridad.png')} alt="Logo" style={{ height: 100, width: 'auto', marginBottom: -10 }} />
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, margin: 0, color: 'var(--text)' }}>{titulo}</h2>
-          <p style={{ fontSize: 12, margin: '-4px 0 0', color: 'var(--text-dim)', textAlign: 'center',}}>
+          <p style={{ fontSize: 12, margin: '-4px 0 0', color: 'var(--text-dim)', textAlign: 'center', }}>
             Última actualizacion: {actualizacion}
           </p>
           <button
@@ -182,7 +191,9 @@ export default function LegalModal({ tipo, onClose }) {
         </div>
 
         {/* Body */}
-        <div style={{
+        <div 
+        className="modal-scroll"
+        style={{
           padding: '20px 24px', overflowY: 'auto', flex: 1,
           fontSize: 14, lineHeight: 1.7, color: 'var(--text-dim)',
           whiteSpace: 'pre-wrap',
