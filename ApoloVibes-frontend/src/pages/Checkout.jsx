@@ -192,7 +192,7 @@ export default function Checkout() {
   return (
     <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px' }}>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
-        <img src={mediaPath('nombrelogo.png')} alt='logo' className='nombre-logo'></img>
+          <img src={mediaPath('nombrelogo.webp')} alt='logo' className='nombre-logo' loading="lazy" decoding="async" width="512" height="72" />
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
           ({items.length} {items.length === 1 ? 'producto' : 'productos'}) &nbsp;
         </p>
@@ -590,8 +590,8 @@ export default function Checkout() {
             <Link to="/carrito" style={{ fontSize: 13, color: 'var(--surface-2)' }}>Editar</Link>
           </div>
 
-          <img src={mediaPath('apolo-vibes-logo.png')} alt='logo-icon' className='logoicon'></img>
-          <img src={mediaPath('nombrelogo.png')} alt='logo' className='nombre-logo'></img>
+          <img src={mediaPath('apolo-vibes-logo.webp')} alt='logo-icon' className='logoicon' loading="lazy" decoding="async" width="447" height="512" />
+        <img src={mediaPath('nombrelogo.webp')} alt='logo' className='nombre-logo' loading="lazy" decoding="async" width="512" height="72" />
 
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', marginBottom: 16 }}>
             <h3 style={{ fontSize: 15, margin: 0, color: 'var(--accent)' }}>Tu pedido</h3>
@@ -652,6 +652,10 @@ export default function Checkout() {
                       <img
                         src={item.imagen}
                         alt={item.nombre}
+                        loading="lazy"
+                        decoding="async"
+                        width="56"
+                        height="56"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     )}

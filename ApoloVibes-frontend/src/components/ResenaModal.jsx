@@ -135,7 +135,7 @@ export default function ResenaModal({ pedido, onClose }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <img src={mediaPath('statsApolo.png')} alt="Logo" style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 10px' }}/>
+        <img src={mediaPath('statsApolo.webp')} alt="Logo" loading="lazy" decoding="async" width="512" height="512" style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 10px' }}/>
         <h3 style={{ margin: '0 0 10px', fontSize: 18, fontWeight: 700, color: 'var(--text)', textAlign: 'center' }}>
           Valorar Nuestro producto
         </h3>

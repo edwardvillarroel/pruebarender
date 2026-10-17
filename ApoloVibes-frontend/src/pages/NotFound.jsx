@@ -3,7 +3,7 @@ import { mediaPath } from '../utils/media.js'
 
 
 const FONDO_404 = {
-  backgroundImage: `url(${mediaPath('404.png')})`,
+  backgroundImage: `url(${mediaPath('404.webp')})`,
   backgroundRepeat: 'no-repeat',
   backgroundPosition: 'center center',
   backgroundSize: 'contain',
@@ -31,14 +31,19 @@ function ContenidoNotFound() {
     
       <div style={{ position: 'relative', width: 'min(100%, 87vh)', aspectRatio: '3 / 2' }}>
         <img
-          src={mediaPath('404.png')}
+          src={mediaPath('404.webp')}
           alt="Error 404: esta página no existe"
+          loading="lazy"
+          decoding="async"
           style={{
             width: '100%',
             height: '100%',
             display: 'block',
             WebkitMaskImage: MASCARA_LATERAL,
             maskImage: MASCARA_LATERAL,
+            WebkitMaskComposite: 'source-in',
+            maskComposite: 'intersect',
+            objectFit: 'contain',
           }}
         />
         <button

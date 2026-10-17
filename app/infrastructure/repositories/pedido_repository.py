@@ -24,6 +24,8 @@ from app.infrastructure.database.models.resena_model import ResenaModel
 from app.infrastructure.repositories.producto_repository import (
     RUTA_IMAGEN_COLOR,
     RUTA_IMAGEN_PRODUCTO,
+    RUTA_THUMB_COLOR,
+    RUTA_THUMB_PRODUCTO,
 )
 
 
@@ -249,14 +251,14 @@ def _resolver_imagenes(detalles: list[DetallePedido]) -> None:
 
     for detalle in detalles:
         imagen = (
-            RUTA_IMAGEN_PRODUCTO.format(producto_id=detalle.producto_id)
+            RUTA_THUMB_PRODUCTO.format(producto_id=detalle.producto_id)
             if productos.get(detalle.producto_id)
             else None
         )
         if detalle.color:
             fila = colores.get((detalle.producto_id, detalle.color.strip().lower()))
             if fila and fila[1]:
-                imagen = RUTA_IMAGEN_COLOR.format(color_id=fila[0])
+                imagen = RUTA_THUMB_COLOR.format(color_id=fila[0])
         detalle.imagen = imagen
 
 

@@ -45,7 +45,7 @@ export default function Cotizaciones() {
         {items.map(c => (
           <div key={c.id} style={{ background: 'var(--surface-3)', border: '1px solid var(--line)', borderRadius: 12, padding: 20, display: 'grid', gridTemplateColumns: '140px 1fr 220px', gap: 20 }}>
             <div style={{ width: 140, height: 140, borderRadius: 8, background: 'var(--surface-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--text-dim)' }}>
-              {c.imagen ? <img src={c.imagen} alt={`Referencia enviada por ${c.nombre}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, }} /> : 'imagen adjunta'}
+              {c.imagen ? <img src={c.imagen} alt={`Referencia enviada por ${c.nombre}`} loading="lazy" decoding="async" width="140" height="140" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, }} /> : 'imagen adjunta'}
             </div>
 
             <div>
