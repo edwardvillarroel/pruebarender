@@ -1376,10 +1376,6 @@ export default function LoginModal({ onClose }) {
                                     width: '100%',
                                     height: '100%',
                                     objectFit: 'contain',
-
-(Showing lines 1365-1374 of 1393. Use offset=1375 to continue.)
-</content>
-</content>
                                     objectPosition: 'center',
                                 }}
                                 fetchpriority="high"
