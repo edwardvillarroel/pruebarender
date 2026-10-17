@@ -49,9 +49,13 @@ export default function Carrito() {
     return (
       <div className="wrap" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center' }} >
         <img
-          src={mediaPath('carritoVacio.png')}
-          alt="Logo"
-          style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 10px' }}
+          src={mediaPath('carritoVacio.webp')}
+          alt="Carrito vacío"
+          loading="lazy"
+          decoding="async"
+          width="512"
+          height="512"
+          style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
         />
         <p style={{ color: 'var(--text-dim)', marginBottom: 20 }}> Tu carrito está vacío. </p>
         <Link to="/categorias" className="btn btn-primary"> Ver catálogo
@@ -132,6 +136,10 @@ export default function Carrito() {
                   <img
                     src={item.imagen}
                     alt={item.nombre}
+                    loading="lazy"
+                    decoding="async"
+                    width="110"
+                    height="110"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 )}
@@ -219,8 +227,8 @@ export default function Carrito() {
               top: 24,
             }}
           >
-            <img src={mediaPath('apolo-vibes-logo.png')} alt='logo-icon' className='logoicon'></img>
-            <img src={mediaPath('nombrelogo.png')} alt='logo' className='nombre-logo'></img>
+            <img src={mediaPath('apolo-vibes-logo.webp')} alt='logo-icon' className='logoicon' loading="lazy" decoding="async" width="447" height="512" />
+            <img src={mediaPath('nombrelogo.webp')} alt='logo' className='nombre-logo' loading="lazy" decoding="async" width="512" height="72" />
             <h2 style={{ fontSize: 15, fontWeight: 300, color: 'var(--accent)', marginBottom: '20px', textAlign: 'center' }}>
               Resumen del pedido
             </h2>

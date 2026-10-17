@@ -103,6 +103,7 @@ def _enviar_imagen(imagen) -> Response:
     respuesta = send_file(
         BytesIO(imagen.bytes),
         mimetype=imagen.content_type or "application/octet-stream",
+        conditional=True,
     )
     # El `Cache-Control` se setea sobre la respuesta: `send_file` no tiene
     # parametros de cache, y ademas manda `no-cache` por defecto (Werkzeug no
@@ -114,6 +115,13 @@ def _enviar_imagen(imagen) -> Response:
     respuesta.cache_control.max_age = CACHE_IMAGENES_SEGUNDOS
     respuesta.cache_control.no_cache = False
     respuesta.cache_control.public = True
+    respuesta.cache_control.immutable = True
+    try:
+        import hashlib
+
+        respuesta.headers["ETag"] = f'"{hashlib.md5(imagen.bytes).hexdigest()}"'
+    except Exception:
+        pass
     return respuesta
 
 

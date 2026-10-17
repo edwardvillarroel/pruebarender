@@ -20,20 +20,21 @@ export default function HeroEstatico() {
         marginBottom: -40
       }}
     >
-      <img
-        src={mediaPath('apolohero2.png')}
-        alt=""
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          objectPosition: 'left center',
-        }}
-        fetchpriority="high"
-      />
+        <img
+          src={mediaPath('apolohero2.webp')}
+          alt=""
+          aria-hidden="true"
+          fetchpriority="high"
+          decoding="async"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'left center',
+          }}
+        />
 
       {oscuro && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(21,24,29,.6)' }} />

@@ -1363,15 +1363,23 @@ export default function LoginModal({ onClose }) {
                             }}
                         >
                             <img
-                                src={mediaPath('apolo-vibes-logo.png')}
+                                src={mediaPath('apolo-vibes-logo.webp')}
                                 alt=""
                                 aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                                width="447"
+                                height="512"
                                 style={{
                                     position: 'absolute',
                                     inset: 0,
                                     width: '100%',
                                     height: '100%',
                                     objectFit: 'contain',
+
+(Showing lines 1365-1374 of 1393. Use offset=1375 to continue.)
+</content>
+</content>
                                     objectPosition: 'center',
                                 }}
                                 fetchpriority="high"

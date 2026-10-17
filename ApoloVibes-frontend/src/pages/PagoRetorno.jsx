@@ -52,7 +52,7 @@ export default function PagoRetorno() {
     <section className="wrap" style={{ paddingTop: '100px', paddingBottom: '100px', textAlign: 'center' }}>
       {estado === 'completado' && (
         <>
-          <img src={mediaPath('logoExitoCompra.png')} alt="Pago exitoso" style={estiloImagen} />
+          <img src={mediaPath('logoExitoCompra.webp')} alt="Pago exitoso" loading="lazy" decoding="async" style={estiloImagen} />
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, marginBottom: 12 }}>¡Pedido realizado con éxito!</h1>
           <p style={{ color: 'var(--text-dim)', marginBottom: 24 }}>
             {correoEnviado === true && 'Gracias por tu comprar y confiar en ApoloVibes. Te enviamos el comprobante de pago a tu correo.'}
@@ -74,7 +74,7 @@ export default function PagoRetorno() {
       {(estado === 'fallido' || estado === 'pendiente') && (
         <>
         {estado === 'fallido' && (
-            <img src={mediaPath('logoFailCompra.png')} alt="Pago rechazado" style={estiloImagen} />
+            <img src={mediaPath('logoFailCompra.webp')} alt="Pago rechazado" loading="lazy" decoding="async" style={estiloImagen} />
         )}
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, marginBottom: 12 }}>
             {estado === 'fallido' ? 'Pago rechazado' : 'Pago en proceso'}
@@ -86,7 +86,7 @@ export default function PagoRetorno() {
 
       {estado === 'error' && (
         <>
-          <img src={mediaPath('logoFailCompra.png')} alt="Error en el pago" style={estiloImagen} />
+          <img src={mediaPath('logoFailCompra.webp')} alt="Error en el pago" loading="lazy" decoding="async" style={estiloImagen} />
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, marginBottom: 12 }}>No pudimos confirmar el pago</h1>
           <p style={{ color: 'var(--text-dim)', marginBottom: 24 }}>{mensaje}</p>
           <Link to="/carrito" className="btn btn-ghost">Volver al carrito</Link>

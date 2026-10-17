@@ -51,7 +51,7 @@ export default function ConfirmModal({
       >
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}>
           {mostrarLogo && (
-            <img src={mediaPath('apolo-vibes-logo.png')} alt="Logo" style={{ width: 60, height: 60 }} />
+            <img src={mediaPath('apolo-vibes-logo.webp')} alt="Logo" loading="lazy" decoding="async" width="447" height="512" style={{ width: 60, height: 60 }} />
           )}
         </div>
         <h3 style={{ margin: '0 0 6px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>

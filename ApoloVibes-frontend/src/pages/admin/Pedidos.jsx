@@ -64,7 +64,7 @@ function ChipEstado({ pedido, onClick }) {
   )
 }
 
-function LogoModal({ archivo = 'apolo-vibes-logo.png', alt = 'Logo' }) {
+function LogoModal({ archivo = 'apolo-vibes-logo.webp', alt = 'Logo' }) {
   return (
     <img
       src={mediaPath(archivo)}
@@ -180,7 +180,7 @@ function DetalleModal({ pedido, onClose }) {
                 overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 {item.imagen ? (
-                  <img src={item.imagen} alt={item.nombre || 'Producto'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={item.imagen} alt={item.nombre || 'Producto'} loading="lazy" decoding="async" width="56" height="56" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <Package size={24} color="#8A94A3" />
                 )}

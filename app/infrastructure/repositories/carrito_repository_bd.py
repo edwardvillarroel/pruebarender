@@ -15,6 +15,8 @@ from app.infrastructure.database.models.producto_model import ProductoModel
 from app.infrastructure.repositories.producto_repository import (
     RUTA_IMAGEN_COLOR,
     RUTA_IMAGEN_PRODUCTO,
+    RUTA_THUMB_COLOR,
+    RUTA_THUMB_PRODUCTO,
 )
 from app.domain.time import utcnow
 
@@ -124,14 +126,14 @@ class CarritoRepositoryBd(CarritoRepository):
         for item in items:
             producto_id = _a_uuid(item.producto_id)
             imagen = (
-                RUTA_IMAGEN_PRODUCTO.format(producto_id=producto_id)
+                RUTA_THUMB_PRODUCTO.format(producto_id=producto_id)
                 if productos.get(producto_id)
                 else None
             )
             if item.color:
                 fila = colores.get((producto_id, item.color.strip().lower()))
                 if fila and fila[1]:
-                    imagen = RUTA_IMAGEN_COLOR.format(color_id=fila[0])
+                    imagen = RUTA_THUMB_COLOR.format(color_id=fila[0])
             item.imagen = imagen
 
     def _buscar(self, usuario_id: str) -> CarritoModel | None:

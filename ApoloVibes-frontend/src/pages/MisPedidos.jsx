@@ -37,11 +37,15 @@ const fechaTexto = (f) => f ? new Date(f).toLocaleDateString('es-CL') : '—';
 
 let cachePedidos = { usuarioId: null, pedidos: null };
 
-function LogoModal({ archivo = 'PedidosApolo.png', alt = 'Logo' }) {
+function LogoModal({ archivo = 'PedidosApolo.webp', alt = 'Logo' }) {
   return (
     <img
       src={mediaPath(archivo)}
       alt={alt}
+      loading="lazy"
+      decoding="async"
+      width="100"
+      height="100"
       style={{ display: 'block', margin: '0 auto 5px', width: 100, height: 100, objectFit: 'contain' }}
     />
   )
@@ -143,7 +147,7 @@ function DetalleModal({ pedido, onClose }) {
                 overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 {item.imagen ? (
-                  <img src={item.imagen} alt={item.nombre || 'Producto'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={item.imagen} alt={item.nombre || 'Producto'} loading="lazy" decoding="async" width="56" height="56" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
                   <Package size={24} color="#8A94A3" />
                 )}
@@ -276,9 +280,13 @@ export default function MisPedidos() {
       ) : pedidos.length === 0 ? (
         <div style={{ border: '1px dashed var(--surface-3)', borderRadius: 16, padding: '40px 24px', textAlign: 'center' }}>
            <img
-          src={mediaPath('sinPedidos.png')}
-          alt="Logo"
-          style={{ display: 'block', height:200, width: 'auto', margin: '0 auto 10px' }}
+          src={mediaPath('sinPedidos.webp')}
+          alt="Sin pedidos"
+          loading="lazy"
+          decoding="async"
+          width="512"
+          height="512"
+          style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
         />
           <p style={{ margin: '0 0 12px', color: 'var(--text-dim)' }}>Para realizar pedidos haz click en el enlace de aca abajo</p>
           <Link to="/categorias" style={{ color: '#009D4E' }}>Ir a la tienda</Link>
