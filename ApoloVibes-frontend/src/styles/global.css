@@ -29,6 +29,7 @@
   --line-light: rgba(30, 58, 95, .12);
   --text-dim-light: #5A6B7D;
   --input-text: #002A5E;
+  --input-bg: #ffffff; 
 }
 
 [data-theme="dark"] {
@@ -243,7 +244,7 @@ select:user-invalid {
 }
 
 [data-theme="light"] .input-prefijo {
-  background: var(--bg);
+  background: var(--input-bg);
   color: var(--surface);
 }
 
@@ -441,10 +442,6 @@ label {
     max-width: 420px !important;
   }
 
-  .hero-content {
-    padding-top: 64px !important;
-  }
-
   .hero-content h1 {
     font-size: 30px !important;
     margin-bottom: 16px !important;
@@ -454,16 +451,29 @@ label {
     font-size: 14px !important;
     margin-bottom: 0 !important;
   }
-
-  .hero-buttons {
-    margin-top: 20px !important;
-  }
 }
+
+ .hero-buttons {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
 
 
 .hero-section .hero-content {
   position: relative;
   z-index: 2;
+}
+
+.hero-media::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 120px;
+  background: linear-gradient(to bottom, transparent, var(--bg));
+  pointer-events: none;
 }
 
 
@@ -480,6 +490,11 @@ label {
 
   .hero-section .hero-buttons {
     margin-top: 0 !important;
+  }
+
+  .hero-buttons .btn {
+    padding: 14px 28px;
+    font-size: 14px;
   }
 }
 
@@ -776,25 +791,22 @@ label {
 
   /* Hero responsive */
   .hero-section {
-    min-height: 400px !important;
+    min-height: 0 !important;
     aspect-ratio: auto !important;
+    margin-bottom: 0 !important;
   }
 
   .hero-section .hero-content {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: auto;
-    bottom: 16px;
+    position: static;
     width: 100%;
     margin: 0;
-    padding: 0 16px !important;
+    padding: 16px !important;
   }
 
   .hero-buttons {
     flex-direction: column !important;
     margin-top: 0 !important;
-    gap: 10px !important;
+    gap: 14px !important;
   }
 
   .hero-buttons a {
@@ -804,31 +816,6 @@ label {
     padding: 12px 20px !important;
   }
  
-
-  .hero-section .hero-content {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: auto;
-    bottom: 16px;
-    width: 100%;
-    margin: 0;
-    padding: 0 16px !important;
-  }
-
-  .hero-buttons {
-    flex-direction: column !important;
-    margin-top: 0 !important;
-    gap: 10px !important;
-  }
-
-  .hero-buttons a {
-    width: 100%;
-    text-align: center;
-    justify-content: center;
-    padding: 12px 20px !important;
-  }
-
   /* Login modal responsive */
   .login-modal-inner {
     flex-direction: column !important;
@@ -951,4 +938,49 @@ label {
 .checkout-form input:-webkit-autofill:focus {
   -webkit-text-fill-color: #1E3A5F !important;
   -webkit-box-shadow: 0 0 0 1000px #fff inset !important;
+}
+
+.hero-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(21, 24, 29, .6);
+}
+.hero-media { position: relative; width: 100%; }
+.hero-section { position: relative; width: 100%; }
+
+.whatsapp-flotante {
+  position: fixed;
+  right: 20px;
+  bottom: 75px;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #25D366;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .3);
+  z-index: 90;               
+  transition: transform .2s, box-shadow .2s;
+}
+
+.whatsapp-flotante:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .4);
+}
+
+@media (max-width: 768px) {
+  .whatsapp-flotante {
+    right: 14px;
+    bottom: 30px;
+    width: 54px;
+    height: 54px;
+  }
+
 }

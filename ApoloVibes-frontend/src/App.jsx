@@ -24,6 +24,7 @@ import RegistrarVentaLocal from './pages/admin/RegistrarVentaLocal.jsx'
 import Inventario from './pages/admin/Inventario.jsx'
 import Cotizaciones from './pages/admin/Cotizaciones.jsx'
 import ReportesVentas from './pages/admin/ReportesVentas.jsx'
+import WhatsAppFlotante from './components/whatsAppFlotante.jsx'
 
 function TiendaLayout({ children }) {
   return (
@@ -34,6 +35,7 @@ function TiendaLayout({ children }) {
         {children}
       </main>
       <Footer />
+      <WhatsAppFlotante />
     </div>
   )
 }
@@ -50,11 +52,6 @@ export default function App() {
           <Route path="/carrito" element={<TiendaLayout><Carrito /></TiendaLayout>} />
           <Route path="/checkout" element={<TiendaLayout><Checkout /></TiendaLayout>} />
           <Route path="/pago/retorno" element={<TiendaLayout><PagoRetorno /></TiendaLayout>} />
-          {/* No existe ruta /compra-exitosa: el exito se muestra en /pago/retorno,
-              que ademas confirma el pago contra el backend. La pagina estatica
-              "CompraExitosa" que se elimino decia "¡Compra realizada con exito!"
-              sin verificar nada, y si TUU se des-configuraba el usuario caia ahi
-              y veia un exito falso. */}
           <Route path="/cotizar" element={<TiendaLayout><Cotizacion /></TiendaLayout>} />
           <Route path="/mis-pedidos" element={<TiendaLayout><MisPedidos /></TiendaLayout>} />
 
@@ -66,10 +63,6 @@ export default function App() {
             <Route path="cotizaciones" element={<Cotizaciones />} />
             <Route path="reportes" element={<ReportesVentas />} />
           </Route>
-
-          {/* Catch-all: debe quedar SIEMPRE al final de <Routes>. Una ruta "*"
-              antes de las demás las desactivaría. Envuelve con TiendaLayout porque
-              NotFound es layout-free (no monta TopBar/Navbar/Footer por su cuenta). */}
           <Route path="*" element={<TiendaLayout><NotFound /></TiendaLayout>} />
         </Routes>
       </ErrorBoundary>

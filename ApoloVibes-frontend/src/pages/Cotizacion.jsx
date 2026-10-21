@@ -11,7 +11,7 @@ const ESTADO_INICIAL = {
   material: 'PLA', descripcion: '',
 }
 
-const MATERIALES = ['PLA', 'PETG', 'Resina', 'ABS', 'No estoy seguro']
+const MATERIALES = ['PLA', 'PLA+', 'ABS+', 'No estoy seguro']
 
 export default function Cotizacion() {
   const [form, setForm] = useState(ESTADO_INICIAL)
@@ -29,7 +29,6 @@ export default function Cotizacion() {
 
   function actualizar(campo, valor) {
     setForm(prev => ({ ...prev, [campo]: valor }))
-    // Si el campo tenía error, se limpia apenas el usuario escribe
     setErrores(prev => {
       if (!(campo in prev)) return prev
       const next = { ...prev }
@@ -90,7 +89,7 @@ export default function Cotizacion() {
     if (!form.descripcion.trim()) nuevosErrores.descripcion = 'Por favor describa la pieza.'
     const tel = form.telefono.trim()
     if (!tel) nuevosErrores.telefono = 'Por favor ingrese su teléfono.'
-    else if (!/^\d{8}$/.test(tel)) nuevosErrores.telefono = 'Ingrese un teléfono móvil válido, por ejemplo 1234 5678.'
+    else if (!/^\d{9}$/.test(tel)) nuevosErrores.telefono = 'Ingrese un teléfono móvil válido, por ejemplo 912345678.'
     if (Object.keys(nuevosErrores).length) { setErrores(nuevosErrores); return }
     if (!archivo) { setError('Suba una imagen de referencia de la pieza.'); return }
 
@@ -99,8 +98,7 @@ export default function Cotizacion() {
 
     const data = new FormData()
     Object.entries(form).forEach(([k, v]) => data.append(k, v))
-    // El teléfono se guarda completo en formato internacional (+569 + 8 dígitos)
-    if (form.telefono.trim()) data.set('telefono', '+569' + form.telefono.trim())
+    if (form.telefono.trim()) data.set('telefono', '+56' + form.telefono.trim())
     data.append('imagen', archivo)
     if (modeloUrl) data.append('modeloUrl', modeloUrl)
 
@@ -133,8 +131,8 @@ export default function Cotizacion() {
       </span>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, margin: '10px 0 8px', color: 'var(--surface)' }}>Cotiza tu producto</h1>
       <p style={{ color: 'var(--text-dim)', marginBottom: 32, lineHeight: 1.6 }}>
-        Sube una imagen de lo que necesitas imprimir. Nuestra IA generará un modelo 3D de referencia
-        y nuestro equipo revisara la cotización y te confirmará el precio final.
+        Sube una imagen de lo que necesitas imprimir. Nuestra IA generará un modelo 3D de referencia para ti
+        y nuestro equipo revisara la cotización. Una vez enviada tu cotización nuestro equipo te confirmará el precio final.
       </p>
 
       <form noValidate onSubmit={enviarSolicitud}>
@@ -165,14 +163,14 @@ export default function Cotizacion() {
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 border: '2px dashed var(--line)', borderRadius: 10, padding: '48px 20px',
-                cursor: 'pointer', background: 'var(--bg)',
+                cursor: 'pointer', background: 'var(--input-bg)',
                 transition: 'border-color .2s',
               }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--line)'}
             >
               <Upload size={32} color="var(--text-dim)" strokeWidth={1.5} style={{ marginBottom: 12 }} />
-              <span style={{ fontSize: 14, color: 'var(--text--dim)', fontWeight: 500, marginBottom: 4 }}>
+              <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 500, marginBottom: 4 }}>
                 Haz clic para subir una imagen
               </span>
               <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
@@ -188,7 +186,7 @@ export default function Cotizacion() {
                 </p>
                 <div style={{
                   position: 'relative', borderRadius: 10, overflow: 'hidden',
-                  border: '1px solid var(--line)', background: '#fff',
+                  border: '1px solid var(--line)', background: 'var(--input-bg)',
                 }}>
                   <img
                     src={previsualizacion}
@@ -222,7 +220,7 @@ export default function Cotizacion() {
                 ) : (
                   <div style={{
                     height: 280, borderRadius: 10, border: '1px solid var(--line)',
-                    background: 'var(--bg)', display: 'flex', alignItems: 'center',
+                    background: 'var(--input-bg)', display: 'flex', alignItems: 'center',
                     justifyContent: 'center',
                   }}>
                     {generando ? (
@@ -256,7 +254,7 @@ export default function Cotizacion() {
             type="file"
             accept="image/*"
             onChange={manejarArchivo}
-            style={{ display: 'none' }}
+            style={{ display: 'none'}}
           />
 
           {/* Barra de progreso */}
@@ -293,12 +291,12 @@ export default function Cotizacion() {
           <div className="cotizacion-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
             <div>
               <label>Nombre</label>
-              <input required value={form.nombre} onChange={e => actualizar('nombre', e.target.value)} />
+              <input required value={form.nombre} onChange={e => actualizar('nombre', e.target.value)} style={{ background: 'var(--input-bg)'}}/>
               {errores.nombre && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{errores.nombre}</p>}
             </div>
             <div>
               <label>Email</label>
-              <input required type="email" value={form.email} onChange={e => actualizar('email', e.target.value)} />
+              <input required type="email" value={form.email} onChange={e => actualizar('email', e.target.value)} style={{ background: 'var(--input-bg)'}}/>
               {errores.email && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{errores.email}</p>}
             </div>
           </div>
@@ -322,18 +320,18 @@ export default function Cotizacion() {
                     fill="#FFFFFF"
                   />
                 </svg>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: .85 }}>+569</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: .85 }}>+56</span>
                 <span style={{ opacity: .4 }}>|</span>
                 <input
                   type="tel"
                   inputMode="numeric"
                   pattern="[0-9]*"
-                  maxLength={8}
+                  maxLength={9}
                   required
-                  placeholder="1234 5678"
+                  placeholder="912345678"
                   aria-label="Teléfono móvil chileno"
                   value={form.telefono}
-                  onChange={e => actualizar('telefono', e.target.value.replace(/\D/g, '').slice(0, 8))}
+                  onChange={e => actualizar('telefono', e.target.value.replace(/\D/g, '').slice(0, 9))}
                 />
               </div>
               {errores.telefono && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{errores.telefono}</p>}
@@ -373,7 +371,7 @@ export default function Cotizacion() {
             placeholder="Dimensiones aproximadas, cantidad, uso de la pieza, color, acabado deseado, etc."
             value={form.descripcion}
             onChange={e => actualizar('descripcion', e.target.value)}
-            style={{ resize: 'vertical', minHeight: 100 }}
+            style={{ resize: 'vertical', minHeight: 100, background: 'var(--input-bg)' }}
           />
           {errores.descripcion && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{errores.descripcion}</p>}
         </div>

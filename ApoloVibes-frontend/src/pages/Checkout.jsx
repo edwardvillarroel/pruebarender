@@ -355,7 +355,7 @@ export default function Checkout() {
                     fill="#FFFFFF"
                   />
                 </svg>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: 0.85 }}>+569</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: 0.85 }}>+56</span>
                 <span style={{ opacity: 0.4 }}>|</span>
                 <input
                   {...campo('telefono', normalizarTelefono)}
@@ -363,7 +363,7 @@ export default function Checkout() {
                   type="tel"
                   inputMode="numeric"
                   autoComplete="tel-national"
-                  placeholder="1234 5678"
+                  placeholder="912345678"
                 />
               </div>
             </Campo>

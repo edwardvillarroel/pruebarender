@@ -324,6 +324,11 @@ export default function Navbar() {
                 <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                   {requiereLogin ? (
                     <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+                      <img
+                        src={mediaPath('carritoVacio.png')}
+                        alt="Logo"
+                        style={{ display: 'block', height: 80, width: 'auto', margin: '0 auto 10px' }}
+                    />
                       <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
                         Inicia sesión para usar el carrito.
                       </p>
@@ -536,15 +541,15 @@ export default function Navbar() {
             </div>
 
             {/* Resto */}
-
+            {isLoggedIn && (
             <div className="nm-section">
-              {isLoggedIn && (
                 <button className="nm-item" onClick={() => { setMobileOpen(false); setSeguridadOpen(true) }}>
                   <ShieldCheck size={18} /> Seguridad
-                </button>
-              )}
+                </button>         
             </div>
-             <div className="nm-section">
+            )}
+
+            <div className="nm-section">
               <button className="nm-item" onClick={toggleTheme}>
                 {theme === 'dark' ? <><Sun size={18} /> Modo claro</> : <><Moon size={18} /> Modo oscuro</>}
               </button>

@@ -9,7 +9,7 @@ const RE_DPTO = /^[\p{L}\p{N}][\p{L}\p{N}\s.\-/]{0,29}$/u
 export const normalizarEmpresa = v => v.replace(/[^\p{L}\p{N}\s&.,'’\-/()]/gu, '').slice(0, 100)
 export const emailValido = v => v.trim().length <= 120 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim())
 export const nombreValido = v => RE_NOMBRE.test(v.trim())
-export const telefonoValido = v => /^\d{8}$/.test(v)
+export const telefonoValido = v => /^\d{9}$/.test(v)
 export const codigoPostalValido = v => /^\d{7}$/.test(v)
 export const numeroCalleValido = v => /^\d{1,6}$/.test(v.trim())
 export const pasaporteValido = v => /^[A-Z0-9]{5,20}$/.test(v)
@@ -53,8 +53,8 @@ export const soloDigitos = (valor, max) => valor.replace(/\D/g, '').slice(0, max
 
 export function normalizarTelefono(valor) {
   let d = valor.replace(/\D/g, '')
-  if (d.length > 8) d = d.replace(/^(?:56)?9/, '')
-  return d.slice(0, 8)
+  if (d.length > 9) d = d.replace(/^56/, '')
+  return d.slice(0, 9)
 }
 
 export function normalizarRut(valor) {
@@ -125,7 +125,7 @@ export function calcularErrores(c, fechaNacimiento, aceptaTerminos) {
     ciudad: !c.ciudad.trim() ? OBLIGATORIO : validarCiudad(c.ciudad),
     telefono: !c.telefono
       ? OBLIGATORIO
-      : telefonoValido(c.telefono) ? '' : 'Ingresa los 8 dígitos de tu móvil, por ejemplo 1234 5678.',
+      : telefonoValido(c.telefono) ? '' : 'Ingresa los 9 dígitos de tu móvil, por ejemplo 91234 5678.',
     tipoDocumento: c.tipoDocumento ? '' : OBLIGATORIO,
     tipoIdentificacion: !c.tipoIdentificacion ? OBLIGATORIO : esFactura && c.tipoIdentificacion !== 'rut' ? 'Para facturas debes usar RUT.' : '',
     rut: errorIdentificacion(c.tipoIdentificacion, c.rut),
@@ -166,7 +166,7 @@ export function clienteParaEnvio(c) {
   const esFactura = limpio.tipoDocumento === 'factura'
   return {
     ...limpio,
-    telefono: '+569' + limpio.telefono,
+    telefono: '+56' + limpio.telefono,
     razonSocial: esFactura ? limpio.razonSocial : '',
     giro: esFactura ? limpio.giro : '',
   }
