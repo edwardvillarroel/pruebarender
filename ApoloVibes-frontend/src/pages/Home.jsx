@@ -7,19 +7,12 @@ import { Link } from 'react-router-dom'
 import { rutaDeCategoria } from '../utils/categorias.js'
 
 const CATEGORY_BACKGROUNDS = {
-  videoJuegos: mediaPath('banerAnime.png'),
-  animales: mediaPath('Animales.png'),
-  llaveros: mediaPath('banerllaveros.png'),
-  diseno: mediaPath('banerdiseño.png'),
-  accesorios: mediaPath('AccesoriosBaner.png'),
-  articulados: mediaPath('ArticuladosBaner.png')
-}
-
-if (typeof window !== 'undefined') {
-  Object.values(CATEGORY_BACKGROUNDS).forEach(src => {
-    const img = new Image()
-    img.src = src
-  })
+  videoJuegos: mediaPath('banerAnime.webp'),
+  animales: mediaPath('Animales.webp'),
+  llaveros: mediaPath('banerllaveros.webp'),
+  diseno: mediaPath('banerdiseño.webp'),
+  accesorios: mediaPath('AccesoriosBaner.webp'),
+  articulados: mediaPath('ArticuladosBaner.webp')
 }
 
 function fondoDeCategoria(nombre) {
@@ -69,9 +62,9 @@ export default function Home() {
         <hr className="separador" />
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>Destacados</h2>
         <div className="grid-destacados">
-          {['DesDragon.png', 'DesCubone.png', 'destacados.png'].map(f => (
+          {['DesDragon.webp', 'DesCubone.webp', 'destacados.webp'].map(f => (
             <div key={f} className="destacado-card">
-              <img src={mediaPath(f)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <img src={mediaPath(f)} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
           ))}
         </div>

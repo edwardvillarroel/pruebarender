@@ -10,14 +10,14 @@ export default function HeroEstatico() {
     <section className="hero-section">
       <div className="hero-media">
         <img
-          src={mediaPath('apolohero2.png')}
+          src={mediaPath('apolohero2.webp')}
           alt=""
           aria-hidden="true"
           fetchpriority="high"
+          decoding="async"
         />
         {oscuro && <div className="hero-overlay" />}
       </div>
-
 
       <div className="wrap hero-content">
         <div className="hero-buttons">

@@ -100,8 +100,8 @@ def _montar_frontend_produccion(app: Flask) -> None:
             return jsonify(mensaje="Recurso no encontrado"), 404
         archivo = dist / ruta
         if ruta and archivo.is_file():
-            return send_from_directory(dist, ruta)
-        return send_from_directory(dist, "index.html")
+            return send_from_directory(dist, ruta, max_age=31536000)
+        return send_from_directory(dist, "index.html", max_age=0)
 
     if ruta_base:
         @app.get(ruta_base, defaults={"ruta": ""}, strict_slashes=False)

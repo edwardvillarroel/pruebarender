@@ -172,7 +172,7 @@ export default function LegalModal({ tipo, onClose }) {
           padding: '15px 52px 13px', background: 'var(--surface)',
           borderBottom: '1px solid var(--line)',
         }}>
-          <img src={mediaPath('politicasSeguridad.png')} alt="Logo" style={{ height: 100, width: 'auto', marginBottom: -10 }} />
+          <img src={mediaPath('politicasSeguridad.webp')} alt="Logo" loading="lazy" decoding="async" width="512" height="468" style={{ height: 100, width: 'auto', marginBottom: -10 }} />
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, margin: 0, color: 'var(--text)' }}>{titulo}</h2>
           <p style={{ fontSize: 12, margin: '-4px 0 0', color: 'var(--text-dim)', textAlign: 'center', }}>
             Última actualizacion: {actualizacion}

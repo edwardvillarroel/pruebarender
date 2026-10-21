@@ -1366,9 +1366,13 @@ export default function LoginModal({ onClose }) {
                             }}
                         >
                             <img
-                                src={mediaPath('apolo-vibes-logo.png')}
+                                src={mediaPath('apolo-vibes-logo.webp')}
                                 alt=""
                                 aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                                width="447"
+                                height="512"
                                 style={{
                                     position: 'absolute',
                                     inset: 0,
