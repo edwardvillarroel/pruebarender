@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom'
 
-const NUMERO = '56990778025'
+const NUMERO = '56998321631'
 const MENSAJE = '¡Hola Apolo Vibes! Quisiera hacer una consulta.'
 
 export default function WhatsAppFlotante() {
