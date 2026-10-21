@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, case, func, select, update
+from sqlalchemy import Integer, and_, case, cast, func, literal, select, text, update
 
 from app.domain.entities.producto import (
     STOCK_BAJO,
@@ -13,11 +14,15 @@ from app.domain.entities.producto import (
     FotoColorCatalogo,
     ImagenProducto,
     Producto,
+    ProductoVendido,
 )
+from app.domain.enums import EstadoPago
 from app.domain.interfaces.repositories import (
     ProductoRepository as ProductoRepositoryInterface,
 )
 from app.infrastructure.database.connection import db
+from app.infrastructure.database.models.detalle_pedido_model import DetallePedidoModel
+from app.infrastructure.database.models.pago_model import PagoModel
 from app.infrastructure.database.models.producto_color_model import ProductoColorModel
 from app.infrastructure.database.models.producto_model import ProductoModel
 
@@ -66,6 +71,88 @@ class ProductoRepository(ProductoRepositoryInterface):
         return [
             _a_entidad(f[0], tiene_thumb=f[1], tiene_imagen=f[2]) for f in filas
         ]
+
+    def listar_mas_vendidos(
+        self, desde: datetime | None, limite: int
+    ) -> list[ProductoVendido]:
+        """Ranking de productos por unidades vendidas.
+
+        "Vendido" es lo que tiene un pago completado: es el mismo criterio con
+        el que se descuenta el stock, asi que el ranking no puede contar pedidos
+        que nunca se pagaron.
+
+        El filtro de pago va como `EXISTS` y no como `JOIN` a propósito: un
+        pedido puede tener varias filas en `pagos` (autorizado y luego
+        completado, o reintentos) y un `JOIN` multiplicaria las lineas de
+        `detalle_pedidos`, inflando el `SUM` de unidades.
+
+        La ventana `desde` se aplica sobre `pagos.creado_en` (cuando se cobro),
+        no sobre `pedidos.creado_en` (cuando se pidio): lo que se quiere es
+        "vendido en los ultimos N dias".
+        """
+        pago_completado = (
+            select(literal(1))
+            .select_from(PagoModel)
+            .where(PagoModel.pedido_id == DetallePedidoModel.pedido_id)
+            .where(PagoModel.estado == EstadoPago.COMPLETADO.value)
+        )
+        if desde is not None:
+            pago_completado = pago_completado.where(PagoModel.creado_en >= desde)
+
+        # `precio_unitario` es `numeric(10,2)` en la base (el modelo lo declara
+        # como Integer), asi que la suma vuelve como `Decimal`: sin el cast
+        # los ingresos no serializan a JSON.
+        agregacion = db.session.execute(
+            select(
+                DetallePedidoModel.producto_id,
+                func.sum(DetallePedidoModel.cantidad).label("unidades"),
+                cast(
+                    func.sum(
+                        DetallePedidoModel.cantidad * DetallePedidoModel.precio_unitario
+                    ),
+                    Integer,
+                ).label("ingresos"),
+            )
+            .join(self.model, self.model.id == DetallePedidoModel.producto_id)
+            .where(self.model.activo.is_(True), pago_completado.exists())
+            .group_by(DetallePedidoModel.producto_id)
+            .order_by(text("unidades DESC, ingresos DESC"))
+            .limit(limite)
+        ).all()
+
+        if not agregacion:
+            return []
+
+        metricas = {
+            f.producto_id: (int(f.unidades or 0), int(f.ingresos or 0))
+            for f in agregacion
+        }
+        filas = db.session.execute(
+            select(
+                self.model,
+                self.model.imagen_thumb_bytes.isnot(None).label("tiene_thumb"),
+                self.model.imagen_bytes.isnot(None).label("tiene_imagen"),
+            ).where(self.model.id.in_(list(metricas.keys())))
+        ).all()
+        por_id = {f[0].id: f for f in filas}
+
+        # El orden del ranking lo fija la agregacion, no el `SELECT` de los
+        # productos: se recorre en ese orden y se saltea lo que no exista.
+        resultado: list[ProductoVendido] = []
+        for producto_id, (unidades, ingresos) in metricas.items():
+            fila = por_id.get(producto_id)
+            if fila is None:
+                continue
+            resultado.append(
+                ProductoVendido(
+                    producto=_a_entidad(
+                        fila[0], tiene_thumb=fila[1], tiene_imagen=fila[2]
+                    ),
+                    unidades=unidades,
+                    ingresos=ingresos,
+                )
+            )
+        return resultado
 
     def get_imagen_by_id(self, producto_id: UUID) -> ImagenProducto | None:
         fila = db.session.execute(

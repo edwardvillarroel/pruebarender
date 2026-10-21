@@ -197,6 +197,34 @@ viven en `infrastructure/database/models/` y mapean a las mismas tablas.
 > campo siempre, incluso en `false`: con un chequeo truthy el `false` nunca se
 > aplicaría y un lanzamiento no se podría apagar.
 
+> **Nota de desviación (2026-10-21):** «Los más vendidos» es un **ranking
+> calculado**, no una etiqueta manual. La columna `productos.badge` sigue
+> reservada para valores manuales (hay productos con «Best Seller» escritos a
+> mano), pero la home y el panel de admin piden el ranking real a
+> `GET /api/productos/mas-vendidos`.
+>
+> La regla de qué es «vendido» es una sola: **pago `completado`**. Es el mismo
+> criterio con el que se descuenta el stock, así que el ranking no puede
+> contar pedidos que nunca se pagaron (carrito abandonado, pasarela que
+> devuelve `failed`, pestaña cerrada). El filtro va en el repositorio, no en el
+> frontend, que es el que hay que cambiar cada vez que aparece una pantalla
+> nueva.
+>
+> El filtro de pago se escribe con `EXISTS` y **no** con `JOIN` a `pagos`: un
+> pedido puede tener varias filas en `pagos` (el reintento típico de pasarela
+> deja un `fallido` y después un `completado`) y un `JOIN` multiplicaría las
+> líneas de `detalle_pedidos`, inflando el `SUM` de unidades. Con `EXISTS` cada
+> línea cuenta una vez, sin importar cuántos intentos de pago tenga el pedido.
+>
+> La ventana de venta (`periodo`) se aplica sobre `pagos.creado_en` —cuando se
+> cobró—, no sobre `pedidos.creado_en` —cuando se pidió—. Lo que interesa es
+> cuándo se vendió, no cuándo se escribió el pedido.
+>
+> `ingresos` es la suma de `cantidad × precio_unitario`, con el precio
+> **histórico** del `detalle_pedidos`: es lo que entró de verdad, y no tiene por
+> qué coincidir con el precio actual del catálogo si el producto cambió de
+> precio después de la compra.
+
 ---
 
 ## 6. Contratos API (impuestos por el frontend)
@@ -217,6 +245,15 @@ GET    /api/productos                  # catálogo público
                                        #   + nuevo_lanzamiento (bool), creado_en (ISO)
                                        #   + badge: "Nuevo" si nuevo_lanzamiento,
                                        #     si no el badge manual de la fila
+GET    /api/productos/mas-vendidos     # ranking público por unidades vendidas
+                                       #   ?periodo=7d|30d|todo (default "todo")
+                                       #   &limite=1..50 (default 10)
+                                       #   → { productos: [ { ...producto,
+                                       #                      unidades_vendidas,
+                                       #                      ingresos } ],
+                                       #       periodo, total }
+                                       #   cuenta solo pagos "completado";
+                                       #   periodo inválido → 400 { mensaje }
 GET    /api/productos/:id              # detalle público (mismos campos)
 GET    /api/productos/:id/imagen       # imagen en BLOB (content-type real)
 GET    /api/productos/:id/thumb        # thumbnail del producto (600px, JPEG q82)

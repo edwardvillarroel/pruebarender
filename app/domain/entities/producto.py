@@ -51,6 +51,22 @@ class Producto:
 
 
 @dataclass
+class ProductoVendido:
+    """Producto con las metricas de venta que lo ponen en el ranking.
+
+    `unidades` es la cantidad de piezas vendidas y `ingresos` el dinero que
+    entro por ese producto (unidades x precio del momento de la compra). El
+    precio es el historico de `detalle_pedidos`, no el actual del catalogo:
+    por eso `ingresos` no tiene por que coincidir con
+    `producto.precio * unidades` si el precio cambio desde la compra.
+    """
+
+    producto: Producto
+    unidades: int
+    ingresos: int
+
+
+@dataclass
 class ImagenProducto:
     """Imagen de un producto almacenada como BLOB (RGBA no; bytes crudos)."""
     bytes: bytes

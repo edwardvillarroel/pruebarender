@@ -13,7 +13,7 @@ from app.api.routes.catalogo_routes import (
     CACHE_IMAGENES_SEGUNDOS,
     _a_publico_producto,
 )
-from app.domain.entities.producto import ImagenProducto, Producto
+from app.domain.entities.producto import ImagenProducto, Producto, ProductoVendido
 
 
 def _producto(**cambios) -> Producto:
@@ -122,6 +122,101 @@ def test_el_stock_minimo_propio_manda_sobre_el_global():
 
     assert publico["stock_bajo"] is True
     assert publico["stock_minimo"] == 6
+
+
+# --- Ranking de mas vendidos -------------------------------------------------
+
+
+def _servicio_con_ranking(vendidos=None) -> Mock:
+    servicio = Mock()
+    servicio.listar_mas_vendidos.return_value = vendidos or []
+    return servicio
+
+
+def _vendido(nombre: str = "Figura", unidades: int = 3, ingresos: int = 9000):
+    producto = Producto(nombre=nombre, categoria_id=uuid4(), precio=3000, stock=2)
+    return ProductoVendido(producto=producto, unidades=unidades, ingresos=ingresos)
+
+
+def test_el_ranking_de_mas_vendidos_es_publico(app, client):
+    """La home lo consume sin sesion: es tan publico como el catalogo."""
+    app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking([_vendido()])
+
+    respuesta = client.get("/api/productos/mas-vendidos")
+
+    assert respuesta.status_code == 200
+
+
+def test_el_ranking_devuelve_las_unidades_y_los_ingresos(app, client):
+    app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking(
+        [_vendido(unidades=7, ingresos=21000)]
+    )
+
+    cuerpo = client.get("/api/productos/mas-vendidos").get_json()
+
+    assert cuerpo["total"] == 1
+    assert cuerpo["productos"][0]["unidades_vendidas"] == 7
+    assert cuerpo["productos"][0]["ingresos"] == 21000
+
+
+def test_el_ranking_trae_los_mismos_campos_que_el_catalogo(app, client):
+    """La tarjeta del carrusel se pinta con los campos del catalogo: si el
+    ranking no los trae, la seccion sale con otro formato."""
+    app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking([_vendido()])
+
+    cuerpo = client.get("/api/productos/mas-vendidos").get_json()
+
+    producto = cuerpo["productos"][0]
+    for campo in ("id", "nombre", "precio", "imagen", "imagen_thumb", "badge"):
+        assert campo in producto
+
+
+def test_el_ranking_devuelve_el_periodo_que_se_pidio(app, client):
+    app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking()
+
+    cuerpo = client.get("/api/productos/mas-vendidos?periodo=7d").get_json()
+
+    assert cuerpo["periodo"] == "7d"
+
+
+def test_sin_periodo_el_ranking_cubre_el_historico_completo(app, client):
+    app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking()
+
+    cuerpo = client.get("/api/productos/mas-vendidos").get_json()
+
+    assert cuerpo["periodo"] == "todo"
+
+
+def test_un_ranking_sin_ventas_devuelve_una_lista_vacia(app, client):
+    """Sin pagos completados no es un error: es una home sin ranking."""
+    app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking([])
+
+    respuesta = client.get("/api/productos/mas-vendidos")
+
+    assert respuesta.status_code == 200
+    assert respuesta.get_json()["productos"] == []
+    assert respuesta.get_json()["total"] == 0
+
+
+def test_un_periodo_invalido_devuelve_400_con_el_mensaje(app, client):
+    app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking()
+    app.config["PRODUCTO_SERVICE"].listar_mas_vendidos.side_effect = ValueError(
+        "Periodo no valido: 7-semanas"
+    )
+
+    respuesta = client.get("/api/productos/mas-vendidos?periodo=7-semanas")
+
+    assert respuesta.status_code == 400
+    assert respuesta.get_json()["mensaje"] == "Periodo no valido: 7-semanas"
+
+
+def test_el_limite_viaja_al_servicio(app, client):
+    app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking()
+
+    client.get("/api/productos/mas-vendidos?limite=5")
+
+    _periodo, limite = app.config["PRODUCTO_SERVICE"].listar_mas_vendidos.call_args[0]
+    assert limite == "5"
 
 
 # --- Cache de las fotos servidas ---------------------------------------------
