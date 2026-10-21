@@ -118,7 +118,7 @@ export default function Navbar() {
           </button>
 
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 18, color: '#FBF7EE' }}>
-            <img src={mediaPath('nombrelogo2.png')} alt="Logo" style={{ height: 50, width: 'auto' }} />
+            <img src={mediaPath('nombrelogo2.webp')} alt="Logo" loading="lazy" decoding="async" width="512" height="171" style={{ height: 50, width: 'auto' }} />
           </Link>
         </div>
         {/* Desktop nav */}
@@ -343,10 +343,14 @@ export default function Navbar() {
                   ) : items.length === 0 ? (
                     <div style={{ padding: '32px 16px', textAlign: 'center' }}>
                         <img
-                        src={mediaPath('carritoVacio.png')}
-                        alt="Logo"
-                        style={{ display: 'block', height: 80, width: 'auto', margin: '0 auto 10px' }}
-                    />
+                        src={mediaPath('carritoVacio.webp')}
+                        alt="Carrito vacío"
+                        loading="lazy"
+                        decoding="async"
+                        width="512"
+                        height="512"
+                        style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
+                      />
                       <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
                         Tu carrito está vacío.
                       </p>
@@ -386,6 +390,10 @@ export default function Navbar() {
                             <img
                               src={item.imagen}
                               alt={item.nombre}
+                              loading="lazy"
+                              decoding="async"
+                              width="56"
+                              height="56"
                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             />
                           )}

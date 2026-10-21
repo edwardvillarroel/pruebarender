@@ -68,8 +68,12 @@ export default function Categorias() {
       ) : filtrados.length === 0 ? (
         <div style={{ textAling: 'center', padding: '40px 0' }}>
           <img
-          src={mediaPath('sinproductos.png')}
+          src={mediaPath('sinproductos.webp')}
           alt="Logo"
+          loading="lazy"
+          decoding="async"
+          width="512"
+          height="512"
           style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
         />
         <p style={{

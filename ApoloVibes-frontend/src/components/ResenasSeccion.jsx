@@ -58,8 +58,12 @@ export default function ResenasSeccion({ producto, resenas, cargando, error }) {
             ) : total === 0 ? (
                 <div style={{ textAlign: 'center' }}>
                     <img
-                        src={mediaPath('sinReseñas.png')}
+                        src={mediaPath('sinReseñas.webp')}
                         alt="Logo"
+                        loading="lazy"
+                        decoding="async"
+                        width="512"
+                        height="512"
                         style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 10px' }}
                     />
                     <p style={{ color: 'var(--text-dim)', fontSize: 13 }}>
