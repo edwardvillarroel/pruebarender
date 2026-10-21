@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Any, Callable
 from uuid import UUID
 
@@ -6,11 +7,20 @@ from app.domain.entities.producto import (
     ColorProducto,
     ImagenProducto,
     Producto,
+    ProductoVendido,
 )
 from app.domain.interfaces.repositories import ProductoRepository
+from app.domain.time import utcnow
 
 
 IVA_PORCENTAJE = 19
+
+# Ventanas de venta que acepta el ranking de "mas vendidos". El valor es la
+# cantidad de dias hacia atras desde el pago completado; None = historico
+# completo. Son pocas y explicitas a proposito: un "30 dias" escrito de otra
+# forma tiene que ser un error visible, no un historico silencioso.
+PERIODOS_MAS_VENDIDOS = {"7d": 7, "30d": 30, "todo": None}
+LIMITE_MAS_VENDIDOS_MAX = 50
 
 
 def _aplicar_descuento(precio: int, descuento: int | None) -> int:
@@ -141,7 +151,14 @@ class GestionarProducto:
         se completa con la del primer color para que la tarjeta no quede vacia,
         junto con su thumbnail si ya fue generado.
         """
-        productos = self._repositorio.list_activos()
+        return self._completar_fotos(self._repositorio.list_activos())
+
+    def _completar_fotos(self, productos: list[Producto]) -> list[Producto]:
+        """Rellena con la foto del primer color los productos que no tienen foto.
+
+        Se usa tanto por el catalogo como por el ranking de mas vendidos: las
+        dos listas alimentan tarjetas y una sin foto se ve rota.
+        """
         sin_foto = [p for p in productos if not p.imagen]
         if not sin_foto:
             return productos
@@ -157,6 +174,33 @@ class GestionarProducto:
                 # expone para que la tarjeta no baje la foto completa.
                 producto.imagen_thumb = foto.imagen_thumb_url
         return productos
+
+    def listar_mas_vendidos(
+        self, periodo: str = "todo", limite: int = 10
+    ) -> list[ProductoVendido]:
+        """Ranking de productos por unidades vendidas.
+
+        `periodo` acota la ventana de venta ("7d", "30d" o "todo") y `limite`
+        es cuantos productos devuelve. Un periodo desconocido es un error de
+        contrato y no algo que se ignore en silencio: un typo en el frontend
+        devolveria el historico completo creyendo que pidio la semana.
+        """
+        clave = (periodo or "todo").strip().lower()
+        if clave not in PERIODOS_MAS_VENDIDOS:
+            raise ValueError(f"Periodo no valido: {periodo}")
+
+        dias = PERIODOS_MAS_VENDIDOS[clave]
+        desde = None if dias is None else utcnow() - timedelta(days=dias)
+
+        try:
+            limite = int(limite)
+        except (TypeError, ValueError):
+            limite = 10
+        limite = max(1, min(limite, LIMITE_MAS_VENDIDOS_MAX))
+
+        vendidos = self._repositorio.listar_mas_vendidos(desde, limite)
+        self._completar_fotos([v.producto for v in vendidos])
+        return vendidos
 
     def actualizar(self, dto: ActualizarProductoDTO) -> Producto:
         producto = self._repositorio.get_by_id(dto.id)

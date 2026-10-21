@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { Package, CreditCard, AlertTriangle, FileText } from 'lucide-react'
+import { productoApi } from '../../services/products.js'
 
 // ---------- datos de ejemplo (reemplazar por datos reales del backend) ----------
 
@@ -15,14 +17,6 @@ const ventasSemana = [
   { label: 'Sem 3', valor: 380000 },
   { label: 'Sem 4', valor: 610000 },
   { label: 'Sem 5', valor: 780000 },
-]
-
-const topProductos = [
-  { nombre: 'Figura Goku 20cm', monto: '$245K' },
-  { nombre: 'Maceta Geométrica', monto: '$186K' },
-  { nombre: 'Llavero Personalizado', monto: '$142K' },
-  { nombre: 'Organizador Escritorio', monto: '$118K' },
-  { nombre: 'Base para Celular', monto: '$96K' },
 ]
 
 const pedidosRecientes = [
@@ -121,6 +115,26 @@ function Panel({ title, action, children }) {
 }
 
 export default function Dashboard() {
+  // "Productos más vendidos" sale del ranking real del backend
+  // (`GET /api/productos/mas-vendidos`), no de una lista fija: el histórico
+  // completo, que es lo que interesa para decidir qué volver a producir.
+  const [topProductos, setTopProductos] = useState([])
+  const [errorTopProductos, setErrorTopProductos] = useState(null)
+
+  useEffect(() => {
+    let vigente = true
+    productoApi.masVendidos('todo', 5)
+      .then(res => {
+        if (!vigente) return
+        setTopProductos(res.productos ?? [])
+      })
+      .catch(err => {
+        if (!vigente) return
+        setErrorTopProductos(err.message)
+      })
+    return () => { vigente = false }
+  }, [])
+
   return (
     <>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, marginBottom: 24, color: 'var(--surface-2)' }}>
@@ -150,24 +164,35 @@ export default function Dashboard() {
         </Panel>
 
         <Panel title="Productos más vendidos">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {topProductos.map((p, i) => {
-              const maxMonto = parseInt(topProductos[0].monto.replace(/\D/g, ''))
-              const monto = parseInt(p.monto.replace(/\D/g, ''))
-              const pct = (monto / maxMonto) * 100
-              return (
-                <div key={p.nombre}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--surface)', marginBottom: 5 }}>
-                    <span>{p.nombre}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)' }}>{p.monto}</span>
+          {errorTopProductos ? (
+            <p style={{ fontSize: 12.5, color: 'var(--red, #ef4444)' }}>
+              No se pudo cargar el ranking: {errorTopProductos}
+            </p>
+          ) : topProductos.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: 'var(--text-dim)' }}>
+              Todavía no hay ventas registradas.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {topProductos.map((p) => {
+                const maxMonto = topProductos[0].ingresos || 1
+                const pct = (p.ingresos / maxMonto) * 100
+                return (
+                  <div key={p.id}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--surface)', marginBottom: 5 }}>
+                      <span>{p.nombre}</span>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>
+                        ${Number(p.ingresos).toLocaleString('es-CL')} CLP
+                      </span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 4 }} />
+                    </div>
                   </div>
-                  <div style={{ height: 6, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', borderRadius: 4 }} />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </Panel>
       </div>
 

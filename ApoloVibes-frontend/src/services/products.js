@@ -21,6 +21,11 @@ export const productoApi = {
   obtener: () => api.get('/productos'),
   detalle: (id) => api.get(`/productos/${id}`),
   listarCategorias: () => api.get('/categorias'),
+  // `api.get` no acepta `params`: el query string se arma a mano.
+  masVendidos: (periodo = 'todo', limite = 10) =>
+    api.get(
+      `/productos/mas-vendidos?periodo=${encodeURIComponent(periodo)}&limite=${encodeURIComponent(limite)}`
+    ),
   eliminar: (id) => api.del(`/productos/${id}`),
   listarColores: (id) => api.get(`/productos/${id}/colores`),
   listarResenas: (id) => api.get(`/productos/${id}/resenas`),

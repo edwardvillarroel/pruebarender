@@ -1,6 +1,6 @@
 export function slugDeCategoria(nombre) {
     const n = (nombre || '').toLowerCase()
-    if (n.includes('videojuegos') || n.includes('cine')) return 'videojuegos-cine'
+    if (n.includes('videojuegos') || n.includes('cine')) return 'videojuegos-y-cine'
     if (n.includes('articulados')) return 'articulados'
     if (n.includes('llavero')) return 'llaveros'
     if (n.includes('animales')) return 'animales'

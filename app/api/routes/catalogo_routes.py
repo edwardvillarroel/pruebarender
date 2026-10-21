@@ -131,6 +131,38 @@ def listar_productos():
     return jsonify(productos=[_a_publico_producto(p) for p in productos])
 
 
+@catalogo_bp.get("/productos/mas-vendidos")
+def mas_vendidos():
+    """Ranking de productos por unidades vendidas.
+
+    Publico, como el catalogo: lo consume la home ("Los mas vendidos de la
+    semana") y el panel de administracion. La ventana de venta va en `periodo`
+    ("7d", "30d" o "todo") y el corte del top en `limite`.
+
+    Cada producto sale con los mismos campos que el catalogo mas
+    `unidades_vendidas` e `ingresos`, asi la tarjeta se puede pintar sin
+    adaptaciones.
+    """
+    periodo = (request.args.get("periodo") or "todo").strip().lower()
+    limite = request.args.get("limite", 10)
+    try:
+        vendidos = _servicio_producto().listar_mas_vendidos(periodo, limite)
+    except ValueError as error:
+        return jsonify(mensaje=str(error)), 400
+    return jsonify(
+        productos=[
+            {
+                **_a_publico_producto(v.producto),
+                "unidades_vendidas": v.unidades,
+                "ingresos": v.ingresos,
+            }
+            for v in vendidos
+        ],
+        periodo=periodo,
+        total=len(vendidos),
+    )
+
+
 @catalogo_bp.get("/productos/<uuid:producto_id>")
 def detalle_producto(producto_id):
     producto = _servicio_producto().consultar(producto_id)

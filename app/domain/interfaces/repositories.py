@@ -13,6 +13,7 @@ from app.domain.entities.producto import (
     FotoColorCatalogo,
     ImagenProducto,
     Producto,
+    ProductoVendido,
 )
 from app.domain.entities.solicitud_diseno import SolicitudDiseno
 from app.domain.entities.usuario import Usuario
@@ -34,6 +35,18 @@ class ProductoRepository(RepositoryBase[Producto], ABC):
 
     @abstractmethod
     def list_activos(self) -> list[Producto]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def listar_mas_vendidos(
+        self, desde: datetime | None, limite: int
+    ) -> list[ProductoVendido]:
+        """Productos ordenados por unidades vendidas, de mas a menos.
+
+        `desde` es la cota inferior de la ventana de venta (None = todo el
+        historico). Solo cuenta lo pagado: un pedido sin pago completado no es
+        una venta.
+        """
         raise NotImplementedError
 
     @abstractmethod

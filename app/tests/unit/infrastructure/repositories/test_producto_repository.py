@@ -1,5 +1,8 @@
+from datetime import datetime, timezone
 from unittest.mock import Mock
 from uuid import uuid4
+
+from sqlalchemy.dialects import postgresql
 
 from app.application.catalogo_stock.gestionar_producto import GestionarProducto
 from app.application.common.dto import ActualizarProductoDTO, CrearProductoDTO
@@ -429,3 +432,189 @@ def test_reponer_sin_salir_del_umbral_mantiene_el_aviso(monkeypatch):
 
     assert modelo.aviso_stock_enviado is True
     assert producto.stock <= 3
+
+
+# --- Ranking de mas vendidos -------------------------------------------------
+#
+# Lo que se verifica aca es la CONSULTA, no el resultado: si el filtro de pago
+# se escribiera como un `JOIN`, el ranking compilaria y devolveria numeros
+# plausibles, pero inflados. Por eso se afirma sobre el SQL.
+
+
+class _FilaAgregacion:
+    """Fila de la agregacion: producto, unidades vendidas e ingresos."""
+
+    def __init__(self, producto_id, unidades: int, ingresos: int):
+        self.producto_id = producto_id
+        self.unidades = unidades
+        self.ingresos = ingresos
+
+
+def _preparar_sesion_ranking(monkeypatch, agregacion, productos):
+    """Sesion con las dos consultas del ranking: agregacion y productos."""
+    session = Mock()
+    primero, segundo = Mock(), Mock()
+    primero.all.return_value = agregacion
+    segundo.all.return_value = productos
+    session.execute.side_effect = [primero, segundo]
+    monkeypatch.setattr(db, "session", session)
+    return session
+
+
+def _sql_de(consulta, literal_binds: bool = False) -> str:
+    return str(
+        consulta.compile(
+            dialect=postgresql.dialect(),
+            compile_kwargs={"literal_binds": True} if literal_binds else {},
+        )
+    )
+
+
+def test_el_ranking_solo_cuenta_pagos_completados(monkeypatch):
+    """Un pedido sin pagar no es una venta: es el mismo criterio con el que se
+    descuenta el stock."""
+    producto, modelo = _preparar_producto(activo=True)
+    session = _preparar_sesion_ranking(
+        monkeypatch,
+        [_FilaAgregacion(producto.id, 3, 9000)],
+        [_FilaProducto(modelo, False, True)],
+    )
+
+    ProductoRepository().listar_mas_vendidos(None, 10)
+
+    sql = _sql_de(session.execute.call_args_list[0][0][0], literal_binds=True)
+    assert "EXISTS" in sql
+    assert "pagos.estado = 'completado'" in sql
+
+
+def test_el_ranking_no_hace_join_con_pagos_para_no_multiplicar_lineas(monkeypatch):
+    """Un pedido puede tener varias filas en `pagos` (autorizado y luego
+    completado, o reintentos). Un `JOIN` multiplicaria las lineas de
+    `detalle_pedidos` y el `SUM` de unidades saldria inflado: el ranking
+    compilaria y devolveria numeros plausibles, pero falsos."""
+    producto, modelo = _preparar_producto(activo=True)
+    session = _preparar_sesion_ranking(
+        monkeypatch,
+        [_FilaAgregacion(producto.id, 3, 9000)],
+        [_FilaProducto(modelo, False, True)],
+    )
+
+    ProductoRepository().listar_mas_vendidos(None, 10)
+
+    sql = _sql_de(session.execute.call_args_list[0][0][0])
+    assert "JOIN pagos" not in sql
+
+
+def test_el_ranking_solo_muestra_productos_activos(monkeypatch):
+    """Un producto dado de baja (borrado logico) no va al ranking."""
+    producto, modelo = _preparar_producto(activo=True)
+    session = _preparar_sesion_ranking(
+        monkeypatch,
+        [_FilaAgregacion(producto.id, 3, 9000)],
+        [_FilaProducto(modelo, False, True)],
+    )
+
+    ProductoRepository().listar_mas_vendidos(None, 10)
+
+    sql = _sql_de(session.execute.call_args_list[0][0][0])
+    assert "productos.activo IS true" in sql
+
+
+def test_la_ventana_de_venta_filtra_por_la_fecha_del_pago(monkeypatch):
+    """La ventana se aplica sobre `pagos.creado_en` (cuando se cobro), no sobre
+    `pedidos.creado_en` (cuando se pidio)."""
+    producto, modelo = _preparar_producto(activo=True)
+    session = _preparar_sesion_ranking(
+        monkeypatch,
+        [_FilaAgregacion(producto.id, 3, 9000)],
+        [_FilaProducto(modelo, False, True)],
+    )
+
+    ProductoRepository().listar_mas_vendidos(
+        datetime(2026, 1, 1, tzinfo=timezone.utc), 10
+    )
+
+    sql = _sql_de(session.execute.call_args_list[0][0][0])
+    assert "pagos.creado_en >=" in sql
+
+
+def test_sin_ventana_de_venta_no_se_filtra_por_fecha(monkeypatch):
+    producto, modelo = _preparar_producto(activo=True)
+    session = _preparar_sesion_ranking(
+        monkeypatch,
+        [_FilaAgregacion(producto.id, 3, 9000)],
+        [_FilaProducto(modelo, False, True)],
+    )
+
+    ProductoRepository().listar_mas_vendidos(None, 10)
+
+    sql = _sql_de(session.execute.call_args_list[0][0][0])
+    assert "pagos.creado_en" not in sql
+
+
+def test_el_ranking_pide_solo_el_limite_de_productos(monkeypatch):
+    producto, modelo = _preparar_producto(activo=True)
+    session = _preparar_sesion_ranking(
+        monkeypatch,
+        [_FilaAgregacion(producto.id, 3, 9000)],
+        [_FilaProducto(modelo, False, True)],
+    )
+
+    ProductoRepository().listar_mas_vendidos(None, 5)
+
+    sql = _sql_de(session.execute.call_args_list[0][0][0], literal_binds=True)
+    assert "LIMIT 5" in sql
+
+
+def test_el_ranking_conserva_el_orden_de_la_agregacion(monkeypatch):
+    """El orden lo fija la agregacion, no el `SELECT` de los productos: por eso
+    los productos se devuelven en el orden en que los pide la base."""
+    primero, modelo_primero = _preparar_producto(activo=True)
+    segundo, modelo_segundo = _preparar_producto(activo=True)
+    _preparar_sesion_ranking(
+        monkeypatch,
+        [
+            _FilaAgregacion(primero.id, 9, 9000),
+            _FilaAgregacion(segundo.id, 4, 4000),
+        ],
+        # Al reves, a proposito: el ranking no se puede depender del orden del
+        # `SELECT` de productos.
+        [
+            _FilaProducto(modelo_segundo, False, True),
+            _FilaProducto(modelo_primero, False, True),
+        ],
+    )
+
+    resultado = ProductoRepository().listar_mas_vendidos(None, 10)
+
+    assert [v.producto.id for v in resultado] == [primero.id, segundo.id]
+    assert [v.unidades for v in resultado] == [9, 4]
+    assert [v.ingresos for v in resultado] == [9000, 4000]
+
+
+def test_el_ranking_devuelve_los_ingresos_como_entero(monkeypatch):
+    """`precio_unitario` es `numeric(10,2)` en la base: sin el cast los ingresos
+    vuelven como `Decimal` y el JSON no los serializa."""
+    producto, modelo = _preparar_producto(activo=True)
+    _preparar_sesion_ranking(
+        monkeypatch,
+        [_FilaAgregacion(producto.id, 3, 9000)],
+        [_FilaProducto(modelo, False, True)],
+    )
+
+    resultado = ProductoRepository().listar_mas_vendidos(None, 10)
+
+    assert isinstance(resultado[0].ingresos, int)
+    assert isinstance(resultado[0].unidades, int)
+
+
+def test_el_ranking_devuelve_lista_vacia_sin_ventas(monkeypatch):
+    """Sin pagos completados no es un error: la home muestra "todavia no hay
+    ventas"."""
+    session = _preparar_sesion_ranking(monkeypatch, [], [])
+
+    resultado = ProductoRepository().listar_mas_vendidos(None, 10)
+
+    assert resultado == []
+    # Sin resultados no hace falta la segunda consulta (los productos).
+    assert session.execute.call_count == 1
