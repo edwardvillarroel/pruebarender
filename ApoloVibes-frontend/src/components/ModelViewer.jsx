@@ -183,7 +183,7 @@ export default function ModelViewer({ modelUrl, height = 400 }) {
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: esOscuro ? 'var(--surface)' : 'var(--bg)',
+          background: esOscuro ? 'var(--surface)' : 'var(--input-bg)',
           flexDirection: 'column', gap: 8,
         }}>
           <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0, textAlign: 'center' }}>

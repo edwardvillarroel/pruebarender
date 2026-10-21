@@ -285,6 +285,8 @@ export default function LoginModal({ onClose }) {
         const mail = registro.email.trim()
         if (!mail) e.email = 'Completa tu correo'
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) e.email = 'Ingresa un correo válido'
+        const tel = registro.telefono.trim()
+        if (tel && !/^\d{9}$/.test(tel)) e.telefono = 'Ingresa los 9 dígitos de tu móvil, por ejemplo 912345678'
         setErroresPaso(e)
         return Object.keys(e).length === 0
     }
@@ -340,7 +342,7 @@ export default function LoginModal({ onClose }) {
                 password: registro.password,
                 nombre: registro.nombre.trim(),
                 apellido: registro.apellido.trim(),
-                telefono: registro.telefono.trim() ? '+569' + registro.telefono.trim() : null,
+                telefono: registro.telefono.trim() ? '+56' + registro.telefono.trim() : null,
             })
             login({ token: data.access_token, user: data.user })
             setExito('¡Cuenta creada! Sesión iniciada correctamente.')
@@ -1024,7 +1026,7 @@ export default function LoginModal({ onClose }) {
                                     <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
                                         Telefono <span style={{ opacity: .6 }}></span>
                                     </label>
-                                    <div className="input-prefijo" style={{ marginBottom: 14 }}>
+                                    <div className="input-prefijo" style={{ marginBottom: 0 }}>
                                         <svg
                                             aria-hidden="true"
                                             width={20}
@@ -1040,18 +1042,19 @@ export default function LoginModal({ onClose }) {
                                                 fill="#FFFFFF"
                                             />
                                         </svg>
-                                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: .85 }}>+569</span>
+                                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, opacity: .85 }}>+56</span>
                                         <span style={{ opacity: .4 }}>|</span>
                                         <input
                                             type="tel"
                                             inputMode="numeric"
                                             pattern="[0-9]*"
-                                            maxLength={8}
-                                            placeholder="1234 5678"
+                                            maxLength={9}
+                                            placeholder="912345678"
                                             value={registro.telefono}
-                                            onChange={(e) => cambiarRegistro('telefono', e.target.value.replace(/\D/g, '').slice(0, 8))}
+                                            onChange={(e) => cambiarRegistro('telefono', e.target.value.replace(/\D/g, '').slice(0, 9))}
                                         />
                                     </div>
+                                    <p style={errorSlotStyle}>{erroresPaso.telefono || ''}</p>
 
                                     <button
                                         type="submit"

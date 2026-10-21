@@ -24,7 +24,7 @@ export default function GenerationProgress({ status = 'idle', percent = 0, messa
 
   return (
     <div style={{
-      background: esOscuro ? 'var(--surface)' : 'var(--bg)',
+      background: esOscuro ? 'var(--surface)' : 'var(--input-bg)',
       border: '1px solid var(--line)',
       borderRadius: 12,
       padding: 20,
@@ -34,7 +34,7 @@ export default function GenerationProgress({ status = 'idle', percent = 0, messa
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <div style={{
           width: 36, height: 36, borderRadius: 20,
-          backgroundColor: 'var(--bg)',
+          backgroundColor: 'var(--input-bg)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <Icon
