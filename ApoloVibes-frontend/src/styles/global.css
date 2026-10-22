@@ -133,13 +133,13 @@ video {
 }
 
 .btn-ghost {
-  border-color: var(--line);
   color: var(--text);
   background: var(--accent);
 }
 
 .btn-ghost:hover {
-  border-color: var(--text-dim);
+  color: var(--input-bg);
+  background: var(--accent);
 }
 
 .btn:disabled {
@@ -147,8 +147,7 @@ video {
   cursor: not-allowed;
 }
 
-/* Oculta el ojo nativo del navegador (Edge ::-ms-reveal) en inputs de
-   contraseña: el toggle propio es el botón Eye del componente. */
+
 input[type="password"]::-ms-reveal {
   display: none;
 }

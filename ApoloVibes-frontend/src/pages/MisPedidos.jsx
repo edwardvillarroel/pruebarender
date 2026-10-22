@@ -291,15 +291,15 @@ export default function MisPedidos() {
         </div>
       ) : pedidos.length === 0 ? (
         <div style={{ border: '1px dashed var(--surface-3)', borderRadius: 16, padding: '40px 24px', textAlign: 'center' }}>
-           <img
-          src={mediaPath('sinPedidos.webp')}
-          alt="Sin pedidos"
-          loading="lazy"
-          decoding="async"
-          width="512"
-          height="512"
-          style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
-        />
+          <img
+            src={mediaPath('sinPedidos.webp')}
+            alt="Sin pedidos"
+            loading="lazy"
+            decoding="async"
+            width="512"
+            height="512"
+            style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
+          />
           <p style={{ margin: '0 0 12px', color: 'var(--text-dim)' }}>Para realizar pedidos haz click en el enlace de aca abajo</p>
           <Link to="/categorias" style={{ color: '#009D4E' }}>Ir a la tienda</Link>
         </div>
@@ -312,8 +312,8 @@ export default function MisPedidos() {
           )}
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
-              <tr style={{ color: 'var(--surface-2)', textAlign: 'left', fontSize: 11, textTransform: 'uppercase', borderBottom: '1px solid var(--line)' }}>
-                <th style={{ padding: '0 10px 12px' }}>Pedido</th>
+              <tr style={{ color: 'var(--surface-2)', textAlign: 'center', fontSize: 11, textTransform: 'uppercase', borderBottom: '1px solid var(--line)' }}>
+                <th style={{ padding: '0 10px 12px', textAlign: 'left' }}>Pedido</th>
                 <th style={{ padding: '0 10px 12px' }}>Fecha</th>
                 <th style={{ padding: '0 10px 12px' }}>Detalles</th>
                 <th style={{ padding: '0 10px 12px' }}>Total</th>
@@ -334,13 +334,18 @@ export default function MisPedidos() {
                     </td>
                     <td style={{ padding: '14px 10px', color: 'var(--text-dim)' }}>{fecha(p.fecha)}</td>
                     <td style={{ padding: '14px 10px', color: 'var(--text-dim)', textAlign: 'center' }}>
-                      <span
-                        onClick={() => setDetalle(p)}
-                        title="Ver detalle del pedido"
-                        style={{ cursor: 'pointer', display: 'inline-flex', color: 'var(--surface-2)' }}
-                      >
-                        <Eye size={15} style={{ color: 'var(--text-dim)' }} />
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                        <span
+                          onClick={() => setDetalle(p)}
+                          title="Ver detalle del pedido"
+                          style={{
+                            cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
+                            justifyContent: 'center', color: 'var(--surface-2)'
+                          }}
+                        >
+                          <Eye size={15} style={{ color: 'var(--text-dim)' }} />
+                        </span>
+                      </div>
                     </td>
                     <td style={{ padding: '14px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
                       ${p.total.toLocaleString('es-CL')}

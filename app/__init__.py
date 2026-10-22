@@ -81,15 +81,16 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     from app.infrastructure.starken.starken_cliente_simulado import (
         StarkenClienteSimulado,
     )
-    from app.infrastructure.database.models.usuario_model import UsuarioModel 
     from app.infrastructure.repositories.carrito_repository_bd import (
         CarritoRepositoryBd,
     )
+    from app.infrastructure.repositories.cupon_repository import CuponRepository
     from app.infrastructure.repositories.pago_repository import PagoRepository
     from app.infrastructure.repositories.pedido_repository import PedidoRepository
     from app.infrastructure.repositories.producto_repository import (
         ProductoRepository,
     )
+    from app.infrastructure.repositories.usuario_repository import UsuarioRepository
 
     pedidos = PedidoRepository()
     pagos = PagoRepository()
@@ -105,6 +106,8 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
         TuuCliente(app.config),
         CarritoRepositoryBd(),
         EmailJsCorreo(app.config),
+        usuarios=UsuarioRepository(),
+        cupones=CuponRepository(),
     )
     if str(app.config.get("STARKEN_MODO_SIMULACION", "")).strip().lower() in ("1", "true", "si", "yes"):
         cliente_starken = StarkenClienteSimulado(app.config)

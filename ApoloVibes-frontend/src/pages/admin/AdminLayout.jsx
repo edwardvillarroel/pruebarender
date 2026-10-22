@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
-import { Menu, LogOut, LayoutDashboard, ClipboardList, Package, FileText, ShoppingCart, User } from 'lucide-react'
+import { Menu, LogOut, LayoutDashboard, ClipboardList, Package, FileText, ShoppingCart, User, Tag } from 'lucide-react'
 import ConfirmModal from '../../components/ConfirmModal.jsx'
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { to: '/admin/cotizaciones', label: 'Cotizaciones', icon: FileText },
   { to: '/admin/venta', label: 'Registrar Venta', icon: ShoppingCart },
   { to: '/admin/reportes', label: 'Reporte Ventas', icon: FileText },
+  { to: '/admin/cupones', label: 'Códigos de descuento', icon: Tag },
 ]
 
 const itemStyle = ({ isActive }) => ({

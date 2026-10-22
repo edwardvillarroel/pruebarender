@@ -129,15 +129,10 @@ def _a_publico_pedido(pedido, admin: bool = False) -> dict:
                 "precio_unitario": detalle.precio_unitario,
                 "nombre": detalle.nombre,
                 "color": detalle.color,
-                # Foto de la línea: ruta del BLOB (la del color elegido si
-                # tiene, si no la del producto), resuelta por el repositorio.
-                # El carrito la expone igual; MisPedidos la usa como miniatura.
                 "imagen": detalle.imagen,
             }
             for detalle in pedido.detalles
         ],
-        # Badge de "pendiente por reseñar" (0|1). Lo deriva el repositorio en
-        # `list_by_usuario`; en el detalle/consulta puntual queda 0 (default).
         "resenas_pendientes": pedido.resenas_pendientes or 0,
     }
     if admin:
@@ -292,12 +287,14 @@ def crear_pago():
         return _error("items es obligatorio", 400)
     try:
         dto = IniciarPagoDTO(
-            usuario_id=_usuario_uuid(),
-            items=_items(datos),
-            entrega=str(datos.get("entrega") or "retiro"),
-            cliente=datos.get("cliente"),
-            total_esperado=_entero_opcional(datos.get("totalEsperado")),
-            clave_idempotencia=_clave_idempotencia(datos.get("claveIdempotencia")),
+            usuario_id=usuario_id,
+            items=items_dto,
+            entrega=datos.get("entrega") or "retiro",
+            cliente=datos.get("cliente") or None,
+            total_esperado=datos.get("total"),
+            clave_idempotencia=clave or None,
+            guardar_datos=bool(datos.get("guardarDatos") or datos.get("guardar_datos")),
+            cupon_codigo=str(datos.get("cuponCodigo") or datos.get("cupon_codigo") or "").strip().upper() or None,
         )
     except (ValueError, TypeError) as exc:
         return _error(f"Datos inválidos: {exc}", 400)
