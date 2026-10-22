@@ -5,6 +5,7 @@ from uuid import UUID
 
 from app.domain.entities.categoria import Categoria
 from app.domain.entities.detalle_pedido import DetallePedido
+from app.domain.entities.documento_tributario import DocumentoTributario
 from app.domain.entities.pago import Pago
 from app.domain.entities.pedido import Pedido
 from app.domain.entities.resena import Resena, ResenaPublica
@@ -184,6 +185,22 @@ class PagoRepository(RepositoryBase[Pago], ABC):
 class SolicitudDisenoRepository(RepositoryBase[SolicitudDiseno], ABC):
     @abstractmethod
     def list_por_estado(self, estado: str) -> list[SolicitudDiseno]:
+        raise NotImplementedError
+
+
+class DocumentoTributarioRepository(RepositoryBase[DocumentoTributario], ABC):
+    @abstractmethod
+    def get_by_pedido(self, pedido_id: UUID) -> DocumentoTributario | None:
+        """Documento emitido del pedido, si ya hay uno."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_by_clave_idempotencia(self, clave: str) -> DocumentoTributario | None:
+        """Documento reservado con esa clave de idempotencia.
+
+        Es lo que evita emitir dos veces el mismo pedido: la clave se deriva
+        del id del pedido, así que siempre es la misma.
+        """
         raise NotImplementedError
 
 

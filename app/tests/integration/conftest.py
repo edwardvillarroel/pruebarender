@@ -41,6 +41,7 @@ TABLAS_SENSIBLES = (
     "resenas",
     "detalle_pedidos",
     "pagos",
+    "documentos_tributarios",
     "pedidos",
     "productos",
     "categorias",
@@ -102,6 +103,9 @@ def _conteos() -> dict[str, int]:
     from app.infrastructure.database.models.detalle_pedido_model import (  # noqa: F401
         DetallePedidoModel,
     )
+    from app.infrastructure.database.models.documento_tributario_model import (  # noqa: F401
+        DocumentoTributarioModel,
+    )
     from app.infrastructure.database.models.pago_model import PagoModel  # noqa: F401
     from app.infrastructure.database.models.pedido_model import PedidoModel  # noqa: F401
     from app.infrastructure.database.models.resena_model import ResenaModel  # noqa: F401
@@ -120,6 +124,7 @@ def _conteos() -> dict[str, int]:
         "resenas": ResenaModel,
         "detalle_pedidos": DetallePedidoModel,
         "pagos": PagoModel,
+        "documentos_tributarios": DocumentoTributarioModel,
         "pedidos": PedidoModel,
         "productos": ProductoModel,
         "categorias": CategoriaModel,
@@ -174,6 +179,10 @@ _LIMPIEZA = [
     ("pagos", "pedido_id IN (SELECT id FROM pedidos WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
     ("detalle_pedidos", "pedido_id IN (SELECT id FROM pedidos WHERE usuario_id IN "
+     "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
+    # Antes que `pedidos`: `documentos_tributarios.pedido_id` es FK a
+    # `pedidos`, asi que borrar el pedido con el documento vivo viola la FK.
+    ("documentos_tributarios", "pedido_id IN (SELECT id FROM pedidos WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
     ("pedidos", "usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test')"),
     ("usuarios", "email LIKE '%@caracterizacion.test'"),

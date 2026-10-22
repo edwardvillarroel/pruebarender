@@ -7,6 +7,7 @@ from typing import Any
 
 from app.application.common.calculos import calcular_total_con_envio
 from app.application.common.dto import IniciarPagoDTO, ResultadoConfirmacionPago
+from app.application.common.facturacion import tipo_documento_de
 from app.application.common.referencias import (
     codificar_referencia,
     decodificar_referencia,
@@ -17,6 +18,7 @@ from app.domain.entities.pedido import Pedido
 from app.domain.enums import EstadoPago, EstadoPedido
 from app.domain.interfaces.carrito_repository import CarritoRepository
 from app.domain.interfaces.correo import ServicioCorreo
+from app.domain.interfaces.facturacion import ServicioDocumentacionTributaria
 from app.domain.interfaces.pasarela_pago import (
     ErrorPasarela,
     PasarelaPago,
@@ -50,6 +52,7 @@ class ProcesarPago:
         pasarela: PasarelaPago,
         carritos: CarritoRepository,
         correo: ServicioCorreo | None = None,
+        documentacion: ServicioDocumentacionTributaria | None = None,
     ) -> None:
         self._pedidos = pedidos
         self._pagos = pagos
@@ -57,6 +60,7 @@ class ProcesarPago:
         self._pasarela = pasarela
         self._carritos = carritos
         self._correo = correo
+        self._documentacion = documentacion
 
     def iniciar(self, dto: IniciarPagoDTO) -> ResultadoIntentoPago:
         # Reintento primero: si la clave ya tiene un pago vivo, se devuelve su
@@ -220,6 +224,9 @@ class ProcesarPago:
         resultado = (parametros.get("x_result") or "").lower()
         if resultado == "completed":
             if pago is not None and pago.estado == EstadoPago.COMPLETADO:
+                # El pago ya estaba confirmado: puede que el documento no se
+                # haya emitido, o que la emision anterior fallara. Se reintenta.
+                self._emitir_documento(pedido)
                 return ResultadoConfirmacionPago(
                     estado="completado", pedido_id=str(pedido.id),
                     mensaje="Pago ya confirmado",
@@ -232,6 +239,10 @@ class ProcesarPago:
                 pago.estado = EstadoPago.COMPLETADO
                 self._pagos.update(pago)
             self._carritos.eliminar(str(pedido.usuario_id))
+            # El comprobante electronico se emite con el pago ya confirmado:
+            # si el proveedor falla, el error queda registrado en la fila del
+            # documento y se reintenta en la proxima confirmacion.
+            self._emitir_documento(pedido)
             # El comprobante lleva el estado del PAGO. Si no hay fila de pago
             # (pago locales que no la crearon), el estado es el de esta rama:
             # la pasarela dijo `completed`, o sea que el pago SI se concretó.
@@ -267,6 +278,10 @@ class ProcesarPago:
                 json.dumps(dto.cliente, ensure_ascii=False) if dto.cliente else None
             ),
             entrega=dto.entrega,
+            # Que documento pide el cliente (boleta o factura). Queda en su
+            # propia columna para poder consultar los pedidos que esperan
+            # factura.
+            tipo_documento=tipo_documento_de((dto.cliente or {}).get("tipoDocumento")),
         )
         detalles: list[DetallePedido] = []
         subtotal = 0
@@ -308,6 +323,23 @@ class ProcesarPago:
         pago.estado = EstadoPago.FALLIDO
         self._pagos.update(pago)
         self._pedidos.actualizar_estado(pedido.id, EstadoPedido.CANCELADO)
+
+    def _emitir_documento(self, pedido: Pedido) -> None:
+        """Emite el documento electrónico del pedido, si corresponde.
+
+        Es best-effort a propósito: el pago ya está confirmado y el cliente
+        tiene que recibir la confirmación igual, aunque el proveedor de
+        documentos esté caído. El error queda registrado en la fila del
+        documento y la emisión se reintenta en la próxima confirmación.
+        """
+        if self._documentacion is None:
+            return
+        try:
+            self._documentacion.emitir_para_pedido(pedido.id)
+        except Exception:  # noqa: BLE001 - el documento no puede romper el pago
+            logger.exception(
+                "No se pudo emitir el documento del pedido %s", pedido.id
+            )
 
     def _enviar_comprobante(self, pedido: Pedido, estado_pago: str) -> bool:
         """Manda el comprobante y devuelve si se mando de verdad.

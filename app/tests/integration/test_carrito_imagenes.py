@@ -59,7 +59,7 @@ def test_linea_con_color_trae_la_foto_del_color(client, producto, usuario, db_se
     # GET. Si solo se resolviera al leer, el mismo campo volveria con imagen en
     # una respuesta y sin imagen en la otra.
     item = respuesta.get_json()["carrito"]["items"][0]
-    assert item["imagen"] == f"/api/productos/colores/{color.id}/imagen", (
+    assert item["imagen"] == f"/api/productos/colores/{color.id}/thumb", (
         f"el POST no resolvio la foto del color: {item['imagen']!r}"
     )
 
@@ -92,7 +92,7 @@ def test_linea_con_color_trae_la_foto_del_color_al_recargar(
     assert respuesta.status_code == 200, respuesta.get_json()
 
     item = respuesta.get_json()["carrito"]["items"][0]
-    assert item["imagen"] == f"/api/productos/colores/{color.id}/imagen"
+    assert item["imagen"] == f"/api/productos/colores/{color.id}/thumb"
 
 
 def test_linea_sin_color_trae_la_foto_del_producto(client, producto, usuario, db_sesion):
@@ -109,7 +109,7 @@ def test_linea_sin_color_trae_la_foto_del_producto(client, producto, usuario, db
     assert respuesta.status_code == 201, respuesta.get_json()
 
     item = respuesta.get_json()["carrito"]["items"][0]
-    assert item["imagen"] == f"/api/productos/{p.id}/imagen"
+    assert item["imagen"] == f"/api/productos/{p.id}/thumb"
 
 
 def test_color_sin_foto_propia_cae_a_la_del_producto(
@@ -134,7 +134,7 @@ def test_color_sin_foto_propia_cae_a_la_del_producto(
     assert respuesta.status_code == 201, respuesta.get_json()
 
     item = respuesta.get_json()["carrito"]["items"][0]
-    assert item["imagen"] == f"/api/productos/{p.id}/imagen", (
+    assert item["imagen"] == f"/api/productos/{p.id}/thumb", (
         f"un color sin foto no debe dejar la linea sin imagen: {item['imagen']!r}"
     )
 
@@ -158,7 +158,7 @@ def test_color_sin_matchear_cae_a_la_del_producto(client, producto, usuario, db_
     assert respuesta.status_code == 201, respuesta.get_json()
 
     item = respuesta.get_json()["carrito"]["items"][0]
-    assert item["imagen"] == f"/api/productos/{p.id}/imagen"
+    assert item["imagen"] == f"/api/productos/{p.id}/thumb"
 
 
 def test_producto_y_color_sin_foto_dan_null(client, producto, usuario, db_sesion):

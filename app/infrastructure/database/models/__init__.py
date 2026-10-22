@@ -15,6 +15,9 @@ aparecia al instanciar cualquier modelo, lejos de la causa.
 from app.infrastructure.database.models.carrito_model import CarritoItemModel, CarritoModel
 from app.infrastructure.database.models.categoria_model import CategoriaModel
 from app.infrastructure.database.models.detalle_pedido_model import DetallePedidoModel
+from app.infrastructure.database.models.documento_tributario_model import (
+    DocumentoTributarioModel,
+)
 from app.infrastructure.database.models.log_auditoria_model import LogAuditoriaModel
 from app.infrastructure.database.models.notificacion_model import NotificacionModel
 from app.infrastructure.database.models.pago_model import PagoModel
@@ -35,6 +38,7 @@ __all__ = [
     "CarritoModel",
     "CategoriaModel",
     "DetallePedidoModel",
+    "DocumentoTributarioModel",
     "LogAuditoriaModel",
     "NotificacionModel",
     "PagoModel",
