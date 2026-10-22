@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { RefreshCw, AlertTriangle, Eye, Star, Package, CircleCheck, MapPin, X } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Eye, Star, Package, CircleCheck, MapPin, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import { pedidosApi } from '../services/orders.js';
@@ -210,6 +210,8 @@ export default function MisPedidos() {
   const [sincronizandoId, setSincronizandoId] = useState(null);
   const [detalle, setDetalle] = useState(null);
   const [resenando, setResenando] = useState(null);
+  const [pagina, setPagina] = useState(1);
+  const filasPorPagina = 10;
 
   async function cargar(silencioso = false) {
     if (!silencioso) {
@@ -260,6 +262,16 @@ export default function MisPedidos() {
     if (!p.codigo_seguimiento) return 'Sin despacho';
     return p.estado_seguimiento || 'Consultando…';
   };
+
+  const totalPaginas = Math.max(1, Math.ceil(pedidos.length / filasPorPagina));
+  useEffect(() => {
+    if (pagina > totalPaginas) setPagina(totalPaginas);
+  }, [totalPaginas, pagina]);
+
+  const pedidosPagina = useMemo(() => {
+    const inicio = (pagina - 1) * filasPorPagina;
+    return pedidos.slice(inicio, inicio + filasPorPagina);
+  }, [pedidos, pagina]);
 
   return (
     <div className="wrap" style={{ padding: '48px 32px', minHeight: '50vh' }}>
@@ -313,7 +325,7 @@ export default function MisPedidos() {
               </tr>
             </thead>
             <tbody>
-              {pedidos.map((p) => {
+              {pedidosPagina.map((p) => {
                 const bloqueadoSinc = p.entrega === 'retiro' || p.estado === 'entregado';
                 return (
                   <tr key={p.id} style={{ borderBottom: '1px solid var(--surface-3)' }}>
@@ -399,6 +411,55 @@ export default function MisPedidos() {
               })}
             </tbody>
           </table>
+          {pedidos.length > filasPorPagina && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                marginTop: 18,
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                Mostrando {(pagina - 1) * filasPorPagina + 1}–{Math.min(pagina * filasPorPagina, pedidos.length)} de {pedidos.length}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  onClick={() => setPagina(p => Math.max(1, p - 1))}
+                  disabled={pagina === 1}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 32, height: 32, borderRadius: 8, border: '1px solid var(--surface-3)',
+                    background: 'transparent', color: 'var(--text-dim)',
+                    cursor: pagina === 1 ? 'not-allowed' : 'pointer',
+                    opacity: pagina === 1 ? 0.4 : 1,
+                  }}
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span style={{ padding: '0 10px', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-dim)' }}>
+                  {pagina} / {totalPaginas}
+                </span>
+                <button
+                  onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))}
+                  disabled={pagina === totalPaginas}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 32, height: 32, borderRadius: 8, border: '1px solid var(--surface-3)',
+                    background: 'transparent', color: 'var(--text-dim)',
+                    cursor: pagina === totalPaginas ? 'not-allowed' : 'pointer',
+                    opacity: pagina === totalPaginas ? 0.4 : 1,
+                  }}
+                  aria-label="Página siguiente"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 

@@ -1,24 +1,26 @@
 import { useEffect, useState } from 'react';
 import { productoApi } from '../services/products.js';
 
-/**
- * Carga el ranking de "más vendidos" para un periodo (`7d`, `30d` o `todo`).
- *
- * `activo` permite no pedirlo hasta que el usuario abre el filtro: el
- * ranking de la seccion de arriba y el de la grilla de categorias son el
- * mismo endpoint, pero el de la grilla solo se pide cuando se entra a el.
- *
- * El `periodo` va en las dependencias del efecto, asi que cambiar el
- * desplegable vuelve a consultar el backend con la ventana nueva.
- */
+const cache = new Map();
+
 export function useMasVendidos(periodo, limite = 10, activo = true) {
-  const [productos, setProductos] = useState([]);
-  const [cargando, setCargando] = useState(activo);
+  const key = `${periodo}|${limite}`;
+  const cached = cache.get(key);
+
+  const [productos, setProductos] = useState(cached?.productos ?? []);
+  const [cargando, setCargando] = useState(activo && !cached);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!activo) {
       setProductos([]);
+      setCargando(false);
+      setError(null);
+      return;
+    }
+    if (cache.has(key)) {
+      const c = cache.get(key);
+      setProductos(c.productos);
       setCargando(false);
       setError(null);
       return;
@@ -30,7 +32,9 @@ export function useMasVendidos(periodo, limite = 10, activo = true) {
       .masVendidos(periodo, limite)
       .then((res) => {
         if (!vigente) return;
-        setProductos(res.productos ?? []);
+        const prods = res.productos ?? [];
+        cache.set(key, { productos: prods });
+        setProductos(prods);
         setCargando(false);
       })
       .catch((err) => {
@@ -41,7 +45,7 @@ export function useMasVendidos(periodo, limite = 10, activo = true) {
     return () => {
       vigente = false;
     };
-  }, [periodo, limite, activo]);
+  }, [periodo, limite, activo, key]);
 
-  return { productos, cargando, error };
+  return { productos, cargando: activo ? cargando : false, error };
 }
