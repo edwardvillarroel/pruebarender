@@ -29,6 +29,8 @@ from app.domain.interfaces.repositories import (
     PedidoRepository,
     ProductoRepository,
 )
+from app.infrastructure.repositories.cupon_repository import CuponRepository
+from app.infrastructure.repositories.usuario_repository import UsuarioRepository
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,8 @@ class ProcesarPago:
         pasarela: PasarelaPago,
         carritos: CarritoRepository,
         correo: ServicioCorreo | None = None,
+        usuarios: UsuarioRepository | None = None,
+        cupones: CuponRepository | None = None,
     ) -> None:
         self._pedidos = pedidos
         self._pagos = pagos
@@ -57,6 +61,8 @@ class ProcesarPago:
         self._pasarela = pasarela
         self._carritos = carritos
         self._correo = correo
+        self._usuarios = usuarios
+        self._cupones = cupones
 
     def iniciar(self, dto: IniciarPagoDTO) -> ResultadoIntentoPago:
         # Reintento primero: si la clave ya tiene un pago vivo, se devuelve su
@@ -67,10 +73,35 @@ class ProcesarPago:
             return reintento
 
         pedido, detalles = self._construir_pedido(dto)
+        # Aplicar cupón si viene
+        if getattr(dto, "cupon_codigo", None) and self._cupones:
+            cupon = self._cupones.get_by_codigo(dto.cupon_codigo)
+            if cupon and cupon.activo and not cupon.usado:
+                total = int(pedido.total)
+                if cupon.tipo == "porcentaje":
+                    descuento = int(round(total * float(cupon.valor) / 100.0))
+                else:
+                    descuento = int(round(float(cupon.valor)))
+                if descuento > 0:
+                    if descuento > total:
+                        descuento = total
+                    total_desc = total - descuento
+                    pedido.total = total_desc
+            else:
+                raise ValueError("Cupón inválido o ya utilizado")
+
         # Antes de persistir: si el total no coincide, no queda ni pedido ni
         # pago creados, solo un 409 con el mensaje para el cliente.
         self._validar_total_esperado(pedido.total, dto.total_esperado)
         self._pedidos.crear_con_detalles(pedido, detalles)
+
+        if getattr(dto, "cupon_codigo", None) and self._cupones:
+            cupon = self._cupones.get_by_codigo(dto.cupon_codigo)
+            if cupon and cupon.activo and not cupon.usado:
+                try:
+                    self._cupones.marcar_usado(cupon, dto.usuario_id)
+                except Exception:
+                    logger.exception("No se pudo marcar cupón como usado")
 
         pago = Pago(
             pedido_id=pedido.id,

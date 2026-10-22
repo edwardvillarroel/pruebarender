@@ -2,7 +2,7 @@ import { api } from './api.js'
 import { VERSION_LEGAL } from './legal.js'
 
 export async function iniciarPago({ items, cliente, entrega, totalEsperado, claveIdempotencia,
-  guardarDatos, mayorEdad, aceptaTerminos}) {
+  guardarDatos, mayorEdad, aceptaTerminos, cuponCodigo}) {
 
   // `total` no se manda: el backend recalcula el total desde `productos.precio`
   // y lo contrasta con `totalEsperado` (409 si no coincide). Mandar el total
@@ -28,7 +28,8 @@ export async function iniciarPago({ items, cliente, entrega, totalEsperado, clav
     guardarDatos: !!guardarDatos,
     mayorEdad: !!mayorEdad,
     aceptaTerminos: !!aceptaTerminos,
-    versionLegal: VERSION_LEGAL
+    versionLegal: VERSION_LEGAL,
+    cuponCodigo: cuponCodigo || ''
   }
 
   const data = await api.post('/pago/crear', pedido)

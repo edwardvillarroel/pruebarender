@@ -66,6 +66,8 @@ class IniciarPagoDTO:
     cliente: dict | None = None
     total_esperado: int | None = None
     clave_idempotencia: str | None = None
+    guardar_datos: bool = False
+    cupon_codigo: str | None = None
 
 
 @dataclass

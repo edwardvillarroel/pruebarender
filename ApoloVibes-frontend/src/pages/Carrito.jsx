@@ -1,40 +1,88 @@
-
 import { Link, useNavigate } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
-import { Trash2, Minus, Plus, ShoppingCart, Truck } from 'lucide-react'
+import { Trash2, Minus, Plus, ShoppingCart, Truck, Tag } from 'lucide-react'
 import { useCart } from '../context/CartContext.jsx'
+import { api } from '../services/api.js'
 import { useState } from 'react'
 
 const ENVIO_GRATIS_DESDE = 50000
 
 export default function Carrito() {
   const { items, quitarItem, actualizarCantidadItem, vaciarCarrito, error, total, requiereLogin, abrirLogin } = useCart()
-  const navigate = useNavigate()
+  const navigate = useNavigate() || ((path) => { window.location.hash = `#${path}` })
   const envioGratis = total >= ENVIO_GRATIS_DESDE
   const cantidadTotal = items.reduce((acc, item) => acc + item.cantidad, 0)
+  const [cuponCodigo, setCuponCodigo] = useState('')
+  const [cupon, setCupon] = useState(null)
+  const [cuponError, setCuponError] = useState('')
+  const [aplicandoCupon, setAplicandoCupon] = useState(false)
+  const [redirigiendo, setRedirigiendo] = useState(false)
+
   const montoDescuento = items.reduce((acc, item) => {
     if (item.precio_original && item.precio_original > item.precio) {
       return acc + (item.precio_original - item.precio) * item.cantidad
     }
     return acc
   }, 0)
-  const montoConIva = total
-  const montoNeto = Math.round(total / 1.19)
+
+  let totalConCupon = total
+  if (cupon) {
+    if (cupon.tipo === 'porcentaje') {
+      const desc = Math.round((total * Number(cupon.valor)) / 100)
+      totalConCupon = Math.max(0, total - desc)
+    } else if (cupon.tipo === 'monto') {
+      const desc = Number(cupon.valor)
+      totalConCupon = Math.max(0, total - desc)
+    }
+  }
+  const montoCupon = Math.max(0, total - totalConCupon)
+  const descuentoTotal = montoDescuento + montoCupon
+  const montoConIva = totalConCupon
+  const montoNeto = Math.round(montoConIva / 1.19)
   const montoIva = montoConIva - montoNeto
 
-  const [redirigiendo, setRedirigiendo] = useState(false)
+  async function aplicarCupon() {
+    if (requiereLogin) {
+      if (typeof abrirLogin === 'function') abrirLogin()
+      return
+    }
+    setCuponError('')
+    setAplicandoCupon(true)
+    try {
+      const res = await api.post('/cupones/validar', { codigo: cuponCodigo })
+      const data = res.data || res
+      setCupon(data.cupon || null)
+    } catch (err) {
+      setCupon(null)
+      setCuponError(err?.response?.data?.error || 'Cupón inválido')
+    } finally {
+      setAplicandoCupon(false)
+    }
+  }
+
+  function quitarCupon() {
+    setCupon(null)
+    setCuponCodigo('')
+    setCuponError('')
+  }
 
   function irAlCheckout() {
     setRedirigiendo(true)
-    setTimeout(() => navigate('/checkout'), 3000)
+    try {
+      navigate('/checkout', { state: { cupon } })
+    } catch (e) {
+      try {
+        window.location.hash = '#/checkout'
+      } catch (e2) {
+        setRedirigiendo(false)
+      }
+    }
   }
-
 
   if (requiereLogin) {
     return (
-      <div className="wrap" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center' }} >
-        <ShoppingCart size={64} strokeWidth={1.5} style={{ marginBottom: 20, color: 'var(--text-dim)' }}
-        />
+      <div className="wrap" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center' }}>
+        <ShoppingCart size={64} strokeWidth={1.5} style={{ marginBottom: 20, color: 'var(--text-dim)' }} />
         <p style={{ color: 'var(--text-dim)', marginBottom: 20 }}>
           Inicia sesión para ver tu carrito y seguir comprando.
         </p>
@@ -47,7 +95,7 @@ export default function Carrito() {
 
   if (items.length === 0) {
     return (
-      <div className="wrap" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center' }} >
+      <div className="wrap" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'center' }}>
         <img
           src={mediaPath('carritoVacio.webp')}
           alt="Carrito vacío"
@@ -58,8 +106,7 @@ export default function Carrito() {
           style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
         />
         <p style={{ color: 'var(--text-dim)', marginBottom: 20 }}> Tu carrito está vacío. </p>
-        <Link to="/categorias" className="btn btn-primary"> Ver catálogo
-        </Link>
+        <Link to="/categorias" className="btn btn-primary"> Ver catálogo</Link>
       </div>
     )
   }
@@ -147,7 +194,7 @@ export default function Carrito() {
 
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <p style={{ fontWeight: 600, color: 'var(--text)', margin: '0 0 6px', fontSize: 15, color: 'var(--surface)' }}>
+                  <p style={{ fontWeight: 600, margin: '0 0 6px', fontSize: 15, color: 'var(--surface)' }}>
                     {item.nombre}
                   </p>
                   <button
@@ -241,7 +288,40 @@ export default function Carrito() {
               <span>{envioGratis ? 'Gratis' : 'Se calcula al pagar'}</span>
             </div>
 
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, color: 'var(--surface-2)', fontSize: 13 }}>
+                <span>¿Tienes cupón de descuento?</span>
+              </div>
+              {cupon ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--surface-4)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                    {cupon.codigo}
+                  </div>
+                  <button type="button" onClick={quitarCupon} style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 12 }}>Quitar</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    value={cuponCodigo}
+                    onChange={(e) => setCuponCodigo(e.target.value.toUpperCase())}
+                    placeholder="Ingresa tu código"
+                    style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--bg)', color: 'var(--surface-2)', fontSize: 13}}
+                  />
+                  <button type="button" onClick={aplicarCupon} disabled={aplicandoCupon || !cuponCodigo.trim()} className="btn btn-ghost" style={{ padding: '8px 12px', fontSize: 13 }}>
+                    {aplicandoCupon ? 'Aplicando' : 'Aplicar'}
+                  </button>
+                </div>
+              )}
+              {cuponError && <p style={{ color: '#ef4444', fontSize: 12, margin: '6px 0 0' }}>{cuponError}</p>}
+            </div>
+
             <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)', paddingTop: 14, marginBottom: 20 }}>
+              {cupon && montoCupon > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
+                  <span>Cupón de descuento</span>
+                  <span>-${montoCupon.toLocaleString('es-CL')}</span>
+                </div>
+              )}
               {montoDescuento > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
                   <span>Descuento</span>
@@ -273,11 +353,10 @@ export default function Carrito() {
 
             <button
               type="button"
-              onClick={irAlCheckout}
-              disable={redirigiendo}
+              onClick={(e) => { e.preventDefault(); window.location.hash = '#/checkout'; }}
               className="btn btn-primary"
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', marginBottom: 12 }}>
-              {redirigiendo ? 'Continuando...' : 'Paga con Tuu'}
+              Paga con Tuu
             </button>
 
             <p style={{ fontSize: 11, marginTop: -5, color: 'var(--text-dim)', textAlign: 'justify', margin: '0 0 20px' }}>
@@ -299,8 +378,6 @@ export default function Carrito() {
           </div>
         </div>
       </div>
-    </section >
+    </section>
   )
 }
-
-

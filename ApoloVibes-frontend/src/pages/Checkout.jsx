@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { mediaPath } from '../utils/media.js'
-import { Navigate, Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { iniciarPago } from '../services/payment.js'
 import SelectOpciones from '../components/SelectOpciones.jsx'
@@ -20,6 +20,12 @@ const tituloSeccion = { fontFamily: 'var(--font-display)', fontSize: 20, marginB
 const estiloAyuda = { fontSize: 12, color: 'var(--text-dim)', margin: '4px 0 0' }
 const estiloError = { color: '#ef4444', fontSize: 12, margin: '6px 0 0' }
 const sinBorde = { border: 'none', padding: 0, margin: 0 }
+
+function etiquetaEnvio(valor, envioGratis = false) {
+  if (valor === 'retiro') return 'Gratis'
+  if (valor === 'envio') return envioGratis ? 'Gratis' : 'Por calcular'
+  return ''
+}
 
 const CLIENTE_INICIAL = {
   email: '',
@@ -57,8 +63,11 @@ function Campo({ id, label, error, ayuda, style, children }) {
 }
 
 export default function Checkout() {
-  const { items, total } = useCart()
-  const { user } = useAuth()
+  const cart = useCart() || {}
+  const { items = [], total = 0 } = cart
+  const auth = useAuth() || {}
+  const { user } = auth
+  const location = useLocation()
   const claveRef = useRef(null)
   const enviandoRef = useRef(false)
   if (claveRef.current === null) claveRef.current = crypto.randomUUID()
@@ -72,6 +81,8 @@ export default function Checkout() {
   const [error, setError] = useState(null)
   const [tocado, setTocado] = useState({})
   const [modalAbierto, setModalAbierto] = useState(null)
+  const cuponFromState = location.state?.cupon || null
+  const [cupon, setCupon] = useState(cuponFromState)
 
   useEffect(() => {
     const d = datosDesdeUsuario(user)
@@ -84,9 +95,9 @@ export default function Checkout() {
     }))
   }, [user])
 
-  if (!user) return <Navigate to="/" replace />
-  if (items.length === 0) {
-    return <Navigate to="/carrito" replace />
+  if (!user) { return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>Inicia sesión para continuar</p></section> }
+  if (!Array.isArray(items) || items.length === 0) {
+    return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>Tu carrito está vacío</p></section>
   }
   const emailDeCuenta = !!(user?.email ?? user?.correo)
 
@@ -105,9 +116,34 @@ export default function Checkout() {
   const entregaSeleccionada = datosPersonalesCompletos && entrega !== null
 
   //totales
-  const envioGratis = total >= ENVIO_GRATIS_DESDE
-  const etiquetaEnvio = tipo => (tipo === 'retiro' || envioGratis ? 'Gratis' : 'Por pagar')
-  const totalFinal = total
+  const envioGratis = Number(total) >= ENVIO_GRATIS_DESDE
+
+  const montoDescuento = Array.isArray(items)
+    ? items.reduce((acc, item) => {
+        const precioOriginal = Number(item.precio_original)
+        const precio = Number(item.precio)
+        const cantidad = Number(item.cantidad || 1)
+        if (precioOriginal && precioOriginal > precio) {
+          return acc + (precioOriginal - precio) * cantidad
+        }
+        return acc
+      }, 0)
+    : 0
+
+  let totalBase = Number(total) || 0
+  let totalConCupon = totalBase
+  if (cupon) {
+    if (cupon.tipo === 'porcentaje') {
+      const desc = Math.round((totalBase * Number(cupon.valor)) / 100)
+      totalConCupon = Math.max(0, totalBase - desc)
+    } else if (cupon.tipo === 'monto') {
+      const desc = Number(cupon.valor)
+      totalConCupon = Math.max(0, totalBase - desc)
+    }
+  }
+  const montoCupon = Math.max(0, totalBase - Number(totalConCupon))
+
+  const totalFinal = Number(totalConCupon)
   const montoNeto = Math.round(totalFinal / 1.19)
   const montoIva = totalFinal - montoNeto
 
@@ -177,6 +213,7 @@ export default function Checkout() {
         guardarDatos,
         mayorEdad: esMayor,
         aceptaTerminos,
+        cuponCodigo: cupon?.codigo || ''
       })
     } catch (err) {
       setError(err.message || 'No pudimos iniciar el pago. Intenta nuevamente.')
@@ -194,7 +231,7 @@ export default function Checkout() {
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <img src={mediaPath('nombrelogo.webp')} alt='logo' className='nombre-logo' loading="lazy" decoding="async" width="512" height="72" />
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
-          ({items.length} {items.length === 1 ? 'producto' : 'productos'}) &nbsp;
+          ({Array.isArray(items) ? items.length : 0} {Array.isArray(items) && items.length === 1 ? 'producto' : 'productos'}) &nbsp;
         </p>
       </div>
 
@@ -572,7 +609,7 @@ export default function Checkout() {
               color: 'var(--text)'
             }}
           >
-            {enviando ? 'Redirigiendo a' : 'Pagar con'}
+            <span>{enviando ? 'Redirigiendo a' : 'Pagar con'}</span>
             <img src={mediaPath('tuu.png')} alt="Tuu" style={{ height: 16, verticalAlign: 'middle' }} />
           </button>
         </form>
@@ -598,8 +635,8 @@ export default function Checkout() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
-            <span>{items.length} {items.length === 1 ? 'producto' : 'productos'}</span>
-            <span>{clp(total)}</span>
+            <span>{Array.isArray(items) ? items.length : 0} {Array.isArray(items) && items.length === 1 ? 'producto' : 'productos'}</span>
+            <span>{clp(totalBase)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 14 }}>
             <span>Entrega</span>
@@ -610,6 +647,18 @@ export default function Checkout() {
             className="separador-suave"
             style={{ display: 'flex', flexDirection: 'column', paddingTop: 14, marginBottom: 20 }}
           >
+            {cupon && montoCupon > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
+                <span>Cupón de descuento</span>
+                <span>-{clp(montoCupon)}</span>
+              </div>
+            )}
+            {montoDescuento > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
+                <span>Descuento</span>
+                <span>-{clp(montoDescuento)}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
               <span>Monto neto</span>
               <span>{clp(montoNeto)}</span>

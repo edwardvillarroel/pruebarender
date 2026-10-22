@@ -24,6 +24,7 @@ import RegistrarVentaLocal from './pages/admin/RegistrarVentaLocal.jsx'
 import Inventario from './pages/admin/Inventario.jsx'
 import Cotizaciones from './pages/admin/Cotizaciones.jsx'
 import ReportesVentas from './pages/admin/ReportesVentas.jsx'
+import CuponesAdmin from './pages/admin/CuponesAdmin.jsx'
 import WhatsAppFlotante from './components/whatsAppFlotante.jsx'
 
 function TiendaLayout({ children }) {
@@ -62,6 +63,7 @@ export default function App() {
             <Route path="inventario" element={<Inventario />} />
             <Route path="cotizaciones" element={<Cotizaciones />} />
             <Route path="reportes" element={<ReportesVentas />} />
+            <Route path="cupones" element={<CuponesAdmin />} />
           </Route>
           <Route path="*" element={<TiendaLayout><NotFound /></TiendaLayout>} />
         </Routes>
