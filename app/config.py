@@ -93,6 +93,25 @@ class Config:
     EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID", "")
     EMAILJS_TEMPLATE_COMPROBANTE = os.getenv("EMAILJS_TEMPLATE_COMPROBANTE", "")
 
+    # Facturación electrónica (DTE) vía OpenFactura (Haulmer).
+    # La API key se genera en https://openfactura.haulmer.com -> Configuración
+    # -> API -> GENERAR API KEY, con la cuenta titular de la organización.
+    OPENFACTURA_API_KEY = os.getenv("OPENFACTURA_API_KEY", "")
+    OPENFACTURA_API_URL = os.getenv(
+        "OPENFACTURA_API_URL", "https://api.haulmer.com"
+    ).rstrip("/")
+    OPENFACTURA_TIMEOUT = int(os.getenv("OPENFACTURA_TIMEOUT", "30"))
+
+    # Emisor: los datos de la organización certificada ante el SII. Salen de
+    # `GET /v2/dte/taxpayer/{rut}` de la propia API.
+    EMISOR_RUT = os.getenv("EMISOR_RUT", "")
+    EMISOR_RAZON_SOCIAL = os.getenv("EMISOR_RAZON_SOCIAL", "")
+    EMISOR_GIRO = os.getenv("EMISOR_GIRO", "")
+    EMISOR_DIRECCION = os.getenv("EMISOR_DIRECCION", "")
+    EMISOR_COMUNA = os.getenv("EMISOR_COMUNA", "")
+    EMISOR_ACTIVIDAD_ECONOMICA = os.getenv("EMISOR_ACTIVIDAD_ECONOMICA", "")
+    EMISOR_CDG_SII_SUCUR = os.getenv("EMISOR_CDG_SII_SUCUR", "")
+
     MAX_UPLOAD_SIZE = 10 * 1024 * 1024
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "glb", "stl"}
     UPLOAD_FOLDER = BASE_DIR / "uploads"

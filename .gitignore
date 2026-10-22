@@ -40,6 +40,9 @@ _test_api.py
 # Logs locales (pueden contener trazas con datos)
 *.log
 
+# Salidas temporales de los verificadores (PDFs de prueba, etc.)
+tmp/
+
 # Python
 __pycache__/
 *.pyc

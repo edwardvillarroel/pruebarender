@@ -137,6 +137,7 @@ CREATE TABLE PEDIDOS
 	ESTADO varchar(30)  DEFAULT 'pendiente' NOT NULL , 
 	TOTAL numeric(10,2) DEFAULT 0 NOT NULL , 
 	DIRECCION_ENVIO text , 
+	TIPO_DOCUMENTO varchar(20) , 
 	CREADO_EN timestamptz DEFAULT now() NOT NULL , 
 	CODIGO_SEGUIMIENTO varchar(50) , 
 	ESTADO_SEGUIMIENTO varchar(100) , 
@@ -358,3 +359,43 @@ CREATE UNIQUE INDEX IF NOT EXISTS pk_ventas_local ON ventas_local (id);
 CREATE INDEX IF NOT EXISTS ix_items_producto ON venta_local_items (producto_id);
 CREATE INDEX IF NOT EXISTS ix_items_venta ON venta_local_items (venta_id);
 CREATE UNIQUE INDEX IF NOT EXISTS pk_venta_local_items ON venta_local_items (id);
+
+-- ---- DOCUMENTOS_TRIBUTARIOS (facturacion electronica)
+CREATE TABLE DOCUMENTOS_TRIBUTARIOS
+   (	ID uuid DEFAULT gen_random_uuid(),
+	PEDIDO_ID uuid,
+	TIPO_DTE smallint NOT NULL,
+	ESTADO varchar(20) DEFAULT 'pendiente' NOT NULL,
+	CLAVE_IDEMPOTENCIA varchar(120) NOT NULL,
+	FOLIO integer,
+	TOKEN varchar(120),
+	RUT_EMISOR varchar(20) NOT NULL,
+	RUT_RECEPTOR varchar(20) NOT NULL,
+	RAZON_SOCIAL_RECEPTOR varchar(200),
+	GIRO_RECEPTOR varchar(200),
+	DIRECCION_RECEPTOR varchar(300),
+	COMUNA_RECEPTOR varchar(120),
+	MONTO_NETO integer DEFAULT 0 NOT NULL,
+	IVA integer DEFAULT 0 NOT NULL,
+	MONTO_TOTAL integer DEFAULT 0 NOT NULL,
+	FECHA_EMISION date,
+	ERROR text,
+	PDF bytea,
+	CREADO_EN timestamptz DEFAULT now() NOT NULL,
+	 CHECK (tipo_dte IN (33, 39)) ,
+	 CHECK (estado IN ('pendiente', 'emitido', 'error')) ,
+	 PRIMARY KEY (ID)
+    ,
+	 CONSTRAINT FK_DOCUMENTO_TRIBUTARIO_PEDIDO FOREIGN KEY (PEDIDO_ID)
+	  REFERENCES PEDIDOS (ID) ON DELETE CASCADE
+   );
+
+-- Un documento por pedido: es lo que impide emitir dos veces la misma venta.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_documentos_tributarios_pedido
+    ON documentos_tributarios (pedido_id)
+    WHERE pedido_id IS NOT NULL;
+-- La clave de idempotencia se deriva del pedido, asi que es unica de verdad.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_documentos_tributarios_idem
+    ON documentos_tributarios (clave_idempotencia);
+CREATE INDEX IF NOT EXISTS idx_documentos_tributarios_estado
+    ON documentos_tributarios (estado);

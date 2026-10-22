@@ -13,6 +13,7 @@ class PedidoModel(db.Model):
     total = db.Column(db.Integer, nullable=False, default=0)
     direccion_envio = db.Column(db.Text)
     entrega = db.Column(db.String(20), default="retiro")
+    tipo_documento = db.Column(db.String(20))
     codigo_seguimiento = db.Column(db.String(50))
     transportista = db.Column(db.String(30))
     estado_seguimiento = db.Column(db.String(100))
