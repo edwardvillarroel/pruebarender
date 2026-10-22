@@ -4,6 +4,7 @@ from uuid import UUID
 
 from app.application.common.calculos import calcular_total_con_envio
 from app.application.common.dto import CrearPedidoDTO
+from app.application.common.facturacion import tipo_documento_de
 from app.domain.entities.detalle_pedido import DetallePedido
 from app.domain.entities.pedido import Pedido
 from app.domain.interfaces.repositories import PedidoRepository, ProductoRepository
@@ -26,6 +27,7 @@ class CrearPedido:
                 json.dumps(dto.cliente, ensure_ascii=False) if dto.cliente else None
             ),
             entrega=dto.entrega,
+            tipo_documento=tipo_documento_de((dto.cliente or {}).get("tipoDocumento")),
         )
         detalles = []
         subtotal = 0

@@ -75,7 +75,14 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     from app.application.pedidos_pagos.seguimiento_starken import (
         GestionarSeguimientoStarken,
     )
+    from app.application.facturacion.consultar_documento_tributario import (
+        ConsultarDocumentoTributario,
+    )
+    from app.application.facturacion.emitir_documento_tributario import (
+        EmitirDocumentoTributario,
+    )
     from app.infrastructure.correo.emailjs import EmailJsCorreo
+    from app.infrastructure.facturacion.openfactura_cliente import OpenFacturaCliente
     from app.infrastructure.pagos.tuu_client import TuuCliente
     from app.infrastructure.starken.starken_cliente import StarkenCliente
     from app.infrastructure.starken.starken_cliente_simulado import (
@@ -85,6 +92,9 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
         CarritoRepositoryBd,
     )
     from app.infrastructure.repositories.cupon_repository import CuponRepository
+    from app.infrastructure.repositories.documento_tributario_repository import (
+        DocumentoTributarioRepository,
+    )
     from app.infrastructure.repositories.pago_repository import PagoRepository
     from app.infrastructure.repositories.pedido_repository import PedidoRepository
     from app.infrastructure.repositories.producto_repository import (
@@ -95,6 +105,15 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     pedidos = PedidoRepository()
     pagos = PagoRepository()
     productos = ProductoRepository()
+    documentos = DocumentoTributarioRepository()
+
+    # La emision de documentos electronicos es opcional: si no hay API key
+    # configurada el pago sigue funcionando, solo no se emite comprobante.
+    emisor = OpenFacturaCliente(app.config)
+    if emisor.configurado:
+        documentacion = EmitirDocumentoTributario(pedidos, documentos, emisor)
+    else:
+        documentacion = None
 
     app.config["PEDIDO_SERVICE"] = CrearPedido(pedidos, productos)
     app.config["CONSULTA_PEDIDO_SERVICE"] = ConsultarPedido(pedidos)
@@ -108,7 +127,9 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
         EmailJsCorreo(app.config),
         usuarios=UsuarioRepository(),
         cupones=CuponRepository(),
+        documentacion=documentacion,
     )
+    app.config["CONSULTA_DOCUMENTO_SERVICE"] = ConsultarDocumentoTributario(documentos)
     if str(app.config.get("STARKEN_MODO_SIMULACION", "")).strip().lower() in ("1", "true", "si", "yes"):
         cliente_starken = StarkenClienteSimulado(app.config)
     else:
