@@ -325,10 +325,14 @@ export default function Navbar() {
                   {requiereLogin ? (
                     <div style={{ padding: '32px 16px', textAlign: 'center' }}>
                       <img
-                        src={mediaPath('carritoVacio.png')}
-                        alt="Logo"
-                        style={{ display: 'block', height: 80, width: 'auto', margin: '0 auto 10px' }}
-                    />
+                        src={mediaPath('carritoVacio.webp')}
+                        alt="Carrito"
+                        loading="lazy"
+                        decoding="async"
+                        width="512"
+                        height="512"
+                        style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
+                      />
                       <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
                         Inicia sesión para usar el carrito.
                       </p>
