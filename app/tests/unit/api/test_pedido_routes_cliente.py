@@ -33,6 +33,7 @@ class _PedidoFalso:
         self.usuario_id = "00000000-0000-0000-0000-000000000002"
         self.detalles = list(detalles)
         self.resenas_pendientes = 0
+        self.tipo_documento = None
 
 
 def test_deserializa_el_cliente_guardado():

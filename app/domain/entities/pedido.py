@@ -3,7 +3,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from app.domain.entities.detalle_pedido import DetallePedido
-from app.domain.enums import EstadoPedido
+from app.domain.enums import EstadoPedido, TipoDocumentoTributario
 from app.domain.time import utcnow
 
 
@@ -18,6 +18,11 @@ class Pedido:
     transportista: str | None = None
     estado_seguimiento: str | None = None
     seguimiento_actualizado_en: datetime | None = None
+    # Que documento pide el cliente al pagar: "boleta" (DTE 39) o "factura"
+    # (DTE 33). Vive en su propia columna para poder consultar los pedidos
+    # que esperan factura; el resto de los datos de facturación van dentro
+    # de `direccion_envio`, que es el JSON que cautó el checkout.
+    tipo_documento: TipoDocumentoTributario | None = None
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=utcnow)
     detalles: list[DetallePedido] = field(default_factory=list)

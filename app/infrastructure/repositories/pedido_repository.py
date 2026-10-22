@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.domain.entities.detalle_pedido import DetallePedido
 from app.domain.entities.pedido import Pedido
-from app.domain.enums import EstadoPago, EstadoPedido
+from app.domain.enums import EstadoPago, EstadoPedido, TipoDocumentoTributario
 from app.domain.interfaces.repositories import (
     PedidoRepository as PedidoRepositoryInterface,
 )
@@ -137,6 +137,7 @@ class PedidoRepository(PedidoRepositoryInterface):
             total=pedido.total,
             direccion_envio=pedido.direccion_envio,
             entrega=pedido.entrega,
+            tipo_documento=_valor_tipo_documento(pedido.tipo_documento),
             codigo_seguimiento=pedido.codigo_seguimiento,
             estado_seguimiento=pedido.estado_seguimiento,
             seguimiento_actualizado_en=pedido.seguimiento_actualizado_en,
@@ -200,6 +201,7 @@ class PedidoRepository(PedidoRepositoryInterface):
         modelo.total = entidad.total
         modelo.direccion_envio = entidad.direccion_envio
         modelo.entrega = entidad.entrega
+        modelo.tipo_documento = _valor_tipo_documento(entidad.tipo_documento)
         modelo.codigo_seguimiento = entidad.codigo_seguimiento
         modelo.transportista = entidad.transportista
         modelo.estado_seguimiento = entidad.estado_seguimiento
@@ -262,6 +264,25 @@ def _resolver_imagenes(detalles: list[DetallePedido]) -> None:
         detalle.imagen = imagen
 
 
+def _valor_tipo_documento(tipo) -> str | None:
+    """El enum del tipo de documento, como texto para la columna."""
+    if tipo is None:
+        return None
+    if isinstance(tipo, TipoDocumentoTributario):
+        return tipo.value
+    return str(tipo)
+
+
+def _a_tipo_documento(valor) -> TipoDocumentoTributario | None:
+    """La columna de texto, como enum del dominio."""
+    if not valor:
+        return None
+    try:
+        return TipoDocumentoTributario(str(valor))
+    except ValueError:
+        return None
+
+
 def _a_entidad(modelo: PedidoModel) -> Pedido:
     return Pedido(
         id=modelo.id,
@@ -270,6 +291,7 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
         total=modelo.total,
         direccion_envio=modelo.direccion_envio,
         entrega=modelo.entrega,
+        tipo_documento=_a_tipo_documento(modelo.tipo_documento),
         codigo_seguimiento=modelo.codigo_seguimiento,
         estado_seguimiento=modelo.estado_seguimiento,
         seguimiento_actualizado_en=modelo.seguimiento_actualizado_en,
@@ -298,6 +320,7 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
         total=entidad.total,
         direccion_envio=entidad.direccion_envio,
         entrega=entidad.entrega,
+        tipo_documento=_valor_tipo_documento(entidad.tipo_documento),
         codigo_seguimiento=entidad.codigo_seguimiento,
         estado_seguimiento=entidad.estado_seguimiento,
         seguimiento_actualizado_en=entidad.seguimiento_actualizado_en,

@@ -225,6 +225,71 @@ viven en `infrastructure/database/models/` y mapean a las mismas tablas.
 > qué coincidir con el precio actual del catálogo si el producto cambió de
 > precio después de la compra.
 
+> **Nota de desviación (2026-10-22):** facturación electrónica (DTE) vía
+> OpenFactura (Haulmer). El backend emite **boleta electrónica (DTE 39)** o
+> **factura electrónica (DTE 33)** una vez que el pago queda `completado`.
+> Proveedor: `POST https://api.haulmer.com/v2/dte/document` (dev:
+> `dev-api.haulmer.com`, con CAF simulado), cabeceras `apikey` e
+> `Idempotency-Key`.
+>
+> **Los datos del receptor ya estaban capturados.** El checkout guarda en
+> `pedidos.direccion_envio` el JSON del cliente (`tipoDocumento`, `rut`,
+> `razonSocial`, `giro`, dirección, comuna). No se agregó una columna con los
+> datos fiscales: se usa ese JSON. Lo único nuevo en `pedidos` es
+> `tipo_documento` (`boleta` | `factura`), que permite consultar de una
+> vez cuáles pedidos esperan factura. La tabla nueva `documentos_tributarios` guarda
+> lo emitido: folio, token, montos, estado y el PDF en `bytea`.
+>
+> **Los dos formatos no son el mismo payload.** El proveedor los valida con su
+> propio XSD y los rechaza si les sobra o les falta un campo:
+>
+> | | Boleta (39) | Factura (33) |
+> |---|---|---|
+> | Líneas | precio **bruto** (IVA incluido) | precio **neto** |
+> | Totales | `MntNeto`, `IVA`, `MntTotal`, `VlrPagar` | + `TasaIVA` (`19`) |
+> | Medio de pago | `MedioPago` | `FmaPago` |
+> | Emisor | `CdgSIISucur` | `Acteco` |
+> | Receptor | basta el RUT | razón social, giro, dirección y comuna obligatorios |
+>
+> **El IVA va por diferencia.** El precio del catálogo es bruto y el total
+> cobrado es un entero de pesos, pero `total / 1.19` casi nunca da un entero.
+> La regla implementada (`app/domain/facturacion.py`) es
+> `neto = redondeo(total / 1.19)` e `IVA = total - neto`: el IVA canónico del
+> 19% puede quedar un peso arriba o abajo, que es justo lo que el proveedor
+> acepta (tolerancia ±1 verificada contra la API), y a cambio **el total del
+> comprobante es exactamente lo que se cobró**. El desglose vive en `domain`
+> porque lo usan el cliente del proveedor (`infrastructure`) y el caso de uso
+> de emisión (`application`), y los módulos de `application` no se importan
+> entre sí.
+>
+> **La emisión es idempotente y de dos pasos.** La clave es
+> `dte-<pedido_id>`: sale del pedido, así que es siempre la misma. El
+> proveedor la respeta de verdad: repetirla responde `OF-06` con el token del
+> documento ya emitido, y con ese token se recupera el PDF
+> (`GET /v2/dte/document/{token}/pdf`). Por eso el caso de uso
+> (`app/application/facturacion/emitir_documento_tributario.py`) reserva la
+> fila antes de llamar al proveedor y, si recibe `OF-06`, **recupera** el
+> documento en vez de darlo por fallido. Un `UNIQUE` sobre `pedido_id` y otro
+> sobre `clave_idempotencia` cierran la puerta por el lado de la base.
+>
+> **Fallar la facturación NO puede fallar el pago.** La emisión es
+> best-effort: `ProcesarPago` la llama después de confirmar el pago, captura
+> la excepción y sigue. El error queda en la fila del documento (`estado =
+> 'error'`) y se reintenta en la próxima confirmación (la pasarela reintenta
+> el callback hasta 10 veces). Un documento con `estado = 'error'` se vuelve a
+> pedir: la idempotencia del proveedor lo impide duplicar.
+>
+> **Sin configuración no hay documento, pero el pago sigue.** Si falta
+> `OPENFACTURA_API_KEY` o `EMISOR_RUT`, `app/__init__.py` no inyecta el
+> servicio de documentación y el sistema funciona igual, solo que sin
+> comprobante electrónico. `tools/verificar_openfactura.py` es el script de
+> Fase 0: verifica key, folios disponibles y datos del emisor, y con
+> `--emitir` emite un documento de prueba.
+>
+> **Lo que no se emite:** si el receptor es un pasaporte (no un RUT), no hay
+> documento: la API de boleta solo acepta `RUTRecep`. Se prefirió no emitir
+> antes que emitir un comprobante a nombre equivocado.
+
 ---
 
 ## 6. Contratos API (impuestos por el frontend)
@@ -266,6 +331,10 @@ GET    /api/categorias
 
 POST   /api/pedidos
 GET    /api/pedidos/:id
+GET    /api/pedidos/:id/documento        # comprobante electrónico del pedido
+                                        #   → { folio, estado, tipo, montos, ... }
+                                        #   404 si el pedido no tiene documento
+GET    /api/pedidos/:id/documento/pdf    # PDF del comprobante (application/pdf)
 
 POST   /api/pago/crear                 # body: { items, entrega, cliente } → { url }
 GET    /api/pago/retorno               # TUU redirige aquí con los parámetros x_*
@@ -350,6 +419,8 @@ ApoloVibes/
 │   ├── domain/
 │   │   ├── __init__.py
 │   │   ├── enums.py
+│   │   ├── facturacion.py
+│   │   ├── time.py
 │   │   ├── entities/
 │   │   │   ├── __init__.py
 │   │   │   ├── usuario.py
@@ -360,18 +431,25 @@ ApoloVibes/
 │   │   │   ├── pago.py
 │   │   │   ├── solicitud_diseno.py
 │   │   │   ├── log_auditoria.py
-│   │   │   └── notificacion.py
+│   │   │   ├── notificacion.py
+│   │   │   └── documento_tributario.py
 │   │   └── interfaces/
 │   │       ├── __init__.py
 │   │       ├── repository_base.py
 │   │       ├── uow.py
+│   │       ├── facturacion.py
 │   │       └── repositories.py
 │   │
 │   ├── application/
 │   │   ├── __init__.py
 │   │   ├── common/
 │   │   │   ├── __init__.py
-│   │   │   └── dto.py
+│   │   │   ├── dto.py
+│   │   │   └── facturacion.py
+│   │   ├── facturacion/
+│   │   │   ├── __init__.py
+│   │   │   ├── emitir_documento_tributario.py
+│   │   │   └── consultar_documento_tributario.py
 │   │   ├── catalogo_stock/
 │   │   │   ├── __init__.py
 │   │   │   ├── gestionar_producto.py
@@ -421,7 +499,8 @@ ApoloVibes/
 │   │   │       ├── pago_model.py
 │   │   │       ├── solicitud_diseno_model.py
 │   │   │       ├── log_auditoria_model.py
-│   │   │       └── notificacion_model.py
+│   │   │       ├── notificacion_model.py
+│   │   │       └── documento_tributario_model.py
 │   │   ├── repositories/
 │   │   │   ├── __init__.py
 │   │   │   ├── repository_base.py
@@ -430,7 +509,11 @@ ApoloVibes/
 │   │   │   ├── pedido_repository.py
 │   │   │   ├── pago_repository.py
 │   │   │   ├── solicitud_diseno_repository.py
-│   │   │   └── notificacion_repository.py
+│   │   │   ├── notificacion_repository.py
+│   │   │   └── documento_tributario_repository.py
+│   │   ├── facturacion/
+│   │   │   ├── __init__.py
+│   │   │   └── openfactura_cliente.py
 │   │   ├── llm/
 │   │   │   ├── __init__.py
 │   │   │   ├── llm_client.py
@@ -495,3 +578,9 @@ ApoloVibes/
 - [ ] Definicion de modelos ORM y primera migracion Alembic
 - [ ] Integracion de Flask-Limiter en requisitos del backend
 - [ ] Dockerizar backend y gateway
+- [ ] Facturacion electronica en produccion: API key propia de la organizacion
+      `78.064.166-5`, CAF vigente (el de dev es simulado), `EMISOR_*` con los
+      datos reales que entrega `GET /v2/dte/taxpayer/{rut}`, y `OPENFACTURA_API_URL`
+      apuntando a `https://api.haulmer.com`
+- [ ] Mostrar el comprobante en la UI (`MisPedidos`): folio, tipo de documento y
+      descarga del PDF contra `GET /api/pedidos/:id/documento{,/pdf}`

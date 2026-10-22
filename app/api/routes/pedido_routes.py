@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import json
 import re
+from io import BytesIO
 from uuid import UUID
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_file
 
 from app.api.middleware.auth import requiere_sesion, rol_requerido, usuario_actual
 from app.application.common.dto import CrearPedidoDTO, IniciarPagoDTO, ItemPedidoDTO
+from app.application.facturacion.consultar_documento_tributario import (
+    ConsultarDocumentoTributario,
+)
 from app.application.pedidos_pagos.cambiar_estado_pedido import (
     CambiarEstadoPedido,
     EstadoInvalidoError,
@@ -66,6 +70,10 @@ def _servicio_cambiar_estado() -> CambiarEstadoPedido:
     return current_app.config["CAMBIAR_ESTADO_PEDIDO_SERVICE"]
 
 
+def _servicio_documento() -> ConsultarDocumentoTributario:
+    return current_app.config["CONSULTA_DOCUMENTO_SERVICE"]
+
+
 def _error(msg: str, estado: int):
     return jsonify(mensaje=msg), estado
 
@@ -112,6 +120,9 @@ def _a_publico_pedido(pedido, admin: bool = False) -> dict:
         "estado": pedido.estado.value,
         "total": pedido.total,
         "entrega": pedido.entrega,
+        "tipo_documento": (
+            pedido.tipo_documento.value if pedido.tipo_documento else None
+        ),
         "cliente": _cliente(pedido),
         "fecha": pedido.creado_en.isoformat() if pedido.creado_en else None,
         "codigo_seguimiento": pedido.codigo_seguimiento,
@@ -277,6 +288,67 @@ def consultar_seguimiento(pedido_id: UUID):
     except ValueError as exc:
         return _error(str(exc), 400)
     return jsonify(_a_publico_seguimiento(pedido_actual, seguimiento))
+
+
+@pedido_bp.get("/pedidos/<uuid:pedido_id>/documento")
+@requiere_sesion()
+def consultar_documento(pedido_id: UUID):
+    """Datos del comprobante electrónico del pedido (folio, montos, estado)."""
+    pedido = _servicio_consulta().por_id(pedido_id)
+    if pedido is None:
+        return _error("Pedido no encontrado", 404)
+    if not _es_dueno(pedido):
+        return _error("No autorizado", 403)
+    documento = _servicio_documento().por_pedido(pedido_id)
+    if documento is None:
+        return _error("El pedido no tiene documento electrónico", 404)
+    return jsonify(_a_publico_documento(documento))
+
+
+@pedido_bp.get("/pedidos/<uuid:pedido_id>/documento/pdf")
+@requiere_sesion()
+def descargar_documento_pdf(pedido_id: UUID):
+    """PDF del comprobante, tal como lo devolvió el proveedor."""
+    pedido = _servicio_consulta().por_id(pedido_id)
+    if pedido is None:
+        return _error("Pedido no encontrado", 404)
+    if not _es_dueno(pedido):
+        return _error("No autorizado", 403)
+    documento = _servicio_documento().por_pedido(pedido_id)
+    if documento is None:
+        return _error("El pedido no tiene documento electrónico", 404)
+    if not documento.pdf:
+        return _error("El documento todavía no tiene PDF", 404)
+    nombre = f"documento-{documento.folio or documento.id}.pdf"
+    return send_file(
+        BytesIO(documento.pdf),
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=nombre,
+    )
+
+
+def _a_publico_documento(documento) -> dict:
+    return {
+        "id": str(documento.id),
+        "tipo": documento.tipo.value,
+        "estado": documento.estado.value,
+        "folio": documento.folio,
+        "rut_emisor": documento.rut_emisor,
+        "rut_receptor": documento.rut_receptor,
+        "razon_social_receptor": documento.razon_social_receptor,
+        "giro_receptor": documento.giro_receptor,
+        "direccion_receptor": documento.direccion_receptor,
+        "comuna_receptor": documento.comuna_receptor,
+        "monto_neto": documento.monto_neto,
+        "iva": documento.iva,
+        "monto_total": documento.monto_total,
+        "fecha_emision": (
+            documento.fecha_emision.isoformat() if documento.fecha_emision else None
+        ),
+        "error": documento.error,
+        "tiene_pdf": bool(documento.pdf),
+    }
 
 
 @pedido_bp.post("/pago/crear")
