@@ -80,7 +80,6 @@ export default function LoginModal({ onClose }) {
     const [error, setError] = useState('')
     const [exito, setExito] = useState('')
     const [cargando, setCargando] = useState(false)
-    // que el botón "Entrar" (correo/contraseña) no mienta mostrando "Entrando...".
     const [conectandoGoogle, setConectandoGoogle] = useState(false)
     const tiempoCierre = useRef(null)
     const [errores, setErrores] = useState({ email: '', password: '' })
@@ -392,6 +391,7 @@ export default function LoginModal({ onClose }) {
     // ---- Recuperación de contraseña ----
     const abrirRecuperacion = () => {
         setOlvidar(prev => ({ email: email.trim() || prev.email, codigo: '', password: '', confirmar: '' }))
+        setConectandoGoogle(false)
         cambiarModo('olvidar')
     }
 
@@ -790,7 +790,7 @@ export default function LoginModal({ onClose }) {
                                 disabled={mfaBloqueado || cargando}
                                 style={{ ...inputStyle, color: 'var(--surface)', letterSpacing: modoMfa === 'respaldo' ? 2 : 6, textAlign: 'center', fontSize: 18 }}
                             />
-                            <p style={errorSlotStyle}>{error}</p>
+                            <p style={{ ...errorSlotStyle, textAlign: 'center' }}>{error}</p>
                             {esperaBlanqueoMfa > 0 && (
                                 <p style={{ fontSize: 11, color: '#ef4444', margin: '0 0 12px', textAlign: 'center' }}>
                                     Demasiados intentos. Vuelve a intentarlo en {formatearTiempo(esperaBlanqueoMfa)}.
@@ -823,7 +823,7 @@ export default function LoginModal({ onClose }) {
                             <button
                                 type="button"
                                 style={{ ...botonFlechaRegistro, width: '100%' }}
-                                onClick={() => { setModoMfa(null); setCodigoMfa(''); setMfaTicket(''); setError('') }}
+                                onClick={() => { setModoMfa(null); setCodigoMfa(''); setMfaTicket(''); setError(''); setConectandoGoogle(false) }}
                             >
                                 Volver
                             </button>
@@ -1329,7 +1329,7 @@ export default function LoginModal({ onClose }) {
                                     Ya tienes cuenta?{' '}
                                     <span
                                         style={{ color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}
-                                        onClick={() => cambiarModo('login')}
+                                        onClick={() => { setConectandoGoogle(false); cambiarModo('login') }}
                                     >
                                         Inicia sesion
                                     </span>
@@ -1339,7 +1339,7 @@ export default function LoginModal({ onClose }) {
                                     No tienes cuenta?{' '}
                                     <span
                                         style={{ color: 'var(--accent)', fontWeight: 600, cursor: 'pointer' }}
-                                        onClick={() => cambiarModo('registro')}
+                                        onClick={() => { setConectandoGoogle(false); cambiarModo('registro') }}
                                     >
                                         Registrate gratis
                                     </span>
