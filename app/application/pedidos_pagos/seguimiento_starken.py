@@ -27,6 +27,9 @@ class GestionarSeguimientoStarken:
         self._cliente = cliente
 
     def listar_todos(self) -> list[Pedido]:
+        # El admin solo gestiona pedidos con pago confirmado: los pendientes
+        # (checkout abandonado o webhook que no llegó) los resuelve el cliente
+        # desde "Mis pedidos" (reintentar pago o eliminar).
         return self._repositorio.list_pagados()
 
     def listar_propios(self, usuario_id: UUID) -> list[Pedido]:

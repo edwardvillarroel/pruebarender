@@ -25,6 +25,14 @@ export default function Carrito() {
     return acc
   }, 0)
 
+
+  const subtotal = items.reduce((acc, item) => {
+    const base = item.precio_original && item.precio_original > item.precio
+      ? item.precio_original
+      : item.precio
+    return acc + base * item.cantidad
+  }, 0)
+
   let totalConCupon = total
   if (cupon) {
     if (cupon.tipo === 'porcentaje') {
@@ -281,7 +289,7 @@ export default function Carrito() {
             </h2>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
               <span>{cantidadTotal} {cantidadTotal === 1 ? 'producto' : 'productos'}</span>
-              <span>${total.toLocaleString('es-CL')}</span>
+              <span>${subtotal.toLocaleString('es-CL')}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 16 }}>
               <span>Envío</span>
@@ -353,7 +361,8 @@ export default function Carrito() {
 
             <button
               type="button"
-              onClick={(e) => { e.preventDefault(); window.location.hash = '#/checkout'; }}
+              onClick={irAlCheckout}
+              disabled={redirigiendo}
               className="btn btn-primary"
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', marginBottom: 12 }}>
               Paga con Tuu

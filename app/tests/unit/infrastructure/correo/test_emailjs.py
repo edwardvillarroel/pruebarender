@@ -262,6 +262,50 @@ def test_el_total_llega_formateado_en_pesos_chilenos(monkeypatch):
     assert "$2.000" in params["items"], params["items"]
 
 
+def test_los_descuentos_viajan_formateados_y_vacios_si_no_hay(monkeypatch):
+    """El template muestra la fila solo si el parametro no viene vacio.
+
+    Un pedido sin ofertas ni cupon manda `""` en vez de `"$0"` para que la
+    plantilla pueda condicionar la fila y no aparezca un descuento falso.
+    """
+    pedido = _pedido()
+    pedido.subtotal = 4500
+    pedido.descuento_productos = 1000
+    pedido.descuento_cupon = 500
+    pedido.cupon_codigo = "APOLO10"
+
+    params = _params(monkeypatch, pedido)
+
+    assert params["subtotal"] == "$4.500"
+    assert params["descuento_productos"] == "$1.000"
+    assert params["descuento_cupon"] == "$500"
+    assert params["cupon_codigo"] == "APOLO10"
+
+    sin_descuentos = _params(monkeypatch, _pedido())
+    assert sin_descuentos["descuento_productos"] == ""
+    assert sin_descuentos["descuento_cupon"] == ""
+    assert sin_descuentos["cupon_codigo"] == ""
+    assert sin_descuentos["descuentos"] == ""
+
+
+def test_el_desglose_de_descuentos_va_como_html_listo(monkeypatch):
+    """La plantilla imprime `{{{descuentos}}}`: el backend manda las filas."""
+    pedido = _pedido()
+    pedido.subtotal = 4500
+    pedido.descuento_productos = 1000
+    pedido.descuento_cupon = 500
+    pedido.cupon_codigo = "APOLO10"
+
+    html_descuentos = _params(monkeypatch, pedido)["descuentos"]
+
+    assert "Subtotal" in html_descuentos
+    assert "$4.500" in html_descuentos
+    assert "Descuento" in html_descuentos
+    assert "- $1.000" in html_descuentos
+    assert "Cupón (APOLO10)" in html_descuentos
+    assert "- $500" in html_descuentos
+
+
 # --- Reintento: una insistencia, y solo cuando sirve -------------------------
 
 

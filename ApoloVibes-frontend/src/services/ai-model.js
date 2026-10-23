@@ -1,10 +1,9 @@
 import { api } from './api.js'
 
-const POLL_INTERVAL = 2000 // 2 segundos entre consultas
-const MAX_ATTEMPTS = 90 // máximo 3 minutos de espera
+const POLL_INTERVAL = 2000 
+const MAX_ATTEMPTS = 90 
 
 export async function generarModelo3D(imagen, onProgress) {
-  // Paso 1: Subir imagen y crear tarea
   onProgress?.({ status: 'uploading', percent: 5, message: 'Subiendo imagen...' })
 
   const formData = new FormData()
@@ -12,7 +11,6 @@ export async function generarModelo3D(imagen, onProgress) {
 
   const { taskId } = await api.post('/ai/image-to-3d', formData)
 
-  // Paso 2: Polling hasta que el modelo esté listo
   let attempts = 0
 
   while (attempts < MAX_ATTEMPTS) {
@@ -49,7 +47,7 @@ export async function generarModelo3D(imagen, onProgress) {
 export function generarModelo3DMock(imagen, onProgress) {
   return new Promise((resolve, reject) => {
     let elapsed = 0
-    const totalDuration = 6000 // 6 segundos simulados
+    const totalDuration = 6000 
 
     const interval = setInterval(() => {
       elapsed += 500
@@ -75,7 +73,6 @@ export function generarModelo3DMock(imagen, onProgress) {
       }
     }, 500)
 
-    // Si el usuario cancela, limpiar
     return () => {
       clearInterval(interval)
       reject(new Error('Generación cancelada'))

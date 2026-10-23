@@ -30,7 +30,8 @@ class CrearPedido:
             tipo_documento=tipo_documento_de((dto.cliente or {}).get("tipoDocumento")),
         )
         detalles = []
-        subtotal = 0
+        subtotal_lista = 0
+        subtotal_final = 0
         for item in dto.items:
             producto = self._productos.get_by_id(item.producto_id)
             if producto is None or not producto.activo:
@@ -40,18 +41,28 @@ class CrearPedido:
                     f"No hay stock suficiente de «{producto.nombre}» "
                     f"(disponible: {producto.stock})"
                 )
+            precio_original = getattr(producto, "precio_original", None)
+            if not (
+                isinstance(precio_original, int)
+                and precio_original > producto.precio
+            ):
+                precio_original = None
             detalles.append(
                 DetallePedido(
                     pedido_id=pedido.id,
                     producto_id=item.producto_id,
                     cantidad=item.cantidad,
                     precio_unitario=producto.precio,
+                    precio_original=precio_original,
                     color=getattr(item, "color", None),
                     nombre=producto.nombre,
                 )
             )
-            subtotal += producto.precio * item.cantidad
+            subtotal_lista += (precio_original or producto.precio) * item.cantidad
+            subtotal_final += producto.precio * item.cantidad
 
-        pedido.total = calcular_total_con_envio(subtotal, dto.entrega)
+        pedido.subtotal = subtotal_lista
+        pedido.descuento_productos = max(0, subtotal_lista - subtotal_final)
+        pedido.total = calcular_total_con_envio(subtotal_final, dto.entrega)
         pedido.detalles = detalles
         return self._pedidos.crear_con_detalles(pedido, detalles)

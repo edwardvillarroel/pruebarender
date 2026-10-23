@@ -4,15 +4,29 @@ import { confirmarPago } from '../services/payment.js'
 import { useCart } from '../context/CartContext.jsx'
 import { mediaPath } from '../utils/media.js'
 
-const estiloImagen = { display: 'block', width: 200, height: 200, ObjectFit: 'contain', margin: '0 auto 12px'}
+const estiloImagen = { display: 'block', width: 200, height: 200, objectFit: 'contain', margin: '0 auto 12px'}
+
+const RESULTADOS_FALLIDOS = ['failed', 'aborted', 'cancelled']
+
+function estadoSegunPasarela(resultado) {
+  if (resultado === 'completed') return 'completado'
+  if (RESULTADOS_FALLIDOS.includes(resultado)) return 'fallido'
+  return 'verificando'
+}
 
 export default function PagoRetorno() {
   const [params] = useSearchParams()
-  const { vaciarCarrito } = useCart()
-  const [estado, setEstado] = useState('verificando')
-  const [mensaje, setMensaje] = useState('')
+  const { vaciarCarrito, cargarCarrito } = useCart()
+  const resultadoPasarela = (params.get('x_result') || '').toLowerCase()
+  const estadoInicial = estadoSegunPasarela(resultadoPasarela)
+  const [estado, setEstado] = useState(estadoInicial)
+  const [mensaje, setMensaje] = useState(
+    estadoInicial === 'fallido' ? 'El pago fue rechazado o cancelado. Tu carrito sigue disponible.' : ''
+  )
   const [correoEnviado, setCorreoEnviado] = useState(null)
   const confirmadoRef = useRef(false)
+  const estadoYaMostradoRef = useRef(estadoInicial !== 'verificando')
+  const vaciadoOptimistaRef = useRef(false)
 
   useEffect(() => {
     if (confirmadoRef.current) return
@@ -28,6 +42,11 @@ export default function PagoRetorno() {
       return
     }
 
+    if (resultadoPasarela === 'completed') {
+      vaciadoOptimistaRef.current = true
+      vaciarCarrito()
+    }
+
     confirmarPago(parametros)
       .then(res => {
         if (res.estado === 'completado') {
@@ -37,12 +56,14 @@ export default function PagoRetorno() {
         } else if (res.estado === 'fallido') {
           setEstado('fallido')
           setMensaje('El pago fue rechazado o cancelado. Tu carrito sigue disponible.')
+          if (vaciadoOptimistaRef.current) cargarCarrito()
         } else {
           setEstado('pendiente')
           setMensaje('Tu pago aún está en proceso. Te avisaremos cuando se confirme.')
         }
       })
       .catch(err => {
+        if (estadoYaMostradoRef.current) return
         setEstado('error')
         setMensaje(err?.message || 'No pudimos confirmar tu pago. Intenta nuevamente.')
       })
@@ -50,6 +71,13 @@ export default function PagoRetorno() {
 
   return (
     <section className="wrap" style={{ paddingTop: '100px', paddingBottom: '100px', textAlign: 'center' }}>
+      {estado === 'verificando' && (
+        <>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, marginBottom: 12 }}>Confirmando tu pago…</h1>
+          <p style={{ color: 'var(--text-dim)', marginBottom: 24 }}>Estamos verificando el resultado con la pasarela.</p>
+        </>
+      )}
+
       {estado === 'completado' && (
         <>
           <img src={mediaPath('logoExitoCompra.webp')} alt="Pago exitoso" loading="lazy" decoding="async" style={estiloImagen} />

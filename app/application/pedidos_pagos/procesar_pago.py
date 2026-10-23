@@ -69,15 +69,11 @@ class ProcesarPago:
         self._documentacion = documentacion
 
     def iniciar(self, dto: IniciarPagoDTO) -> ResultadoIntentoPago:
-        # Reintento primero: si la clave ya tiene un pago vivo, se devuelve su
-        # resultado y no se crea nada. Va antes de construir el pedido para que
-        # un doble click no deje ordenes huerfanas en la base.
         reintento = self._buscar_reintento(dto)
         if reintento is not None:
             return reintento
 
         pedido, detalles = self._construir_pedido(dto)
-        # Aplicar cupón si viene
         if getattr(dto, "cupon_codigo", None) and self._cupones:
             cupon = self._cupones.get_by_codigo(dto.cupon_codigo)
             if cupon and cupon.activo and not cupon.usado:
@@ -91,11 +87,11 @@ class ProcesarPago:
                         descuento = total
                     total_desc = total - descuento
                     pedido.total = total_desc
+                    pedido.descuento_cupon = descuento
+                    pedido.cupon_codigo = dto.cupon_codigo
             else:
                 raise ValueError("Cupón inválido o ya utilizado")
 
-        # Antes de persistir: si el total no coincide, no queda ni pedido ni
-        # pago creados, solo un 409 con el mensaje para el cliente.
         self._validar_total_esperado(pedido.total, dto.total_esperado)
         self._pedidos.crear_con_detalles(pedido, detalles)
 
@@ -116,19 +112,11 @@ class ProcesarPago:
         try:
             self._pagos.add(pago)
         except ClaveIdempotenciaOcupada:
-            # Carrera real: dos peticiones con la misma clave se cruzaron y las
-            # dos llegaron al INSERT. El indice unico salta en la segunda.
-            # El pedido recien creado queda huerfano (no tiene pago), asi que se
-            # borra y se devuelve el resultado del ganador en vez de un 500.
             self._descartar_pedido(pedido)
             reintento = self._buscar_reintento(dto)
             if reintento is not None:
                 return reintento
-            # La clave la tiene un pago VIVO que no es de esta sesion: no hay
-            # resultado propio que devolver. El indice es global, asi que la
-            # clave no se puede reusar entre usuarios. Se responde con un 409
-            # explicito en vez de dejar escapar `ClaveIdempotenciaOcupada` al
-            # handler, que la convertiria en un 500.
+
             raise ClaveIdempotenciaReutilizadaError(
                 "Hay otra operacion de pago en curso con esa clave. "
                 "Espera a que termine e intenta de nuevo."
@@ -151,9 +139,6 @@ class ProcesarPago:
             raise
 
         pago.token = resultado.token
-        # El url no se puede reconstruir: sale de la respuesta de la pasarela.
-        # Se persiste para que un reintento con la misma clave pueda devolver
-        # exactamente el mismo destino en vez de abrir un segundo intento.
         pago.url_intento = resultado.url
         self._pagos.update(pago)
         return resultado
@@ -178,19 +163,12 @@ class ProcesarPago:
             return None
 
         if pago.estado != EstadoPago.PENDIENTE:
-            # La operacion ya concluyo con esa clave. Devolver el url viejo
-            # mandaria al cliente a un pago ya cobrado o ya cancelado, asi que
-            # se informa y el frontend tiene que generar una clave nueva.
             raise ClaveIdempotenciaReutilizadaError(
                 "Este pago ya fue procesado. Actualizá la pagina para "
                 "continuar con una nueva operacion."
             )
 
         if not pago.url_intento:
-            # El pago esta vivo pero sin url guardada: no hay nada seguro que
-            # devolver. Caer por aqui significaria abrir un segundo intento
-            # mientras el primero sigue vivo, que es justo lo que la clave
-            # existe para evitar.
             raise ClaveIdempotenciaReutilizadaError(
                 "El pago anterior todavia se esta procesando. Espera unos "
                 "segundos e intenta de nuevo."
@@ -226,9 +204,6 @@ class ProcesarPago:
         """
         if esperado is None or esperado == total:
             return
-        # `f"{n:,}"` pone la coma de miles, que en espanol chileno se lee como
-        # separador decimal ("$18,078" es ambiguo). El total es un entero de
-        # pesos, asi que el punto de miles es lo unico que corresponde.
         raise TotalEsperadoDistintoError(
             f"El total cambio: esperabas ${esperado:,}".replace(",", ".")
             + f" y ahora es ${total:,}".replace(",", ".")
@@ -255,8 +230,6 @@ class ProcesarPago:
         resultado = (parametros.get("x_result") or "").lower()
         if resultado == "completed":
             if pago is not None and pago.estado == EstadoPago.COMPLETADO:
-                # El pago ya estaba confirmado: puede que el documento no se
-                # haya emitido, o que la emision anterior fallara. Se reintenta.
                 self._emitir_documento(pedido)
                 return ResultadoConfirmacionPago(
                     estado="completado", pedido_id=str(pedido.id),
@@ -270,13 +243,7 @@ class ProcesarPago:
                 pago.estado = EstadoPago.COMPLETADO
                 self._pagos.update(pago)
             self._carritos.eliminar(str(pedido.usuario_id))
-            # El comprobante electronico se emite con el pago ya confirmado:
-            # si el proveedor falla, el error queda registrado en la fila del
-            # documento y se reintenta en la proxima confirmacion.
             self._emitir_documento(pedido)
-            # El comprobante lleva el estado del PAGO. Si no hay fila de pago
-            # (pago locales que no la crearon), el estado es el de esta rama:
-            # la pasarela dijo `completed`, o sea que el pago SI se concretó.
             correo_enviado = self._enviar_comprobante(
                 pedido, pago.estado.value if pago is not None else "completado"
             )
@@ -309,13 +276,11 @@ class ProcesarPago:
                 json.dumps(dto.cliente, ensure_ascii=False) if dto.cliente else None
             ),
             entrega=dto.entrega,
-            # Que documento pide el cliente (boleta o factura). Queda en su
-            # propia columna para poder consultar los pedidos que esperan
-            # factura.
             tipo_documento=tipo_documento_de((dto.cliente or {}).get("tipoDocumento")),
         )
         detalles: list[DetallePedido] = []
-        subtotal = 0
+        subtotal_lista = 0
+        subtotal_final = 0
         for item in dto.items:
             producto = self._productos.get_by_id(item.producto_id)
             if producto is None or not producto.activo:
@@ -325,19 +290,29 @@ class ProcesarPago:
                     f"No hay stock suficiente de «{producto.nombre}» "
                     f"(disponible: {producto.stock})"
                 )
+            precio_original = getattr(producto, "precio_original", None)
+            if not (
+                isinstance(precio_original, int)
+                and precio_original > producto.precio
+            ):
+                precio_original = None
             detalles.append(
                 DetallePedido(
                     pedido_id=pedido.id,
                     producto_id=item.producto_id,
                     cantidad=item.cantidad,
                     precio_unitario=producto.precio,
+                    precio_original=precio_original,
                     color=getattr(item, "color", None),
                     nombre=producto.nombre,
                 )
             )
-            subtotal += producto.precio * item.cantidad
+            subtotal_lista += (precio_original or producto.precio) * item.cantidad
+            subtotal_final += producto.precio * item.cantidad
 
-        pedido.total = calcular_total_con_envio(subtotal, dto.entrega)
+        pedido.subtotal = subtotal_lista
+        pedido.descuento_productos = max(0, subtotal_lista - subtotal_final)
+        pedido.total = calcular_total_con_envio(subtotal_final, dto.entrega)
         pedido.detalles = detalles
         return pedido, detalles
 

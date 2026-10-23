@@ -181,6 +181,11 @@ class PagoRepository(RepositoryBase[Pago], ABC):
     def get_by_clave_idempotencia(self, clave: str) -> Pago | None:
         raise NotImplementedError
 
+    @abstractmethod
+    def eliminar_por_pedido(self, pedido_id: UUID) -> None:
+        """Borra todos los intentos de pago de un pedido."""
+        raise NotImplementedError
+
 
 class SolicitudDisenoRepository(RepositoryBase[SolicitudDiseno], ABC):
     @abstractmethod

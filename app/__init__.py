@@ -71,6 +71,9 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     )
     from app.application.pedidos_pagos.consultar_pedido import ConsultarPedido
     from app.application.pedidos_pagos.crear_pedido import CrearPedido
+    from app.application.pedidos_pagos.gestionar_pedido_no_pagado import (
+        GestionarPedidoNoPagado,
+    )
     from app.application.pedidos_pagos.procesar_pago import ProcesarPago
     from app.application.pedidos_pagos.seguimiento_starken import (
         GestionarSeguimientoStarken,
@@ -106,9 +109,8 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     pagos = PagoRepository()
     productos = ProductoRepository()
     documentos = DocumentoTributarioRepository()
-
-    # La emision de documentos electronicos es opcional: si no hay API key
-    # configurada el pago sigue funcionando, solo no se emite comprobante.
+    cupones = CuponRepository()
+    pasarela = TuuCliente(app.config)
     emisor = OpenFacturaCliente(app.config)
     if emisor.configurado:
         documentacion = EmitirDocumentoTributario(pedidos, documentos, emisor)
@@ -122,12 +124,19 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
         pedidos,
         pagos,
         productos,
-        TuuCliente(app.config),
+        pasarela,
         CarritoRepositoryBd(),
         EmailJsCorreo(app.config),
         usuarios=UsuarioRepository(),
-        cupones=CuponRepository(),
+        cupones=cupones,
         documentacion=documentacion,
+    )
+    app.config["PEDIDO_NO_PAGADO_SERVICE"] = GestionarPedidoNoPagado(
+        pedidos,
+        pagos,
+        pasarela,
+        cupones=cupones,
+        documentos=documentos,
     )
     app.config["CONSULTA_DOCUMENTO_SERVICE"] = ConsultarDocumentoTributario(documentos)
     if str(app.config.get("STARKEN_MODO_SIMULACION", "")).strip().lower() in ("1", "true", "si", "yes"):

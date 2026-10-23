@@ -12,6 +12,8 @@ export const pedidosApi = {
   mios: () => api.get('/pedidos'),
   todos: () => api.get('/pedidos/admin'),
   detalle: (id) => api.get(`/pedidos/${id}`),
+  pagarDeNuevo: (id) => api.post(`/pedidos/${id}/pagar`),
+  eliminar: (id) => api.del(`/pedidos/${id}`),
   registrarSeguimiento: (id, codigo, transportista) => 
     api.post(`/pedidos/${id}/seguimiento`, { codigo, transportista }),
   sincronizarSeguimiento: (id) => api.get(`/pedidos/${id}/seguimiento`),

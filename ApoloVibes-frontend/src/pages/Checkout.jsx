@@ -95,6 +95,27 @@ export default function Checkout() {
     }))
   }, [user])
 
+  // Aviso al salir con una compra en proceso. Si el cliente ya apreto "Pagar"
+  // no se pregunta nada: la redireccion a la pasarela debe pasar sin trabas.
+  const hayCambios = Boolean(
+    cliente.email || cliente.nombre || cliente.apellido || cliente.direccion ||
+    cliente.telefono || cliente.rut || fechaNacimiento || entrega,
+  )
+  const hayCambiosRef = useRef(hayCambios)
+  const enviandoRef2 = useRef(enviando)
+  hayCambiosRef.current = hayCambios
+  enviandoRef2.current = enviando
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (enviandoRef2.current || !hayCambiosRef.current) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [])
+
   if (!user) { return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>Inicia sesión para continuar</p></section> }
   if (!Array.isArray(items) || items.length === 0) {
     return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>Tu carrito está vacío</p></section>
@@ -127,6 +148,18 @@ export default function Checkout() {
           return acc + (precioOriginal - precio) * cantidad
         }
         return acc
+      }, 0)
+    : 0
+
+  // Subtotal a precio real (antes de descuentos): `total` ya trae la rebaja
+  // de los productos aplicada, así que se suma precio_original cuando existe.
+  const subtotal = Array.isArray(items)
+    ? items.reduce((acc, item) => {
+        const precioOriginal = Number(item.precio_original)
+        const precio = Number(item.precio)
+        const cantidad = Number(item.cantidad || 1)
+        const base = precioOriginal && precioOriginal > precio ? precioOriginal : precio
+        return acc + base * cantidad
       }, 0)
     : 0
 
@@ -624,7 +657,15 @@ export default function Checkout() {
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', marginBottom: 2 }}>
-            <Link to="/carrito" style={{ fontSize: 13, color: 'var(--surface-2)' }}>Editar</Link>
+            <Link
+              to="/carrito"
+              onClick={e => {
+                if (!enviando && hayCambios && !window.confirm('Tienes una compra en proceso. Si sales de esta página se perderán los datos ingresados. ¿Seguro que quieres salir?')) {
+                  e.preventDefault()
+                }
+              }}
+              style={{ fontSize: 13, color: 'var(--surface-2)' }}
+            >Editar</Link>
           </div>
 
           <img src={mediaPath('apolo-vibes-logo.webp')} alt='logo-icon' className='logoicon' loading="lazy" decoding="async" width="447" height="512" />
@@ -636,7 +677,7 @@ export default function Checkout() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
             <span>{Array.isArray(items) ? items.length : 0} {Array.isArray(items) && items.length === 1 ? 'producto' : 'productos'}</span>
-            <span>{clp(totalBase)}</span>
+            <span>{clp(subtotal)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 14 }}>
             <span>Entrega</span>

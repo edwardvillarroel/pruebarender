@@ -20,6 +20,12 @@ from app.application.pedidos_pagos.cambiar_estado_pedido import (
 )
 from app.application.pedidos_pagos.crear_pedido import CrearPedido
 from app.application.pedidos_pagos.consultar_pedido import ConsultarPedido
+from app.application.pedidos_pagos.gestionar_pedido_no_pagado import (
+    GestionarPedidoNoPagado,
+    PedidoNoModificableError,
+    PedidoNoPagadoDeOtroUsuarioError,
+    PedidoNoPagadoNoEncontradoError,
+)
 from app.application.pedidos_pagos.procesar_pago import ProcesarPago
 from app.application.pedidos_pagos.seguimiento_starken import (
     GestionarSeguimientoStarken,
@@ -64,6 +70,10 @@ def _servicio_pago() -> ProcesarPago:
 
 def _servicio_seguimiento() -> GestionarSeguimientoStarken:
     return current_app.config["SEGUIMIENTO_STARKEN_SERVICE"]
+
+
+def _servicio_pedido_no_pagado() -> GestionarPedidoNoPagado:
+    return current_app.config["PEDIDO_NO_PAGADO_SERVICE"]
 
 
 def _servicio_cambiar_estado() -> CambiarEstadoPedido:
@@ -119,6 +129,10 @@ def _a_publico_pedido(pedido, admin: bool = False) -> dict:
         "id": str(pedido.id),
         "estado": pedido.estado.value,
         "total": pedido.total,
+        "subtotal": pedido.subtotal,
+        "descuento_productos": pedido.descuento_productos,
+        "descuento_cupon": pedido.descuento_cupon,
+        "cupon_codigo": pedido.cupon_codigo,
         "entrega": pedido.entrega,
         "tipo_documento": (
             pedido.tipo_documento.value if pedido.tipo_documento else None
@@ -138,6 +152,7 @@ def _a_publico_pedido(pedido, admin: bool = False) -> dict:
                 "producto_id": str(detalle.producto_id),
                 "cantidad": detalle.cantidad,
                 "precio_unitario": detalle.precio_unitario,
+                "precio_original": detalle.precio_original,
                 "nombre": detalle.nombre,
                 "color": detalle.color,
                 "imagen": detalle.imagen,
@@ -145,6 +160,7 @@ def _a_publico_pedido(pedido, admin: bool = False) -> dict:
             for detalle in pedido.detalles
         ],
         "resenas_pendientes": pedido.resenas_pendientes or 0,
+        "estado_pago": pedido.estado_pago,
     }
     if admin:
         datos["usuario_id"] = str(pedido.usuario_id)
@@ -197,6 +213,38 @@ def detalle_pedido(pedido_id: UUID):
     if not _es_dueno(pedido):
         return _error("No autorizado", 403)
     return jsonify(_a_publico_pedido(pedido))
+
+
+@pedido_bp.post("/pedidos/<uuid:pedido_id>/pagar")
+@requiere_sesion()
+def reintentar_pago(pedido_id: UUID):
+    try:
+        resultado = _servicio_pedido_no_pagado().reintentar(
+            pedido_id, _usuario_uuid()
+        )
+    except PedidoNoPagadoNoEncontradoError as exc:
+        return _error(str(exc), 404)
+    except PedidoNoPagadoDeOtroUsuarioError as exc:
+        return _error(str(exc), 403)
+    except PedidoNoModificableError as exc:
+        return _error(str(exc), 409)
+    except ErrorPasarela as exc:
+        return _error(str(exc), 502)
+    return jsonify(url=resultado.url, token=resultado.token)
+
+
+@pedido_bp.delete("/pedidos/<uuid:pedido_id>")
+@requiere_sesion()
+def eliminar_pedido(pedido_id: UUID):
+    try:
+        _servicio_pedido_no_pagado().eliminar(pedido_id, _usuario_uuid())
+    except PedidoNoPagadoNoEncontradoError as exc:
+        return _error(str(exc), 404)
+    except PedidoNoPagadoDeOtroUsuarioError as exc:
+        return _error(str(exc), 403)
+    except PedidoNoModificableError as exc:
+        return _error(str(exc), 409)
+    return jsonify(ok=True)
 
 
 @pedido_bp.patch("/pedidos/<uuid:pedido_id>/estado")
@@ -359,12 +407,14 @@ def crear_pago():
         return _error("items es obligatorio", 400)
     try:
         dto = IniciarPagoDTO(
-            usuario_id=usuario_id,
-            items=items_dto,
+            usuario_id=_usuario_uuid(),
+            items=_items(datos),
             entrega=datos.get("entrega") or "retiro",
             cliente=datos.get("cliente") or None,
-            total_esperado=datos.get("total"),
-            clave_idempotencia=clave or None,
+            total_esperado=_entero_opcional(datos.get("total")),
+            clave_idempotencia=_clave_idempotencia(
+                datos.get("claveIdempotencia") or datos.get("clave_idempotencia")
+            ),
             guardar_datos=bool(datos.get("guardarDatos") or datos.get("guardar_datos")),
             cupon_codigo=str(datos.get("cuponCodigo") or datos.get("cupon_codigo") or "").strip().upper() or None,
         )

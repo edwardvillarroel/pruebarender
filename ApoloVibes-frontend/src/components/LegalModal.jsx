@@ -158,15 +158,15 @@ export default function LegalModal({ tipo, onClose }) {
       <style>{`
         .modal-scroll::-webkit-scrollbar { width: 6px; }
         .modal-scroll::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
-        .modal-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }}
+        .modal-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
         .modal-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
-        .modal-scroll { scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+        .modal-scroll { scrollbar-gutter: stable; }
       `}</style>
 
 
         {/* Header */}
         <div style={{
-          position: 'sticky', top: 0, zIndex: 3,
+          flexShrink: 0,
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 10,
           padding: '15px 52px 13px', background: 'var(--surface)',
