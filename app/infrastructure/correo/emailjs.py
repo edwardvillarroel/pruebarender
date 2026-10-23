@@ -91,6 +91,11 @@ def _parametros_comprobante(
         "to_email": cliente_email,
         "pedido_id": str(pedido.id)[:8],
         "estado": _ETIQUETA_ESTADO_PAGO.get(estado_pago, estado_pago),
+        "subtotal": _formatear_pesos(pedido.subtotal),
+        "descuento_productos": _formatear_pesos(pedido.descuento_productos) if pedido.descuento_productos else "",
+        "descuento_cupon": _formatear_pesos(pedido.descuento_cupon) if pedido.descuento_cupon else "",
+        "cupon_codigo": pedido.cupon_codigo or "",
+        "descuentos": _descuentos_en_tabla(pedido),
         "total": _formatear_pesos(pedido.total),
         "entrega": _ETIQUETA_ENTREGA.get(pedido.entrega, pedido.entrega),
         "items": items,
@@ -121,6 +126,38 @@ def _items_en_tabla(pedido: Pedido) -> str:
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
         'style="border-collapse:collapse;font-size:13px;color:#2c3e50;">'
         f"{encabezado}{filas}</table>"
+    )
+
+
+def _descuentos_en_tabla(pedido: Pedido) -> str:
+    """Desglose de subtotal y descuentos, o "" si el pedido no tuvo ofertas.
+
+    EmailJS no garantiza condicionales en la plantilla, así que el backend
+    decide si la fila existe y manda el HTML listo (igual que `items`).
+    """
+    filas = [
+        ("Subtotal", _formatear_pesos(pedido.subtotal)),
+    ]
+    if pedido.descuento_productos:
+        filas.append(("Descuento", f"- {_formatear_pesos(pedido.descuento_productos)}"))
+    if pedido.descuento_cupon:
+        etiqueta = "Cupón"
+        if pedido.cupon_codigo:
+            etiqueta = f"Cupón ({html.escape(pedido.cupon_codigo)})"
+        filas.append((etiqueta, f"- {_formatear_pesos(pedido.descuento_cupon)}"))
+    if len(filas) == 1:
+        return ""
+    celdas = "".join(
+        "<tr>"
+        f'<td style="padding:3px 0;color:#888;">{etiqueta}</td>'
+        f'<td align="right" style="padding:3px 0;">{valor}</td>'
+        "</tr>"
+        for etiqueta, valor in filas
+    )
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="border-collapse:collapse;font-size:13px;color:#2c3e50;">'
+        f"{celdas}</table>"
     )
 
 

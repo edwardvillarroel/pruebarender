@@ -11,6 +11,7 @@ class DetallePedidoModel(db.Model):
     producto_id = db.Column(db.Uuid, db.ForeignKey("productos.id"), nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
     precio_unitario = db.Column(db.Integer, nullable=False)
+    precio_original = db.Column(db.Integer)
     color = db.Column(db.String(50))
     nombre = db.Column(db.String(150))
 

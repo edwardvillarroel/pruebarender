@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
 from app.domain.entities.pago import Pago
@@ -94,6 +94,12 @@ class PagoRepository(PagoRepositoryInterface):
         if modelo is None:
             raise ValueError("Pago no encontrado en BD")
         db.session.delete(modelo)
+        db.session.commit()
+
+    def eliminar_por_pedido(self, pedido_id: UUID) -> None:
+        db.session.execute(
+            delete(self.model).where(self.model.pedido_id == pedido_id)
+        )
         db.session.commit()
 
 

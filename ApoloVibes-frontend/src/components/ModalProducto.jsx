@@ -386,23 +386,25 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                     .modal-scroll { scrollbar-gutter: stable; }
                 `}</style>
 
-                <div className="modal-scroll" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
-                    <div style={{
-                        position: 'sticky', top: 0, zIndex: 3,
-                        display: 'flex', flexDirection: 'column',
-                        alignItems: 'center', justifyContent: 'center', gap: 10,
-                        padding: '15px 52px 13px', background: 'var(--surface)',
-                        borderBottom: '1px solid var(--line)',
+                {/* Header fijo (fuera del scroll) */}
+                <div style={{
+                    flexShrink: 0,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 10,
+                    padding: '15px 52px 13px', background: 'var(--surface)',
+                    borderBottom: '1px solid var(--line)',
+                }}>
+                    <img src={mediaPath('apolo-vibes-logo.webp')} alt="Logo" loading="lazy" decoding="async" width="447" height="512" style={{ height: 60, width: 'auto', marginBottom: -10 }} />
+                    <h2 style={{
+                        margin: 0, fontSize: 18, fontWeight: 700,
+                        color: 'var(--text)', fontFamily: 'var(--font-display)',
                     }}>
-                        <img src={mediaPath('apolo-vibes-logo.webp')} alt="Logo" loading="lazy" decoding="async" width="447" height="512" style={{ height: 60, width: 'auto', marginBottom: -10 }} />
-                        <h2 style={{
-                            margin: 0, fontSize: 18, fontWeight: 700,
-                            color: 'var(--text)', fontFamily: 'var(--font-display)',
-                        }}>
-                            {esEdicion ? 'Editar producto' : 'Nuevo producto'}
-                        </h2>
-                    </div>
+                        {esEdicion ? 'Editar producto' : 'Nuevo producto'}
+                    </h2>
+                </div>
 
+                {/* Cuerpo scrolleable (solo el contenido, entre header y footer) */}
+                <div className="modal-scroll" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
                     <form id="form-producto" onSubmit={handleSubmit} style={{ padding: '22px 36px 24px' }}>
                         {/* Fila 1: categoria + nombre */}
                         <div style={grid2}>
@@ -739,39 +741,41 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                             </button>
                         </div>
                     </form>
-                    <div style={{
-                        position: 'sticky', bottom: 0, zIndex: 3,
-                        padding: '14px 36px',
-                        background: 'var(--surface)', borderTop: '1px solid var(--line)',
-                    }}>
-                        {error && (
-                            <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 10px' }}>{error}</p>
-                        )}
+                </div>
 
-                        <div style={{ display: 'flex', gap: 12 }}>
-                            <button type="button" onClick={onClose}
-                                style={{
-                                    flex: 1, padding: '12px 0', borderRadius: 10, border: '1px solid var(--line)',
-                                    background: 'transparent', color: 'var(--text-dim)', fontSize: 14, fontWeight: 500,
-                                    cursor: 'pointer', transition: 'border-color .2s',
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
-                                onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--line)'}
-                            >
-                                Cancelar
-                            </button>
-                            <button type="submit" form="form-producto" disabled={cargando || !!errorActual}
-                                style={{
-                                    flex: 2, padding: '12px 0', borderRadius: 10, border: 'none',
-                                    background: 'var(--accent)', color: 'var(--text)', fontSize: 14, fontWeight: 600,
-                                    cursor: cargando ? 'default' : 'pointer', display: 'flex',
-                                    alignItems: 'center', justifyContent: 'center', gap: 8,
-                                    opacity: cargando ? .7 : 1, transition: 'opacity .2s',
-                                }}
-                            >
-                                {cargando ? 'Guardando...' : esEdicion ? 'Guardar cambios' : 'Crear producto'}
-                            </button>
-                        </div>
+                {/* Footer fijo (fuera del scroll) */}
+                <div style={{
+                    flexShrink: 0,
+                    padding: '14px 36px',
+                    background: 'var(--surface)', borderTop: '1px solid var(--line)',
+                }}>
+                    {error && (
+                        <p style={{ color: '#ef4444', fontSize: 12, margin: '0 0 10px' }}>{error}</p>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 12 }}>
+                        <button type="button" onClick={onClose}
+                            style={{
+                                flex: 1, padding: '12px 0', borderRadius: 10, border: '1px solid var(--line)',
+                                background: 'transparent', color: 'var(--text-dim)', fontSize: 14, fontWeight: 500,
+                                cursor: 'pointer', transition: 'border-color .2s',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--line)'}
+                        >
+                            Cancelar
+                        </button>
+                        <button type="submit" form="form-producto" disabled={cargando || !!errorActual}
+                            style={{
+                                flex: 2, padding: '12px 0', borderRadius: 10, border: 'none',
+                                background: 'var(--accent)', color: 'var(--text)', fontSize: 14, fontWeight: 600,
+                                cursor: cargando ? 'default' : 'pointer', display: 'flex',
+                                alignItems: 'center', justifyContent: 'center', gap: 8,
+                                opacity: cargando ? .7 : 1, transition: 'opacity .2s',
+                            }}
+                        >
+                            {cargando ? 'Guardando...' : esEdicion ? 'Guardar cambios' : 'Crear producto'}
+                        </button>
                     </div>
                 </div>
             </div>

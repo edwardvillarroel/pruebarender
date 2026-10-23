@@ -983,3 +983,108 @@ label {
   }
 
 }
+
+/* ── Admin: códigos de descuento ── */
+.cup-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+.cup-tabla th {
+  padding: 10px 20px; text-align: left; font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--surface-2);
+  background: var(--bg); border-bottom: 1px solid var(--line);
+}
+
+.cup-tabla td { padding: 14px 20px; border-top: 1px solid var(--line); vertical-align: middle; text-align: center; }
+.cup-tabla tbody tr:first-child td { border-top: none; }
+
+/* Todo el contenido de la tabla va centrado salvo la columna del código. */
+.cup-tabla th:not(.cup-col-codigo) { text-align: center; }
+.cup-tabla th.cup-col-codigo,
+.cup-tabla td.cup-col-codigo { text-align: left; }
+
+.cup-codigo {
+  font-family: var(--font-mono); font-weight: 600; font-size: 13px; letter-spacing: .04em;
+  color: var(--text-dim);
+}
+
+.cup-pill {
+  display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.cup-estado {
+  display: inline-flex; align-items: center; gap: 7px; border-radius: 999px;
+  padding: 4px 12px 4px 10px; font-size: 12px; font-weight: 600;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+
+.cup-estado::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+.cup-icono {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border: 0; border-radius: 8px; padding: 0;
+  background: none; color: var(--text-dim); cursor: pointer;
+}
+
+.cup-icono:hover { color: var(--surface); }
+.cup-icono.peligro:hover { color: var(--red); }
+.cup-icono:focus-visible, .cup-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.cup-tab {
+  border: 0; border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 600;
+  background: transparent; color: var(--text-dim); cursor: pointer;
+}
+
+.cup-tab[aria-pressed="true"] { background: var(--accent); color: var(--input-bg); box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
+
+/* Buscador con el mismo estilo que el de pedidos. */
+.cup-buscar { position: relative; width: 280px; max-width: 100%; }
+.cup-buscar svg {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text-dim); pointer-events: none;
+}
+.cup-buscar input {
+  width: 100%; padding: 9px 12px 9px 34px; border-radius: 10px;
+  border: 1px solid var(--line); background: #fff;
+  color: var(--surface); font-size: 13px; box-sizing: border-box;
+}
+
+.cup-layout {
+  display: grid; grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 24px; align-items: start;
+}
+
+/* Sin esto, el ancho mínimo de la tabla estira la grilla y rompe el layout. */
+.cup-layout > * { min-width: 0; }
+
+.cup-form, .cup-card {
+  background: var(--surface-3); border: 1px solid var(--line); border-radius: 12px;
+}
+
+.cup-form { padding: 18px; }
+.cup-card { overflow: hidden; }
+
+.cup-barra {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; padding: 14px 20px;
+}
+
+.cup-tabs {
+  display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--bg);
+}
+
+.cup-tabla-wrap { overflow-x: auto; }
+
+@media (max-width: 900px) {
+  .cup-layout { grid-template-columns: 1fr; gap: 16px; }
+  .cup-buscar { width: 100%; }
+  .cup-barra { padding: 12px 14px; gap: 10px; }
+  .cup-tabs { width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .cup-tabs::-webkit-scrollbar { display: none; }
+  .cup-tab { flex: 1 0 auto; white-space: nowrap; }
+}
+
+@media (max-width: 560px) {
+  .cup-form { padding: 14px; }
+  .cup-tabla { min-width: 620px; }
+  .cup-tabla th, .cup-tabla td { padding: 10px 12px; }
+}

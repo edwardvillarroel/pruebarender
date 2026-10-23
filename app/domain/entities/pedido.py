@@ -18,15 +18,13 @@ class Pedido:
     transportista: str | None = None
     estado_seguimiento: str | None = None
     seguimiento_actualizado_en: datetime | None = None
-    # Que documento pide el cliente al pagar: "boleta" (DTE 39) o "factura"
-    # (DTE 33). Vive en su propia columna para poder consultar los pedidos
-    # que esperan factura; el resto de los datos de facturación van dentro
-    # de `direccion_envio`, que es el JSON que cautó el checkout.
     tipo_documento: TipoDocumentoTributario | None = None
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=utcnow)
     detalles: list[DetallePedido] = field(default_factory=list)
-    # 1 si el pedido esta `entregado` y tiene al menos un producto sin resena
-    # del usuario; 0 en el resto. Derivado (no es columna de la tabla): lo
-    # calcula `PedidoRepository.list_by_usuario` con una subquery.
     resenas_pendientes: int = 0
+    subtotal: int | None = None
+    descuento_productos: int = 0
+    descuento_cupon: int = 0
+    cupon_codigo: str | None = None
+    estado_pago: str | None = None

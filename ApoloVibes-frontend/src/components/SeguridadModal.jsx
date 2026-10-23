@@ -237,20 +237,22 @@ export default function SeguridadModal({ onClose }) {
                     .modal-scroll { scrollbar-gutter: stable; }
                 `}</style>
 
-                <div className="modal-scroll" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
-                    <div style={{
-                        position: 'sticky', top: 0, zIndex: 3,
-                        display: 'flex', flexDirection: 'column',
-                        alignItems: 'center', justifyContent: 'center', gap: 6,
-                        padding: '15px 52px 8px', background: 'var(--surface)',
-                        borderBottom: '1px solid var(--line)',
-                    }}>
-                        <img src={mediaPath('ApoloSeguridad.webp')} alt="Logo" loading="lazy" decoding="async" width="512" height="512" style={{ height: 100, width: 'auto', marginBottom: -10 }} />
-                        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>
-                            Seguridad ApoloVibes
-                        </h2>
-                    </div>
+                {/* Header fijo (fuera del scroll) */}
+                <div style={{
+                    flexShrink: 0,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 6,
+                    padding: '15px 52px 8px', background: 'var(--surface)',
+                    borderBottom: '1px solid var(--line)',
+                }}>
+                    <img src={mediaPath('ApoloSeguridad.webp')} alt="Logo" loading="lazy" decoding="async" width="512" height="512" style={{ height: 100, width: 'auto', marginBottom: -10 }} />
+                    <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text)', fontFamily: 'var(--font-display)' }}>
+                        Seguridad ApoloVibes
+                    </h2>
+                </div>
 
+                {/* Cuerpo scrolleable (solo el contenido, entre header y footer) */}
+                <div className="modal-scroll" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
                     <div style={{ padding: '20px 32px 28px' }}>
                         {/* --- Cambio de contraseña --- */}
                         <div style={seccionStyle}>

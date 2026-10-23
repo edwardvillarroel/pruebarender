@@ -33,12 +33,12 @@ class PedidoRepository(PedidoRepositoryInterface):
     model = PedidoModel
 
     def get_by_id(self, entity_id: UUID) -> Pedido | None:
-        modelo = db.session.execute(
-            select(self.model)
+        fila = db.session.execute(
+            select(self.model, self._estado_pago().label("estado_pago"))
             .options(selectinload(self.model.detalles))
             .where(self.model.id == entity_id)
-        ).scalar_one_or_none()
-        return self._con_imagenes([_a_entidad(modelo)])[0] if modelo else None
+        ).one_or_none()
+        return self._con_estado_pago([fila])[0] if fila else None
 
     def list(self, *filters: Any) -> list[Pedido]:
         consulta = db.session.query(self.model).options(
@@ -81,25 +81,31 @@ class PedidoRepository(PedidoRepositoryInterface):
         ).label("resenas_pendientes")
 
         filas = db.session.execute(
-            select(self.model, resenas_pendientes)
+            select(
+                self.model,
+                resenas_pendientes,
+                self._estado_pago().label("estado_pago"),
+            )
             .options(selectinload(self.model.detalles))
             .where(self.model.usuario_id == usuario_id)
             .order_by(self.model.creado_en.desc())
         ).all()
         pedidos = []
-        for modelo, pendientes in filas:
+        for modelo, pendientes, estado_pago in filas:
             entidad = _a_entidad(modelo)
             entidad.resenas_pendientes = int(pendientes)
+            entidad.estado_pago = estado_pago
             pedidos.append(entidad)
         return self._con_imagenes(pedidos)
 
     def list_todos(self) -> list[Pedido]:
-        modelos = db.session.execute(
-            select(self.model)
+        """Todos los pedidos, con el estado de su pago."""
+        filas = db.session.execute(
+            select(self.model, self._estado_pago().label("estado_pago"))
             .options(selectinload(self.model.detalles))
             .order_by(self.model.creado_en.desc())
-        ).scalars().all()
-        return self._con_imagenes([_a_entidad(m) for m in modelos])
+        ).all()
+        return self._con_estado_pago(filas)
 
     def list_pagados(self) -> list[Pedido]:
         tiene_pago_completado = (
@@ -109,14 +115,39 @@ class PedidoRepository(PedidoRepositoryInterface):
             .where(PagoModel.estado == EstadoPago.COMPLETADO.value)
             .exists()
         )
-        modelos = (
-            db.session.query(self.model)
+        filas = db.session.execute(
+            select(self.model, self._estado_pago().label("estado_pago"))
             .options(selectinload(self.model.detalles))
             .filter(tiene_pago_completado)
             .order_by(self.model.creado_en.desc())
-            .all()
+        ).all()
+        return self._con_estado_pago(filas)
+
+    def _estado_pago(self):
+        """Estado del pago del pedido: el completado si existe; si no, el último.
+
+        Se resuelve en SQL para no consultar el pago de cada pedido (N+1).
+        Devuelve `None` para pedidos sin ningún intento de pago.
+        """
+        return (
+            select(PagoModel.estado)
+            .where(PagoModel.pedido_id == self.model.id)
+            .order_by(
+                case((PagoModel.estado == EstadoPago.COMPLETADO.value, 0), else_=1),
+                PagoModel.creado_en.desc(),
+            )
+            .limit(1)
+            .correlate(self.model)
+            .scalar_subquery()
         )
-        return self._con_imagenes([_a_entidad(m) for m in modelos])
+
+    def _con_estado_pago(self, filas) -> list[Pedido]:
+        pedidos = []
+        for modelo, estado_pago in filas:
+            entidad = _a_entidad(modelo)
+            entidad.estado_pago = estado_pago
+            pedidos.append(entidad)
+        return self._con_imagenes(pedidos)
 
     def _con_imagenes(self, pedidos: list[Pedido]) -> list[Pedido]:
         """Completa la foto de cada línea en UNA sola consulta (evita N+1).
@@ -135,6 +166,10 @@ class PedidoRepository(PedidoRepositoryInterface):
             usuario_id=pedido.usuario_id,
             estado=pedido.estado.value,
             total=pedido.total,
+            subtotal=pedido.subtotal,
+            descuento_productos=pedido.descuento_productos,
+            descuento_cupon=pedido.descuento_cupon,
+            cupon_codigo=pedido.cupon_codigo,
             direccion_envio=pedido.direccion_envio,
             entrega=pedido.entrega,
             tipo_documento=_valor_tipo_documento(pedido.tipo_documento),
@@ -151,6 +186,7 @@ class PedidoRepository(PedidoRepositoryInterface):
                     producto_id=detalle.producto_id,
                     cantidad=detalle.cantidad,
                     precio_unitario=detalle.precio_unitario,
+                    precio_original=detalle.precio_original,
                     color=detalle.color,
                     nombre=detalle.nombre,
                 )
@@ -199,6 +235,10 @@ class PedidoRepository(PedidoRepositoryInterface):
         modelo.usuario_id = entidad.usuario_id
         modelo.estado = entidad.estado.value
         modelo.total = entidad.total
+        modelo.subtotal = entidad.subtotal
+        modelo.descuento_productos = entidad.descuento_productos
+        modelo.descuento_cupon = entidad.descuento_cupon
+        modelo.cupon_codigo = entidad.cupon_codigo
         modelo.direccion_envio = entidad.direccion_envio
         modelo.entrega = entidad.entrega
         modelo.tipo_documento = _valor_tipo_documento(entidad.tipo_documento)
@@ -289,6 +329,10 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
         usuario_id=modelo.usuario_id,
         estado=EstadoPedido(modelo.estado),
         total=modelo.total,
+        subtotal=modelo.subtotal,
+        descuento_productos=modelo.descuento_productos,
+        descuento_cupon=modelo.descuento_cupon,
+        cupon_codigo=modelo.cupon_codigo,
         direccion_envio=modelo.direccion_envio,
         entrega=modelo.entrega,
         tipo_documento=_a_tipo_documento(modelo.tipo_documento),
@@ -304,6 +348,7 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
                 producto_id=d.producto_id,
                 cantidad=d.cantidad,
                 precio_unitario=d.precio_unitario,
+                precio_original=d.precio_original,
                 color=d.color,
                 nombre=d.nombre,
             )
@@ -318,6 +363,10 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
         usuario_id=entidad.usuario_id,
         estado=entidad.estado.value,
         total=entidad.total,
+        subtotal=entidad.subtotal,
+        descuento_productos=entidad.descuento_productos,
+        descuento_cupon=entidad.descuento_cupon,
+        cupon_codigo=entidad.cupon_codigo,
         direccion_envio=entidad.direccion_envio,
         entrega=entidad.entrega,
         tipo_documento=_valor_tipo_documento(entidad.tipo_documento),
@@ -333,6 +382,7 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
             producto_id=d.producto_id,
             cantidad=d.cantidad,
             precio_unitario=d.precio_unitario,
+            precio_original=d.precio_original,
             color=d.color,
             nombre=d.nombre,
         )

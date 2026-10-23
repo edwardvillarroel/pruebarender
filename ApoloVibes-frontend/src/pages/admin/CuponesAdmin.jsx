@@ -1,10 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { api } from '../../services/api.js'
-import { Plus, Trash2, Tag } from 'lucide-react'
+import { Plus, Trash2, Tag, Copy, Check, Search } from 'lucide-react'
+import ConfirmModal from '../../components/ConfirmModal.jsx'
+import { mediaPath } from '../../utils/media.js'
 
 const TIPOS = [
   { valor: 'porcentaje', etiqueta: 'Porcentaje' },
   { valor: 'monto', etiqueta: 'Monto fijo' },
+]
+
+const FILTROS = [
+  { valor: 'todos', etiqueta: 'Todos' },
+  { valor: 'activo', etiqueta: 'Activos' },
+  { valor: 'canjeado', etiqueta: 'Canjeados' },
 ]
 
 const estiloCampo = {
@@ -24,12 +32,26 @@ const FORM_INICIAL = {
   descripcion: ''
 }
 
+function estadoDe(c) {
+  return c.usado && c.uso_unico ? 'canjeado' : 'activo'
+}
+
+const ESTADOS = {
+  activo: { texto: 'Activo', color: 'var(--green)' },
+  canjeado: { texto: 'Canjeado', color: 'var(--text-dim)' },
+}
+
 export default function CuponesAdmin() {
   const [cupones, setCupones] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [eliminando, setEliminando] = useState(null)
+  const [errorEliminar, setErrorEliminar] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [form, setForm] = useState(FORM_INICIAL)
+  const [filtro, setFiltro] = useState('todos')
+  const [busqueda, setBusqueda] = useState('')
+  const [copiado, setCopiado] = useState(null)
 
   async function cargar() {
     setLoading(true)
@@ -68,17 +90,43 @@ export default function CuponesAdmin() {
     }
   }
 
-  async function eliminar(id) {
-    if (!window.confirm('¿Eliminar este cupón?')) return
+  async function confirmarEliminar() {
+    if (!eliminando) return
     try {
-      await api.delete(`/admin/cupones/${id}`)
-      setCupones(prev => prev.filter(c => c.id !== id))
+      await api.del(`/admin/cupones/${eliminando.id}`)
+      setCupones(prev => prev.filter(c => c.id !== eliminando.id))
+      setErrorEliminar('')
+      setEliminando(null)
     } catch (e) {
-      alert(e.response?.data?.error || 'Error al eliminar')
+      setErrorEliminar(e.response?.data?.error || e.message || 'Error al eliminar')
+      setEliminando(null)
+    }
+  }
+
+  async function copiar(c) {
+    try {
+      await navigator.clipboard.writeText(c.codigo)
+      setCopiado(c.id)
+      setTimeout(() => setCopiado(actual => (actual === c.id ? null : actual)), 1500)
+    } catch {
     }
   }
 
   const esPorcentaje = form.tipo === 'porcentaje'
+
+  const conteo = useMemo(() => {
+    const base = { todos: cupones.length, activo: 0, canjeado: 0 }
+    cupones.forEach(c => { base[estadoDe(c)]++ })
+    return base
+  }, [cupones])
+
+  const visibles = useMemo(() => {
+    const q = busqueda.trim().toUpperCase()
+    return cupones.filter(c =>
+      (filtro === 'todos' || estadoDe(c) === filtro) &&
+      (!q || c.codigo.toUpperCase().includes(q))
+    )
+  }, [cupones, filtro, busqueda])
 
   return (
     <div>
@@ -87,8 +135,8 @@ export default function CuponesAdmin() {
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, margin: 0, color: 'var(--surface)' }}>Códigos de descuento</h1>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) 1fr', gap: 24, alignItems: 'start' }}>
-        <form onSubmit={crear} style={{ background: 'var(--surface-3)', border: '1px solid var(--line)', borderRadius: 12, padding: 18 }}>
+      <div className="cup-layout">
+        <form onSubmit={crear} className="cup-form">
           <h2 style={{ fontSize: 15, margin: '0 0 14px', color: 'var(--surface)' }}>Crear cupón</h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
 
@@ -197,43 +245,150 @@ export default function CuponesAdmin() {
           {error && <p style={{ color: '#ef4444', fontSize: 13, marginTop: 10 }}>{error}</p>}
         </form>
 
-        <div style={{ background: 'var(--surface-3)', border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ textAlign: 'left', color: 'var(--surface-2)', fontSize: 11, textTransform: 'uppercase', borderBottom: '1px solid var(--line)' }}>
-                <th style={{ padding: '12px 16px' }}>Código</th>
-                <th style={{ padding: '12px 16px' }}>Tipo</th>
-                <th style={{ padding: '12px 16px' }}>Valor</th>
-                <th style={{ padding: '12px 16px' }}>Uso único</th>
-                <th style={{ padding: '12px 16px' }}>Estado</th>
-                <th style={{ padding: '12px 16px' }}>Usado</th>
-                <th style={{ padding: '12px 16px' }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={7} style={{ padding: 18, textAlign: 'center', color: 'var(--text-dim)' }}>Cargando...</td></tr>
-              ) : cupones.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 18, textAlign: 'center', color: 'var(--text-dim)' }}>Sin cupones</td></tr>
-              ) : cupones.map(c => (
-                <tr key={c.id} style={{ borderBottom: '1px solid var(--line)' }}>
-                  <td style={{ padding: '12px 16px', color: 'var(--surface)', fontFamily: 'var(--font-mono)' }}>{c.codigo}</td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-dim)' }}>{c.tipo === 'porcentaje' ? 'Porcentaje' : 'Monto fijo'}</td>
-                  <td style={{ padding: '12px 16px', color: 'var(--surface)' }}>{c.tipo === 'porcentaje' ? `${c.valor}%` : `$${Number(c.valor).toLocaleString('es-CL')}`}</td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-dim)' }}>{c.uso_unico ? 'Sí' : 'No'}</td>
-                  <td style={{ padding: '12px 16px', color: c.activo && !c.usado ? '#22c55e' : 'var(--text-dim)' }}>{c.activo && !c.usado ? 'Activo' : 'Inactivo'}</td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-dim)' }}>{c.usado ? 'Sí' : 'No'}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                    <button onClick={() => eliminar(c.id)} title="Eliminar" style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer' }}>
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
-                </tr>
+        <div className="cup-card">
+          {/* Barra: filtros + búsqueda */}
+          <div className="cup-barra">
+            <div className="cup-tabs">
+              {FILTROS.map(f => (
+                <button
+                  key={f.valor}
+                  type="button"
+                  className="cup-tab"
+                  aria-pressed={filtro === f.valor}
+                  onClick={() => setFiltro(f.valor)}
+                >
+                  {f.etiqueta} · {conteo[f.valor]}
+                </button>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            <div className="cup-buscar">
+              <Search size={15} aria-hidden="true" />
+              <input
+                type="search"
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                placeholder="Buscar código"
+                aria-label="Buscar código"
+              />
+            </div>
+          </div>
+
+          {errorEliminar && (
+            <p style={{ margin: 0, padding: '0 20px 12px', color: 'var(--red)', fontSize: 13 }}>{errorEliminar}</p>
+          )}
+
+          <div className="cup-tabla-wrap">
+            <table className="cup-tabla">
+              <thead>
+                <tr>
+                  <th className="cup-col-codigo">Código</th>
+                  <th></th>
+                  <th>Tipo</th>
+                  <th>Valor</th>
+                  <th>Uso</th>
+                  <th>Estado</th>
+                  <th style={{ width: 80 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '40px 20px' }}>
+                      <img
+                        src={mediaPath('cargando.webp')}
+                        alt=""
+                        decoding="async"
+                        width="512"
+                        height="512"
+                        style={{ display: 'block', height: 70, width: 'auto', margin: '0 auto 12px' }}
+                      />
+                      Cargando...
+                    </td>
+                  </tr>
+                ) : visibles.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '40px 20px' }}>
+                      <img
+                        src={mediaPath('sinproductos.webp')}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        width="512"
+                        height="512"
+                        style={{ display: 'block', height: 70, width: 'auto', margin: '0 auto 12px' }}
+                      />
+                      {cupones.length === 0 ? 'Aún no hay cupones. Crea el primero desde el formulario.' : 'Ningún cupón coincide con el filtro.'}
+                    </td>
+                  </tr>
+                ) : visibles.map(c => {
+                  const est = ESTADOS[estadoDe(c)]
+                  const pct = c.tipo === 'porcentaje'
+                  return (
+                    <tr key={c.id}>
+                      <td className="cup-col-codigo">
+                        <span className="cup-codigo">{c.codigo}</span>
+                      </td>
+                      <td style={{ color: 'var(--text-dim)' }}>
+                        <button
+                          type="button"
+                          className="cup-icono"
+                          onClick={() => copiar(c)}
+                          aria-label={`Copiar código ${c.codigo}`}
+                          title={copiado === c.id ? 'Copiado' : 'Copiar'}
+                        >
+                          {copiado === c.id ? <Check size={14} style={{ color: 'var(--green)' }} /> : <Copy size={14} />}
+                        </button>
+                      </td>
+                      <td style={{ color: 'var(--text-dim)' }}>
+                        {pct ? 'Porcentaje' : 'Monto fijo'}
+                      </td>
+                      <td style={{ fontWeight: 700, fontSize: 13, color: 'var(--text-dim)' }}>
+                        {pct ? `${c.valor}%` : `$${Number(c.valor).toLocaleString('es-CL')}`}
+                      </td>
+                      <td>
+                        <span className="cup-pill">{c.uso_unico ? 'Uso único' : 'Ilimitado'}</span>
+                      </td>
+                      <td>
+                        <span className="cup-estado" style={{ color: est.color }}>{est.texto}</span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="cup-icono peligro"
+                          onClick={() => { setErrorEliminar(''); setEliminando(c) }}
+                          aria-label={`Eliminar cupón ${c.codigo}`}
+                          title="Eliminar"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {!loading && cupones.length > 0 && (
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--line)', fontSize: 12, color: 'var(--text-dim)' }}>
+              Mostrando {visibles.length} de {cupones.length} cupones
+            </div>
+          )}
         </div>
       </div>
+
+      {eliminando && (
+        <ConfirmModal
+          titulo="Eliminar cupón"
+          mensaje={`¿Seguro que querés eliminar el cupón ${eliminando.codigo}? Esta acción no se puede deshacer.`}
+          textoCancelar="Cancelar"
+          textoConfirmar="Eliminar cupón"
+          textoCargando="Eliminando…"
+          onConfirm={confirmarEliminar}
+          onCancel={() => setEliminando(null)}
+        />
+      )}
     </div>
   )
 }
