@@ -5,6 +5,7 @@ import TopBar from './components/TopBar.jsx'
 import Footer from './components/Footer.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import ScrollToTop from './components/ScrollToTop.jsx'
+import RutaCliente from './components/RutaCliente..jsx'
 
 import Home from './pages/Home.jsx'
 import Categorias from './pages/Categorias.jsx'
@@ -53,7 +54,7 @@ export default function App() {
           <Route path="/carrito" element={<TiendaLayout><Carrito /></TiendaLayout>} />
           <Route path="/checkout" element={<TiendaLayout><Checkout /></TiendaLayout>} />
           <Route path="/pago/retorno" element={<TiendaLayout><PagoRetorno /></TiendaLayout>} />
-          <Route path="/cotizar" element={<TiendaLayout><Cotizacion /></TiendaLayout>} />
+          <Route path="/cotizar" element={<TiendaLayout><RutaCliente><Cotizacion /></RutaCliente></TiendaLayout>} />
           <Route path="/mis-pedidos" element={<TiendaLayout><MisPedidos /></TiendaLayout>} />
 
           <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>

@@ -348,7 +348,6 @@ export default function LoginModal({ onClose }) {
             if (tiempoCierre.current) clearTimeout(tiempoCierre.current)
             tiempoCierre.current = setTimeout(() => {
                 onClose()
-                navigate('/')
             }, 1800)
         } catch (err) {
             const msg = err.message || 'Error al crear la cuenta'

@@ -44,6 +44,9 @@ celery==5.5.3
 # --- Servidor de producción ---
 gunicorn==26.1.0
 
+# --- Validación de imágenes ---
+filetype==1.2.0
+
 # --- Proxy HTTP (gateway -> backend) ---
 httpx==0.28.1
 

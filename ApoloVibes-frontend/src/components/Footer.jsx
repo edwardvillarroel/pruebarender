@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import LegalModal from './LegalModal.jsx'
@@ -77,6 +77,53 @@ function SeccionFooter({ titulo, abierta, alAlternar, children }) {
 export default function Footer() {
   const [modalAbierto, setModalAbierto] = useState(null)
   const [seccionesAbiertas, setSeccionesAbiertas] = useState({})
+
+  useEffect(() => {
+    function interceptarNavegacion(e) {
+      const target = e.target
+      if (!(target instanceof Element)) return
+
+      const estaEnCheckout = window.__checkoutBlocking && (
+        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+        window.location.pathname.endsWith('/checkout') || 
+        window.location.pathname.includes('/checkout')
+      )
+      if (!estaEnCheckout) return
+
+      // Bloquear links
+      const enlace = target.closest('a')
+      if (enlace) {
+        const href = enlace.getAttribute('href')
+        if (href && !href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('tel:') && enlace.target !== '_blank' && !href.startsWith('#') && !href.startsWith('javascript:')) {
+          e.preventDefault()
+          e.stopPropagation()
+          e.stopImmediatePropagation()
+          window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: href } }))
+          return
+        }
+      }
+
+      // Bloquear botones dentro del footer que navegan
+      const footer = target.closest('footer')
+      if (footer) {
+        const boton = target.closest('button')
+        if (boton) {
+          // Permitir abrir modales legales
+          const texto = boton.textContent?.toLowerCase() || ''
+          if (texto.includes('términos') || texto.includes('privacidad') || texto.includes('cookies') || texto.includes('despachos') || texto.includes('devoluciones')) {
+            return
+          }
+          e.preventDefault()
+          e.stopPropagation()
+          e.stopImmediatePropagation()
+          window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
+        }
+      }
+    }
+
+    document.addEventListener('click', interceptarNavegacion, true)
+    return () => document.removeEventListener('click', interceptarNavegacion, true)
+  }, [])
 
   function alternar(id) {
     setSeccionesAbiertas((s) => ({ ...s, [id]: !s[id] }))
@@ -160,7 +207,22 @@ export default function Footer() {
               alAlternar={() => alternar('tienda')}
             >
               {ENLACES_TIENDA.map((e) => (
-                <Link key={e.nombre} to={e.href} style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+                <Link
+                  key={e.nombre}
+                  to={e.href}
+                  onClick={(ev) => {
+                    const estaEnCheckout = window.__checkoutBlocking && (
+                      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                      window.location.pathname.endsWith('/checkout') || 
+                      window.location.pathname.includes('/checkout')
+                    )
+                    if (estaEnCheckout) {
+                      ev.preventDefault()
+                      window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: e.href } }))
+                    }
+                  }}
+                  style={{ fontSize: 13, color: 'var(--text-dim)' }}
+                >
                   {e.nombre}
                 </Link>
               ))}
@@ -172,7 +234,22 @@ export default function Footer() {
               alAlternar={() => alternar('empresa')}
             >
               {ENLACES_EMPRESA.map((e) => (
-                <Link key={e.nombre} to={e.href} style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+                <Link
+                  key={e.nombre}
+                  to={e.href}
+                  onClick={(ev) => {
+                    const estaEnCheckout = window.__checkoutBlocking && (
+                      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                      window.location.pathname.endsWith('/checkout') || 
+                      window.location.pathname.includes('/checkout')
+                    )
+                    if (estaEnCheckout) {
+                      ev.preventDefault()
+                      window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: e.href } }))
+                    }
+                  }}
+                  style={{ fontSize: 13, color: 'var(--text-dim)' }}
+                >
                   {e.nombre}
                 </Link>
               ))}

@@ -10,9 +10,9 @@ const STATUS_CONFIG = {
 }
 
 const STEPS = [
-  { key: 'uploading', label: 'Subir imagen' },
-  { key: 'processing', label: 'Generar modelo 3D' },
-  { key: 'completed', label: 'Modelo listo' },
+  { key: 'uploading', label: 'Subiendo imagen' },
+  { key: 'processing', label: 'Creando modelo 3D' },
+  { key: 'completed', label: 'Generación completada' },
 ]
 
 export default function GenerationProgress({ status = 'idle', percent = 0, message = '' }) {
@@ -45,7 +45,7 @@ export default function GenerationProgress({ status = 'idle', percent = 0, messa
         </div>
         <div>
           <p style={{ fontSize: 14, fontWeight: 600, color: esOscuro ? 'var(--text)' : 'var(--surface)', margin: 0 }}>
-            Generando modelo 3D
+            {status === 'failed' ? 'Generación de modelo 3D fallido' : status === 'completed' ? 'Generación de modelo 3D completado' : 'Analizando imagen'}
           </p>
           <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
             {message || 'Esperando...'}
