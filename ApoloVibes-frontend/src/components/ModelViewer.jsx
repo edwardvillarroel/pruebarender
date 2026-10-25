@@ -1,12 +1,13 @@
 import { useRef, useState, useEffect, Suspense } from 'react'
 import ErrorBoundary from './ErrorBoundary.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
+import { mediaPath } from '../utils/media.js'
 
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
-export default function ModelViewer({ modelUrl, height = 400 }) {
+export default function ModelViewer({ modelUrl, height = 400, onError }) {
   const containerRef = useRef(null)
   const rendererRef = useRef(null)
   const sceneRef = useRef(null)
@@ -16,9 +17,16 @@ export default function ModelViewer({ modelUrl, height = 400 }) {
   const [state, setState] = useState('loading')
   const { theme } = useTheme()
   const esOscuro = theme === 'dark'
+  const onErrorRef = useRef(onError)
+  onErrorRef.current = onError
+
+  useEffect(() => {
+    if (state === 'error') onErrorRef.current?.()
+  }, [state])
 
   useEffect(() => {
     if (!modelUrl || !containerRef.current) return
+    setState('loading')
 
     const container = containerRef.current
     let disposed = false
@@ -163,12 +171,12 @@ export default function ModelViewer({ modelUrl, height = 400 }) {
         <div style={{
           position: 'absolute', inset: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(10,10,10,.8)',
+          background: 'var(--input-bg)',
         }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{
               width: 32, height: 32, margin: '0 auto 10px',
-              border: '3px solid #272C34',
+              border: '3px solid transparent',
               borderTopColor: '#E8863E',
               borderRadius: '50%',
               animation: 'spin 1s linear infinite',
@@ -182,16 +190,32 @@ export default function ModelViewer({ modelUrl, height = 400 }) {
       {state === 'error' && (
         <div style={{
           position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          display: 'flex',
+          overflow: 'auto',
+          boxSizing: 'border-box',
+          padding: 16,
           background: esOscuro ? 'var(--surface)' : 'var(--input-bg)',
-          flexDirection: 'column', gap: 8,
         }}>
-          <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0, textAlign: 'center' }}>
-            No se pudo cargar el modelo 3D.
-          </p>
-          <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, textAlign: 'center' }}>
-            La imagen fue enviada. Nuestro equipo generará la referencia.
-          </p>
+          <div style={{
+            margin: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center',
+            gap: 8, maxWidth: 300, textAlign: 'center',
+          }}>
+            <img
+              src={mediaPath('sinproductos.webp')}
+              alt=''
+              loading="lazy"
+              decoding='async'
+              width="512"
+              height="512"
+              style={{ display: 'block', height: 100, width: 'auto', maxWidth: '100%', flexShrink: 0 }}
+            />
+            <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0, textAlign: 'center' }}>
+              No se pudo cargar el modelo 3D.
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, textAlign: 'center' }}>
+              La imagen será enviada de todas formas. Asegurate de detallar bien en la descripción para que el prodcuto cumpla con tus estándares.
+            </p>
+          </div>
         </div>
       )}
 
@@ -224,7 +248,7 @@ export default function ModelViewer({ modelUrl, height = 400 }) {
           fontSize: 11, color: '#8A9099',
           pointerEvents: 'none',
         }}>
-          Arrastrá para rotar · Scroll para zoom
+          Arrastra para rotar · Scroll para zoom
         </div>
       )}
 

@@ -65,7 +65,65 @@ export default function Navbar() {
     return () => window.removeEventListener('apolovibes:google-mfa', abrirGoogleMfa)
   }, [abrirLogin])
 
+  useEffect(() => {
+    function interceptarNavegacion(e) {
+      const target = e.target
+      if (!(target instanceof Element)) return
+
+      const estaEnCheckout = window.__checkoutBlocking && (
+        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+        window.location.pathname.endsWith('/checkout') || 
+        window.location.pathname.includes('/checkout')
+      )
+      if (!estaEnCheckout) return
+
+      // Bloquear links
+      const enlace = target.closest('a')
+      if (enlace) {
+        const href = enlace.getAttribute('href')
+        if (href && !href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('tel:') && enlace.target !== '_blank' && !href.startsWith('#') && !href.startsWith('javascript:')) {
+          e.preventDefault()
+          e.stopPropagation()
+          e.stopImmediatePropagation()
+          window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: href } }))
+          return
+        }
+      }
+
+      // Bloquear botones dentro del navbar que navegan
+      const nav = target.closest('header')
+      if (nav) {
+        const boton = target.closest('button')
+        if (boton) {
+          // Permitir abrir/cerrar modales/carrito/theme/hamburger/mi cuenta sin salir
+          if (boton.getAttribute('aria-label') === 'Carrito') return
+          if (boton.classList.contains('theme-toggle')) return
+          if (boton.classList.contains('hamburger')) return
+          if (boton.getAttribute('aria-label') === 'Mi cuenta') return
+          if (boton.closest('.cart-icon')) return
+          // Para el resto, preguntar antes de salir
+          e.preventDefault()
+          e.stopPropagation()
+          e.stopImmediatePropagation()
+          window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
+        }
+      }
+    }
+
+    document.addEventListener('click', interceptarNavegacion, true)
+    return () => document.removeEventListener('click', interceptarNavegacion, true)
+  }, [])
+
   function handleMobileNav(path) {
+    const estaEnCheckout = window.__checkoutBlocking && (
+      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+      window.location.pathname.endsWith('/checkout') || 
+      window.location.pathname.includes('/checkout')
+    )
+    if (estaEnCheckout) {
+      window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: path } }))
+      return
+    }
     setMobileOpen(false)
     navigate(path)
   }
@@ -117,15 +175,70 @@ export default function Navbar() {
             <Menu size={24} />
           </button>
 
-          <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 18, color: '#FBF7EE' }}>
-            <img src={mediaPath('nombrelogo2.webp')} alt="Logo" loading="lazy" decoding="async" width="512" height="171" style={{ height: 50, width: 'auto' }} />
-          </Link>
+          <div
+            onClick={(e) => {
+              const estaEnCheckout = window.__checkoutBlocking && (
+                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                window.location.pathname.endsWith('/checkout') || 
+                window.location.pathname.includes('/checkout')
+              )
+              if (estaEnCheckout) {
+                e.preventDefault()
+                window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
+                return
+              }
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 18, color: '#FBF7EE' }}
+          >
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 18, color: '#FBF7EE' }}>
+              <img src={mediaPath('nombrelogo2.webp')} alt="Logo" loading="lazy" decoding="async" width="512" height="171" style={{ height: 50, width: 'auto' }} />
+            </Link>
+          </div>
         </div>
         {/* Desktop nav */}
         <nav className="nav-links hide-mobile">
-          <Link to="/categorias">Catálogo</Link>
-          <Link to="/cotizar">Cotiza tu producto</Link>
-          <Link to="/">Nosotros</Link>
+          <Link
+            to="/categorias"
+            onClick={(e) => {
+              const estaEnCheckout = window.__checkoutBlocking && (
+                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                window.location.pathname.endsWith('/checkout') || 
+                window.location.pathname.includes('/checkout')
+              )
+              if (estaEnCheckout) {
+                e.preventDefault()
+                window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/categorias' } }))
+              }
+            }}
+          >Catálogo</Link>
+          <Link
+            to="/cotizar"
+            onClick={(e) => {
+              const estaEnCheckout = window.__checkoutBlocking && (
+                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                window.location.pathname.endsWith('/checkout') || 
+                window.location.pathname.includes('/checkout')
+              )
+              if (estaEnCheckout) {
+                e.preventDefault()
+                window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/cotizar' } }))
+              }
+            }}
+          >Cotiza tu producto</Link>
+          <Link
+            to="/"
+            onClick={(e) => {
+              const estaEnCheckout = window.__checkoutBlocking && (
+                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                window.location.pathname.endsWith('/checkout') || 
+                window.location.pathname.includes('/checkout')
+              )
+              if (estaEnCheckout) {
+                e.preventDefault()
+                window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
+              }
+            }}
+          >Nosotros</Link>
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'flex-end' }}>
@@ -194,7 +307,18 @@ export default function Navbar() {
                 </div>
                 {isAdmin && (
                   <button
-                    onClick={() => { setUserMenuOpen(false); navigate('/admin') }}
+                    onClick={() => { 
+                      const estaEnCheckout = window.__checkoutBlocking && (
+                        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                        window.location.pathname.endsWith('/checkout') || 
+                        window.location.pathname.includes('/checkout')
+                      )
+                      if (estaEnCheckout) {
+                        window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/admin' } }))
+                        return
+                      }
+                      setUserMenuOpen(false); navigate('/admin') 
+                    }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                       padding: '12px 16px', border: 'none', background: 'none',
@@ -211,7 +335,18 @@ export default function Navbar() {
                 )}
                 {!isAdmin && (
                   <button
-                    onClick={() => { setUserMenuOpen(false); navigate('/mis-pedidos') }}
+                    onClick={() => { 
+                      const estaEnCheckout = window.__checkoutBlocking && (
+                        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                        window.location.pathname.endsWith('/checkout') || 
+                        window.location.pathname.includes('/checkout')
+                      )
+                      if (estaEnCheckout) {
+                        window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/mis-pedidos' } }))
+                        return
+                      }
+                      setUserMenuOpen(false); navigate('/mis-pedidos') 
+                    }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                       padding: '12px 16px', border: 'none', background: 'none',
@@ -358,13 +493,25 @@ export default function Navbar() {
                       <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
                         Tu carrito está vacío.
                       </p>
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => { setCartOpen(false); navigate('/categorias') }}
-                        style={{ color: 'var(--text)' }}
-                      >
-                        Ver catálogo
-                      </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => { 
+                        const estaEnCheckout = window.__checkoutBlocking && (
+                          (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                          window.location.pathname.endsWith('/checkout') || 
+                          window.location.pathname.includes('/checkout')
+                        )
+                        if (estaEnCheckout) {
+                          window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/carrito' } }))
+                          setCartOpen(false)
+                          return
+                        }
+                        setCartOpen(false); navigate('/carrito') 
+                      }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', background: 'var(--surface)' }}
+                    >
+                      Continuar con la compra
+                    </button>
                     </div>
                   ) : (
                     items.map((item, index) => (
@@ -469,11 +616,23 @@ export default function Navbar() {
                     </div>
                     <button
                       className="btn btn-primary"
-                      onClick={() => { setCartOpen(false); navigate('/carrito') }}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', background: 'var(--surface)' }}
-                    >
-                      Continuar con la compra
-                    </button>
+                    onClick={() => { 
+                      const estaEnCheckout = window.__checkoutBlocking && (
+                        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                        window.location.pathname.endsWith('/checkout') || 
+                        window.location.pathname.includes('/checkout')
+                      )
+                      if (estaEnCheckout) {
+                        window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/carrito' } }))
+                        setCartOpen(false)
+                        return
+                      }
+                      setCartOpen(false); navigate('/carrito') 
+                    }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', background: 'var(--surface)' }}
+                  >
+                    Continuar con la compra
+                  </button>
                   </div>
                 )}
               </div>
@@ -507,29 +666,77 @@ export default function Navbar() {
                   <X size={24} />
                 </button>
               </div>
-              {!isLoggedIn && (
-                <button className="nm-login" onClick={() => { setMobileOpen(false); abrirLogin() }}>
-                  Inicia sesión
-                </button>
-              )}
+            {!isLoggedIn && (
+              <button className="nm-login" onClick={() => { 
+                const estaEnCheckout = window.__checkoutBlocking && (
+                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                  window.location.pathname.endsWith('/checkout') || 
+                  window.location.pathname.includes('/checkout')
+                )
+                if (estaEnCheckout) {
+                  window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
+                  setMobileOpen(false)
+                  return
+                }
+                setMobileOpen(false); abrirLogin() 
+              }}>
+                Inicia sesión
+              </button>
+            )}
             </div>
 
             {/* Mis pedidos (o panel admin) */}
             {isLoggedIn && (
               <div className="nm-section">
                 {isAdmin ? (
-                  <button className="nm-item" onClick={() => handleMobileNav('/admin')}>
+                  <button className="nm-item" onClick={() => {
+                    const estaEnCheckout = window.__checkoutBlocking && (
+                      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                      window.location.pathname.endsWith('/checkout') || 
+                      window.location.pathname.includes('/checkout')
+                    )
+                    if (estaEnCheckout) {
+                      window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/admin' } }))
+                      setMobileOpen(false)
+                      return
+                    }
+                    handleMobileNav('/admin')
+                  }}>
                     <LayoutDashboard size={18} /> Panel admin
                   </button>
                 ) : (
-                  <button className="nm-item" onClick={() => handleMobileNav('/mis-pedidos')}>
+                  <button className="nm-item" onClick={() => {
+                    const estaEnCheckout = window.__checkoutBlocking && (
+                      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                      window.location.pathname.endsWith('/checkout') || 
+                      window.location.pathname.includes('/checkout')
+                    )
+                    if (estaEnCheckout) {
+                      window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/mis-pedidos' } }))
+                      setMobileOpen(false)
+                      return
+                    }
+                    handleMobileNav('/mis-pedidos')
+                  }}>
                     <ClipboardList size={18} /> Mis pedidos
                   </button>
                 )}
               </div>
             )}
             <div className="nm-section">
-              <button className="nm-item" onClick={() => handleMobileNav('/cotizar')}>
+              <button className="nm-item" onClick={() => {
+                const estaEnCheckout = window.__checkoutBlocking && (
+                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                  window.location.pathname.endsWith('/checkout') || 
+                  window.location.pathname.includes('/checkout')
+                )
+                if (estaEnCheckout) {
+                  window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/cotizar' } }))
+                  setMobileOpen(false)
+                  return
+                }
+                handleMobileNav('/cotizar')
+              }}>
                 <Calculator size={18} /> Cotiza tu producto
               </button>
             </div>
@@ -538,14 +745,39 @@ export default function Navbar() {
             {/* Categorías */}
             <div className="nm-section">
               <div className="nm-title">Categorías</div>
-              <button className="nm-item" onClick={() => handleMobileNav('/categorias')}>
+              <button className="nm-item" onClick={() => {
+                const estaEnCheckout = window.__checkoutBlocking && (
+                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                  window.location.pathname.endsWith('/checkout') || 
+                  window.location.pathname.includes('/checkout')
+                )
+                if (estaEnCheckout) {
+                  window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/categorias' } }))
+                  setMobileOpen(false)
+                  return
+                }
+                handleMobileNav('/categorias')
+              }}>
                 Ver todo el catálogo <ChevronRight size={18} className="nm-chevron" />
               </button>
               {categorias.map(c => (
                 <button
                   key={c.id}
                   className="nm-item"
-                  onClick={() => handleMobileNav(`/categorias?cat=${c.id}`)}
+                  onClick={() => {
+                    const path = `/categorias?cat=${c.id}`
+                    const estaEnCheckout = window.__checkoutBlocking && (
+                      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                      window.location.pathname.endsWith('/checkout') || 
+                      window.location.pathname.includes('/checkout')
+                    )
+                    if (estaEnCheckout) {
+                      window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: path } }))
+                      setMobileOpen(false)
+                      return
+                    }
+                    handleMobileNav(path)
+                  }}
                 >
                   {c.nombre} <ChevronRight size={18} className="nm-chevron" />
                 </button>
@@ -555,14 +787,38 @@ export default function Navbar() {
             {/* Resto */}
             {isLoggedIn && (
             <div className="nm-section">
-                <button className="nm-item" onClick={() => { setMobileOpen(false); setSeguridadOpen(true) }}>
-                  <ShieldCheck size={18} /> Seguridad
-                </button>         
+              <button className="nm-item" onClick={() => { 
+                const estaEnCheckout = window.__checkoutBlocking && (
+                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                  window.location.pathname.endsWith('/checkout') || 
+                  window.location.pathname.includes('/checkout')
+                )
+                if (estaEnCheckout) {
+                  window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/mis-pedidos' } }))
+                  setMobileOpen(false)
+                  return
+                }
+                setMobileOpen(false); setSeguridadOpen(true)
+              }}>
+                <ShieldCheck size={18} /> Seguridad
+              </button>         
             </div>
             )}
 
             <div className="nm-section">
-              <button className="nm-item" onClick={toggleTheme}>
+              <button className="nm-item" onClick={() => {
+                const estaEnCheckout = window.__checkoutBlocking && (
+                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
+                  window.location.pathname.endsWith('/checkout') || 
+                  window.location.pathname.includes('/checkout')
+                )
+                if (estaEnCheckout) {
+                  window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
+                  setMobileOpen(false)
+                  return
+                }
+                toggleTheme()
+              }}>
                 {theme === 'dark' ? <><Sun size={18} /> Modo claro</> : <><Moon size={18} /> Modo oscuro</>}
               </button>
             </div>

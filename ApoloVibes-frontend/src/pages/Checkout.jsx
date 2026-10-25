@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { mediaPath } from '../utils/media.js'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { iniciarPago } from '../services/payment.js'
 import SelectOpciones from '../components/SelectOpciones.jsx'
 import LegalModal from '../components/LegalModal.jsx'
+import ConfirmModal from '../components/ConfirmModal.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { REGIONES, COMUNAS_POR_REGION } from '../services/regiones.js'
 import {
@@ -68,8 +70,10 @@ export default function Checkout() {
   const auth = useAuth() || {}
   const { user } = auth
   const location = useLocation()
+  const navigate = useNavigate()
   const claveRef = useRef(null)
   const enviandoRef = useRef(false)
+  const bypassRef = useRef(false)
   if (claveRef.current === null) claveRef.current = crypto.randomUUID()
 
   const [cliente, setCliente] = useState(CLIENTE_INICIAL)
@@ -81,6 +85,8 @@ export default function Checkout() {
   const [error, setError] = useState(null)
   const [tocado, setTocado] = useState({})
   const [modalAbierto, setModalAbierto] = useState(null)
+  const [mostrarModalSalida, setMostrarModalSalida] = useState(false)
+  const [rutaDestino, setRutaDestino] = useState(null)
   const cuponFromState = location.state?.cupon || null
   const [cupon, setCupon] = useState(cuponFromState)
 
@@ -99,22 +105,165 @@ export default function Checkout() {
   // no se pregunta nada: la redireccion a la pasarela debe pasar sin trabas.
   const hayCambios = Boolean(
     cliente.email || cliente.nombre || cliente.apellido || cliente.direccion ||
-    cliente.telefono || cliente.rut || fechaNacimiento || entrega,
+    cliente.telefono || cliente.rut || cliente.codigoPostal || cliente.comuna || cliente.region ||
+    cliente.ciudad || cliente.numero || cliente.dpto || cliente.razonSocial || cliente.giro ||
+    fechaNacimiento || entrega,
   )
   const hayCambiosRef = useRef(hayCambios)
   const enviandoRef2 = useRef(enviando)
   hayCambiosRef.current = hayCambios
   enviandoRef2.current = enviando
 
+  const debeBloquearSalida = hayCambios && !enviandoRef2.current && !enviandoRef.current
+
   useEffect(() => {
     const handler = (e) => {
-      if (enviandoRef2.current || !hayCambiosRef.current) return
+      if (!debeBloquearSalida) return
       e.preventDefault()
       e.returnValue = ''
     }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
+  }, [debeBloquearSalida])
+
+  useEffect(() => {
+    if (!debeBloquearSalida) return
+
+    const getUrl = () => `${window.location.pathname}${window.location.search}${window.location.hash}`
+
+    const handlePopState = () => {
+      window.history.pushState(null, '', getUrl())
+      setRutaDestino(-1)
+      setMostrarModalSalida(true)
+    }
+
+    window.history.pushState(null, '', getUrl())
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [debeBloquearSalida])
+
+  useEffect(() => {
+    window.__checkoutBlocking = debeBloquearSalida
+    const isCheckoutPath = window.location.pathname.endsWith('/checkout') || window.location.pathname.includes('/checkout')
+    window.__checkoutLocation = isCheckoutPath ? '/checkout' : window.location.pathname
+    return () => {
+      window.__checkoutBlocking = false
+      window.__checkoutLocation = null
+    }
+  }, [debeBloquearSalida])
+
+  useEffect(() => {
+    if (!debeBloquearSalida) {
+      bypassRef.current = false
+      if (window.__checkoutBlocking === false) {
+        // ensure clean
+      }
+      return
+    }
+
+    const origPush = window.history.pushState
+    const origReplace = window.history.replaceState
+
+    window.history.pushState = function (state, title, url) {
+      if (bypassRef.current) {
+        return origPush.call(this, state, title, url)
+      }
+      window.__checkoutPendingUrl = url
+      window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: url || '/' } }))
+      return false
+    }
+
+    window.history.replaceState = function (state, title, url) {
+      if (bypassRef.current) {
+        return origReplace.call(this, state, title, url)
+      }
+      window.__checkoutPendingUrl = url
+      window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: url || '/' } }))
+      return false
+    }
+
+    return () => {
+      window.history.pushState = origPush
+      window.history.replaceState = origReplace
+      bypassRef.current = false
+    }
+  }, [debeBloquearSalida])
+
+  useEffect(() => {
+    function onRequestConfirm(e) {
+    if (!window.__checkoutBlocking) return
+    const destino = e.detail?.to || window.__checkoutPendingUrl
+    window.__checkoutPendingUrl = null
+    if (!destino) return
+    setRutaDestino(destino)
+    setMostrarModalSalida(true)
+  }
+    window.addEventListener('checkout:request-confirm', onRequestConfirm)
+    return () => window.removeEventListener('checkout:request-confirm', onRequestConfirm)
   }, [])
+
+  function intentarSalir(ruta) {
+    if (debeBloquearSalida) {
+      setRutaDestino(ruta)
+      setMostrarModalSalida(true)
+      return
+    }
+    navigate(ruta)
+  }
+
+  function confirmarSalida() {
+    setMostrarModalSalida(false)
+    bypassRef.current = true
+    window.__checkoutBlocking = false
+    window.__checkoutLocation = null
+    const destino = rutaDestino
+    setRutaDestino(null)
+
+    setTimeout(() => {
+      if (destino === -1) {
+        navigate(-1)
+        return
+      }
+      if (destino) {
+        try {
+          if (typeof destino === 'string' && destino.startsWith('http')) {
+            const url = new URL(destino)
+            let path = url.hash ? url.hash.replace('#', '') : ''
+            if (path) {
+              navigate(path.startsWith('/') ? path : '/' + path)
+              return
+            }
+            path = url.pathname
+            if (path.includes('/ApoloVibes3D-Frontend')) {
+              path = path.split('/ApoloVibes3D-Frontend')[1] || '/'
+            }
+            navigate(path || '/')
+            return
+          }
+          if (typeof destino === 'string') {
+            // Si viene con hash
+            if (destino.includes('#')) {
+              const hash = destino.split('#')[1]
+              if (hash) {
+                navigate(hash.startsWith('/') ? hash : '/' + hash)
+                return
+              }
+            }
+            navigate(destino)
+            return
+          }
+        } catch(e) {}
+        navigate(destino || '/')
+        return
+      }
+      navigate('/')
+    }, 50)
+  }
+
+  function cancelarSalida() {
+    setMostrarModalSalida(false)
+    setRutaDestino(null)
+  }
 
   if (!user) { return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>Inicia sesión para continuar</p></section> }
   if (!Array.isArray(items) || items.length === 0) {
@@ -657,15 +806,21 @@ export default function Checkout() {
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'baseline', marginBottom: 2 }}>
-            <Link
-              to="/carrito"
-              onClick={e => {
-                if (!enviando && hayCambios && !window.confirm('Tienes una compra en proceso. Si sales de esta página se perderán los datos ingresados. ¿Seguro que quieres salir?')) {
-                  e.preventDefault()
-                }
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                intentarSalir('/carrito')
               }}
-              style={{ fontSize: 13, color: 'var(--surface-2)' }}
-            >Editar</Link>
+              style={{ 
+                fontSize: 13, 
+                color: 'var(--surface-2)', 
+                background: 'none', 
+                border: 'none', 
+                cursor: 'pointer', 
+                padding: 0 
+              }}
+            >Editar</button>
           </div>
 
           <img src={mediaPath('apolo-vibes-logo.webp')} alt='logo-icon' className='logoicon' loading="lazy" decoding="async" width="447" height="512" />
@@ -780,9 +935,21 @@ export default function Checkout() {
       </div>
       {modalAbierto && (
         <LegalModal
-        tipo={modalAbierto}
-        onClose={() => setModalAbierto(null)}
+          tipo={modalAbierto}
+          onClose={() => setModalAbierto(null)}
         />
+      )}
+
+      {mostrarModalSalida && createPortal(
+        <ConfirmModal
+          titulo="Compra en proceso"
+          onConfirm={confirmarSalida}
+          onCancel={cancelarSalida}
+          mensaje="Tienes una compra en proceso. Si sales de esta página se perderán los datos ingresados. ¿Seguro que quieres salir?"
+          textoCancelar="No, quedarme"
+          textoConfirmar="Sí, salir"
+        />,
+        document.body
       )}
     </section>
   )
