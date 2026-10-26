@@ -247,7 +247,9 @@ select:user-invalid {
   color: var(--surface);
 }
 
-.input-prefijo input {
+/* El fondo lo pinta siempre el contenedor: el input nunca debe pintar uno propio. */
+.input-prefijo input,
+[data-theme="light"] .input-prefijo input {
   border: none;
   background: transparent;
   padding: 0;
@@ -256,6 +258,21 @@ select:user-invalid {
   outline: none;
   flex: 1;
   min-width: 0;
+}
+
+/* Autofill del navegador: sin esto los dígitos quedan sobre un bloque var(--bg) */
+.input-prefijo input:-webkit-autofill,
+.input-prefijo input:-webkit-autofill:hover,
+.input-prefijo input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+}
+
+[data-theme="light"] .input-prefijo input:-webkit-autofill,
+[data-theme="light"] .input-prefijo input:-webkit-autofill:hover,
+[data-theme="light"] .input-prefijo input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset !important;
+  -webkit-text-fill-color: var(--surface) !important;
 }
 
 .input-prefijo:focus-within {

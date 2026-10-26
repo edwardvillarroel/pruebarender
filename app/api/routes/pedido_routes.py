@@ -15,6 +15,7 @@ from app.application.facturacion.consultar_documento_tributario import (
 from app.application.pedidos_pagos.cambiar_estado_pedido import (
     CambiarEstadoPedido,
     EstadoInvalidoError,
+    PedidoDeOtroUsuarioError,
     PedidoNoEncontradoError,
     TransicionInvalidaError,
 )
@@ -27,6 +28,11 @@ from app.application.pedidos_pagos.gestionar_pedido_no_pagado import (
     PedidoNoPagadoNoEncontradoError,
 )
 from app.application.pedidos_pagos.procesar_pago import ProcesarPago
+from app.application.pedidos_pagos.notificar_cancelacion import (
+    AvisoPedidoNoEncontradoError,
+    NotificarCancelacion,
+    PedidoSinCancelarError,
+)
 from app.application.pedidos_pagos.seguimiento_starken import (
     GestionarSeguimientoStarken,
 )
@@ -78,6 +84,10 @@ def _servicio_pedido_no_pagado() -> GestionarPedidoNoPagado:
 
 def _servicio_cambiar_estado() -> CambiarEstadoPedido:
     return current_app.config["CAMBIAR_ESTADO_PEDIDO_SERVICE"]
+
+
+def _servicio_notificar_cancelacion() -> NotificarCancelacion:
+    return current_app.config["NOTIFICAR_CANCELACION_SERVICE"]
 
 
 def _servicio_documento() -> ConsultarDocumentoTributario:
@@ -160,7 +170,16 @@ def _a_publico_pedido(pedido, admin: bool = False) -> dict:
             for detalle in pedido.detalles
         ],
         "resenas_pendientes": pedido.resenas_pendientes or 0,
+        "resenas_completadas": pedido.resenas_completadas or 0,
         "estado_pago": pedido.estado_pago,
+        "aviso_cancelacion_en": (
+            pedido.aviso_cancelacion_en.isoformat()
+            if pedido.aviso_cancelacion_en
+            else None
+        ),
+        "aviso_cancelacion_pendiente": bool(
+            pedido.aviso_cancelacion_en and not pedido.aviso_cancelacion_visto
+        ),
     }
     if admin:
         datos["usuario_id"] = str(pedido.usuario_id)
@@ -245,6 +264,56 @@ def eliminar_pedido(pedido_id: UUID):
     except PedidoNoModificableError as exc:
         return _error(str(exc), 409)
     return jsonify(ok=True)
+
+
+@pedido_bp.post("/pedidos/<uuid:pedido_id>/cancelar")
+@requiere_sesion()
+def cancelar_pedido(pedido_id: UUID):
+    """El cliente cancela su propio pedido, hasta que entre en produccion."""
+    try:
+        pedido = _servicio_cambiar_estado().cancelar(pedido_id, _usuario_uuid())
+    except PedidoNoEncontradoError as exc:
+        return _error(str(exc), 404)
+    except PedidoDeOtroUsuarioError as exc:
+        return _error(str(exc), 403)
+    except TransicionInvalidaError as exc:
+        return _error(str(exc), 409)
+    return jsonify(_a_publico_pedido(pedido))
+
+
+@pedido_bp.post("/pedidos/<uuid:pedido_id>/aviso-cancelacion")
+@requiere_sesion()
+@rol_requerido("admin")
+def avisar_cancelacion_cliente(pedido_id: UUID):
+    """El admin confirma que Tuu acepto la anulacion: enciende el badge."""
+    try:
+        pedido = _servicio_notificar_cancelacion().informar_cliente(pedido_id)
+    except AvisoPedidoNoEncontradoError as exc:
+        return _error(str(exc), 404)
+    except PedidoSinCancelarError as exc:
+        return _error(str(exc), 409)
+    return jsonify(
+        aviso_cancelacion_en=pedido.aviso_cancelacion_en.isoformat()
+        if pedido.aviso_cancelacion_en
+        else None,
+        aviso_cancelacion_pendiente=True,
+    )
+
+
+@pedido_bp.post("/pedidos/<uuid:pedido_id>/aviso-cancelacion/visto")
+@requiere_sesion()
+def marcar_aviso_cancelacion_visto(pedido_id: UUID):
+    """El cliente abre el aviso: el badge se apaga (idempotente)."""
+    pedido = _servicio_consulta().por_id(pedido_id)
+    if pedido is None:
+        return _error("Pedido no encontrado", 404)
+    if not _es_dueno(pedido):
+        return _error("No autorizado", 403)
+    try:
+        _servicio_notificar_cancelacion().marcar_visto(pedido_id)
+    except AvisoPedidoNoEncontradoError as exc:
+        return _error(str(exc), 404)
+    return jsonify(ok=True, aviso_cancelacion_pendiente=False)
 
 
 @pedido_bp.patch("/pedidos/<uuid:pedido_id>/estado")

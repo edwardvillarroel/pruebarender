@@ -41,11 +41,16 @@ export function CartProvider({ children }) {
   const carritoRef = useRef(null)
   const itemsRef = useRef([])
   const seqRef = useRef(0)
+  // El catálogo vive en un ref para que el enriquecimiento del carrito no
+  // dependa del `productos` capturado por la closure de `cargarCarrito`: al
+  // recargar la página el carrito puede responder DESPUÉS de que el catálogo
+  // ya cargó, y sin esto se enriquecía con una lista vacía (precio $0).
+  const productosRef = useRef(productos)
 
   const syncItems = useCallback((carrito) => {
     carritoRef.current = carrito
-    actualizarItems(enrichCart(carrito, productos))
-  }, [productos])
+    actualizarItems(enrichCart(carrito, productosRef.current))
+  }, [])
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -58,10 +63,11 @@ export function CartProvider({ children }) {
 
 
   useEffect(() => {
+    productosRef.current = productos
     if (carritoRef.current) {
       syncItems(carritoRef.current)
     }
-  }, [productos])
+  }, [productos, syncItems])
 
   async function cargarCarrito() {
     if (!isLoggedIn) return

@@ -75,6 +75,9 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
         GestionarPedidoNoPagado,
     )
     from app.application.pedidos_pagos.procesar_pago import ProcesarPago
+    from app.application.pedidos_pagos.notificar_cancelacion import (
+        NotificarCancelacion,
+    )
     from app.application.pedidos_pagos.seguimiento_starken import (
         GestionarSeguimientoStarken,
     )
@@ -120,6 +123,7 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     app.config["PEDIDO_SERVICE"] = CrearPedido(pedidos, productos)
     app.config["CONSULTA_PEDIDO_SERVICE"] = ConsultarPedido(pedidos)
     app.config["CAMBIAR_ESTADO_PEDIDO_SERVICE"] = CambiarEstadoPedido(pedidos)
+    app.config["NOTIFICAR_CANCELACION_SERVICE"] = NotificarCancelacion(pedidos)
     app.config["PAGO_SERVICE"] = ProcesarPago(
         pedidos,
         pagos,

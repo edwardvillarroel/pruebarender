@@ -22,6 +22,8 @@ class PedidoModel(db.Model):
     transportista = db.Column(db.String(30))
     estado_seguimiento = db.Column(db.String(100))
     seguimiento_actualizado_en = db.Column(db.DateTime(timezone=True))
+    aviso_cancelacion_en = db.Column(db.DateTime(timezone=True))
+    aviso_cancelacion_visto = db.Column(db.Boolean, nullable=False, default=False)
     creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     detalles = db.relationship(

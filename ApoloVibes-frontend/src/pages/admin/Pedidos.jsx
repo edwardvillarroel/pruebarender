@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   Pencil, RefreshCw, AlertTriangle, Eye, Search, ChevronLeft, ChevronRight,
   X, CircleCheck, Package, Truck, Store, User, Phone, Mail, Clock, Check,
-  FileText, Building2, Briefcase, ClipboardList,
+  FileText, Building2, Briefcase, ClipboardList, Bell,
 } from 'lucide-react';
 import { pedidosApi, TRANSPORTISTAS } from '../../services/orders.js';
 import ConfirmModal from '../../components/ConfirmModal.jsx';
@@ -144,8 +144,6 @@ function LogoTransportista({ valor, label }) {
   );
 }
 
-// ─── Detalle del pedido (nuevo diseño) ───────────────────────
-
 const PASOS = ['pendiente', 'en_produccion', 'enviado', 'entregado'];
 
 const COLOR_TEXTO = '#FFFFFF';
@@ -237,14 +235,23 @@ function FilaDato({ icono: Icono, etiqueta, valor }) {
   );
 }
 
-function DetalleModal({ pedido, onClose }) {
+function DetalleModal({ pedido, onClose, onCancelar }) {
   useBloqueoScroll();
+  const [estado, setEstado] = useState(pedido.estado);
+  const [confirmarCancelacion, setConfirmarCancelacion] = useState(false);
+  const [errorCancelacion, setErrorCancelacion] = useState(null);
+  const [avisando, setAvisando] = useState(false);
+  const [errorAviso, setErrorAviso] = useState(null);
+  const [avisoEnviado, setAvisoEnviado] = useState(
+    Boolean(pedido.aviso_cancelacion_en),
+  );
+  const puedeCancelar = estado === 'pendiente' || estado === 'en_produccion';
   const cliente = pedido.cliente || {};
   const esFactura = cliente.tipoDocumento === 'factura';
   const esRetiro = pedido.entrega === 'retiro';
   const itemsPedido = pedido.items || [];
-  const estilo = ESTILO_ESTADO[pedido.estado] || { bg: '#E5E7EB', color: '#374151' };
-  const IconoEstado = pedido.estado === 'entregado' ? CircleCheck : pedido.estado === 'cancelado' ? X : Clock;
+  const estilo = ESTILO_ESTADO[estado] || { bg: '#E5E7EB', color: '#374151' };
+  const IconoEstado = estado === 'entregado' ? CircleCheck : estado === 'cancelado' ? X : Clock;
 
   const neto = Math.round(Number(pedido.total) / 1.19);
   const iva = Number(pedido.total) - neto;
@@ -279,6 +286,31 @@ function DetalleModal({ pedido, onClose }) {
       ]
       : []),
   ].filter(Boolean);
+
+  async function cancelarPedido() {
+    setErrorCancelacion(null);
+    try {
+      await onCancelar(pedido);
+      setEstado('cancelado');
+      setConfirmarCancelacion(false);
+    } catch (err) {
+      setErrorCancelacion(err.message);
+      setConfirmarCancelacion(false);
+    }
+  }
+
+  async function informarCliente() {
+    setAvisando(true);
+    setErrorAviso(null);
+    try {
+      await pedidosApi.informarCancelacion(pedido.id);
+      setAvisoEnviado(true);
+    } catch (err) {
+      setErrorAviso(err.message);
+    } finally {
+      setAvisando(false);
+    }
+  }
 
   return (
     <div
@@ -334,7 +366,7 @@ function DetalleModal({ pedido, onClose }) {
               fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 999,
             }}>
               <IconoEstado size={14} />
-              {ETIQUETAS_ESTADO[pedido.estado] || pedido.estado}
+              {ETIQUETAS_ESTADO[estado] || estado}
             </span>
           </div>
         </div>
@@ -343,7 +375,7 @@ function DetalleModal({ pedido, onClose }) {
         <div className="modal-scroll" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
         <div style={{ padding: '20px 24px 0' }}>
 
-        <LineaEstado estado={pedido.estado} entrega={pedido.entrega} tieneSeguimiento={!!pedido.codigo_seguimiento} />
+        <LineaEstado estado={estado} entrega={pedido.entrega} tieneSeguimiento={!!pedido.codigo_seguimiento} />
 
         <div style={{
           display: 'flex', gap: 12, background: FONDO_TARJETA,
@@ -463,6 +495,77 @@ function DetalleModal({ pedido, onClose }) {
           </div>
         )}
 
+        {/* Cancelar pedido*/}
+        {puedeCancelar && (
+          <div style={{
+            background: 'rgba(140,18,18,.12)', border: '1px solid rgba(255,90,90,.35)',
+            borderRadius: 12, padding: 14, marginBottom: 18,
+          }}>
+            <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#FF9B9B', textAlign: 'center' }}>
+              ¿Necesitas cancelar este pedido?
+            </p>
+            <p style={{ margin: '0 0 12px', textAlign: 'center', fontSize: 12, color: COLOR_APAGADO, lineHeight: 1.5 }}>
+              Opción disponible solo hasta antes del despacho del pedido. Si el pedido ya salió, no se puede cancelar.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <button
+              type="button"
+              onClick={() => { setErrorCancelacion(null); setConfirmarCancelacion(true) }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '9px 14px', borderRadius: 10,
+                border: '1px solid rgba(255,90,90,.45)', background: 'rgba(140,18,18,.18)',
+                color: '#FF9B9B', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+               Cancelar pedido
+            </button>
+          </div>
+
+            {errorCancelacion && (
+              <p style={{ margin: '10px 0 0', fontSize: 12, color: '#FF9B9B' }}>{errorCancelacion}</p>
+            )}
+          </div>
+        )}
+
+        {/* Anulación en Tuu */}
+        {estado === 'cancelado' && (
+          <div style={{
+            background: 'rgba(22,189,16,.10)', border: '1px solid rgba(22,189,16,.30)',
+            borderRadius: 12, padding: 14, marginBottom: 18,
+          }}>
+            <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#7BE07A', textAlign: 'center' }}>
+              Anulación en Tuu
+            </p>
+            <p style={{ margin: '0 0 12px', textAlign: 'center', fontSize: 12, color: COLOR_APAGADO, lineHeight: 1.5 }}>
+              {avisoEnviado
+                ? 'El cliente ya tiene el aviso en MisPedidos.'
+                : 'Cuando Tuu acepte la anulación, avísale al cliente: le aparecerá un aviso en MisPedidos.'}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={informarCliente}
+                disabled={avisando || avisoEnviado}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '9px 14px', borderRadius: 10,
+                  border: '1px solid rgba(22,189,16,.45)', background: 'rgba(22,189,16,.18)',
+                  color: '#7BE07A', fontSize: 13, fontWeight: 600,
+                  cursor: avisando || avisoEnviado ? 'not-allowed' : 'pointer',
+                  opacity: avisando || avisoEnviado ? 0.6 : 1,
+                }}
+              >
+                <Bell size={14} />
+                {avisoEnviado ? 'Cliente avisado' : avisando ? 'Avisando…' : 'Informar al cliente'}
+              </button>
+            </div>
+            {errorAviso && (
+              <p style={{ margin: '10px 0 0', fontSize: 12, color: '#FF9B9B' }}>{errorAviso}</p>
+            )}
+          </div>
+        )}
+
         </div>
         </div>
 
@@ -482,6 +585,18 @@ function DetalleModal({ pedido, onClose }) {
             Cerrar
           </button>
         </div>
+
+        {confirmarCancelacion && (
+          <ConfirmModal
+            titulo="Cancelar pedido"
+            mensaje={`¿Confirmas que el pedido #${pedido.id.slice(0, 8)} quede cancelado? Esta acción no se puede deshacer.`}
+            textoCancelar="No, volver"
+            textoConfirmar="Sí, cancelar pedido"
+            textoCargando="Cancelando..."
+            onConfirm={cancelarPedido}
+            onCancel={() => setConfirmarCancelacion(false)}
+          />
+        )}
       </div>
     </div>
   );
@@ -676,7 +791,7 @@ export default function Pedidos() {
     const calcularFilas = () => {
       const disponible = window.innerHeight - 340;
       const base = Math.floor(disponible / 60);
-      const maximo = window.innerWidth < 768 ? 5 : 8;
+      const maximo = window.innerWidth < 768 ? 5 : 12;
       setFilasPorPagina(Math.max(3, Math.min(base, maximo)));
     };
     calcularFilas();
@@ -733,6 +848,14 @@ export default function Pedidos() {
       setEntregarPedido(null);
       setMensaje({ tipo: 'error', texto: err.message });
     }
+  }
+
+
+  async function cancelarPedido(pedido) {
+    setMensaje(null);
+    await pedidosApi.cambiarEstado(pedido.id, 'cancelado');
+    setMensaje({ tipo: 'ok', texto: `Pedido #${pedido.id.slice(0, 8)} cancelado.` });
+    await cargar();
   }
 
 
@@ -998,7 +1121,7 @@ export default function Pedidos() {
       )}
 
       {detalle && (
-        <DetalleModal pedido={detalle} onClose={() => setDetalle(null)} />
+        <DetalleModal pedido={detalle} onClose={() => setDetalle(null)} onCancelar={cancelarPedido} />
       )}
     </>
   );

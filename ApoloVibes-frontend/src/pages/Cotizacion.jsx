@@ -233,7 +233,7 @@ export default function Cotizacion() {
   }
 
   return (
-    <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px', maxWidth: 740 }}>
+    <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px', maxWidth: 1100 }}>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--accent)', textTransform: 'uppercase' }}>
         Cotización personalizada
       </span>
