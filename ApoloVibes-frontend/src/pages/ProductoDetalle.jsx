@@ -3,6 +3,7 @@ import { mediaPath } from '../utils/media.js'
 import { useState, useMemo, useEffect } from 'react'
 import { useProductos } from '../context/ProductContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 import { Minus, Plus, Star } from 'lucide-react'
 import ProductCarousel from '../components/ProductCarousel.jsx'
 import { productoApi, registrarColores } from '../services/products.js'
@@ -29,6 +30,7 @@ export default function ProductoDetalle() {
   const { productos, categorias, cargando } = useProductos()
   const producto = productos.find(p => p.id === id)
   const { agregarProducto } = useCart()
+  const { isAdmin } = useAuth()
   const [cantidad, setCantidad] = useState(1)
   const [colores, setColores] = useState([])
   const [colorElegido, setColorElegido] = useState(null)
@@ -109,8 +111,10 @@ export default function ProductoDetalle() {
   const fotoActual = (tieneVariantes && colorActual?.imagen) ? colorActual.imagen : producto.imagen
   const rating = Number(producto.rating) || 0
 
+  const bloqueado = producto.sinStock || isAdmin
+
   const handleAgregar = async () => {
-    if (agregando) return
+    if (agregando || isAdmin) return
     setAgregando(true)
     try {
       await agregarProducto(
@@ -431,20 +435,20 @@ export default function ProductoDetalle() {
 
             <button
               className="btn btn-primary"
-              disabled={producto.sinStock || faltaElegirColor || agregando}
+              disabled={bloqueado || faltaElegirColor || agregando}
               onClick={handleAgregar}
               style={{
                 flex: 1,
-                background: producto.sinStock || faltaElegirColor ? 'var(--surface-2)' : COLOR_BUTTON,
-                color: producto.sinStock || faltaElegirColor ? 'var(--text-dim)' : '#FFFFFF',
-                cursor: producto.sinStock || faltaElegirColor ? 'not-allowed' : agregando ? 'wait' : 'pointer',
+                background: bloqueado || faltaElegirColor ? 'var(--surface-2)' : COLOR_BUTTON,
+                color: bloqueado || faltaElegirColor ? 'var(--text-dim)' : '#FFFFFF',
+                cursor: bloqueado || faltaElegirColor ? 'not-allowed' : agregando ? 'wait' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8
               }}
             >
-              {!producto.sinStock && !faltaElegirColor && !agregando && (
+              {!bloqueado && !faltaElegirColor && !agregando && (
                 <img
                   src={mediaPath('cart.png')}
                   alt=""
