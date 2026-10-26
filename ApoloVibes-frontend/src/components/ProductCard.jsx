@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { mediaPath } from '../utils/media.js'
 import { useCart } from '../context/CartContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 import { useProductos } from '../context/ProductContext.jsx'
 import { Star, ImageOff } from 'lucide-react'
 import { useState } from 'react'
@@ -14,6 +15,7 @@ const COLOR_BUTTON = '#FA7F19'
 
 export default function ProductCard({ producto, index = 0 }) {
   const { agregarProducto } = useCart()
+  const { isAdmin } = useAuth()
   const { categorias } = useProductos()
   const acento = ACENTOS[index % ACENTOS.length]
   const categoria = categorias.find(c => c.id === producto.categoria_id)
@@ -22,7 +24,7 @@ export default function ProductCard({ producto, index = 0 }) {
   const navigate = useNavigate()
 
   const handleAgregar = async () => {
-    if (agregando) return
+    if (agregando || isAdmin) return
     setAgregando(true)
     try {
       let colores
@@ -51,6 +53,9 @@ export default function ProductCard({ producto, index = 0 }) {
       setAgregando(false)
     }
   }
+
+  // El admin no compra desde la tienda: su botón se comporta como agotado.
+  const bloqueado = producto.sinStock || isAdmin
 
   return (
     <div
@@ -249,12 +254,12 @@ export default function ProductCard({ producto, index = 0 }) {
 
         <button
           onClick={handleAgregar}
-          disabled={producto.sinStock || agregando}
+          disabled={bloqueado || agregando}
           aria-label="Agregar al carrito"
           style={{
             marginTop: 'auto',
-            background: producto.sinStock ? 'var(--surface-3)' : COLOR_BUTTON,
-            color: producto.sinStock ? 'var(--text-dim)' : 'var(--text)',
+            background: bloqueado ? 'var(--surface-3)' : COLOR_BUTTON,
+            color: bloqueado ? 'var(--text-dim)' : 'var(--text)',
             border: 'none',
             borderRadius: 12,
             width: '100%',
@@ -263,10 +268,10 @@ export default function ProductCard({ producto, index = 0 }) {
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
-            cursor: producto.sinStock ? 'not-allowed' : agregando ? 'wait' : 'pointer',
+            cursor: bloqueado ? 'not-allowed' : agregando ? 'wait' : 'pointer',
             transition: 'opacity .2s',
           }}
-          onMouseEnter={(e) => !producto.sinStock && (e.currentTarget.style.opacity = '.85')}
+          onMouseEnter={(e) => !bloqueado && (e.currentTarget.style.opacity = '.85')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
         > {agregando ? 'Agregando' : 'Agregar'}
           <img
@@ -274,7 +279,7 @@ export default function ProductCard({ producto, index = 0 }) {
             alt=""
             style={{
               width: 25, height: 25, filter: 'brightness(0) invert(1)',
-              opacity: producto.sinStock ? 0.5 : 1,
+              opacity: bloqueado ? 0.5 : 1,
             }}
           />
         </button>

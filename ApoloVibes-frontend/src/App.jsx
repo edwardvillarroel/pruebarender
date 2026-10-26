@@ -28,6 +28,7 @@ import Cotizaciones from './pages/admin/Cotizaciones.jsx'
 import ReportesVentas from './pages/admin/ReportesVentas.jsx'
 import CuponesAdmin from './pages/admin/CuponesAdmin.jsx'
 import WhatsAppFlotante from './components/whatsAppFlotante.jsx'
+import AvisoMfaAdmin from './components/AvisoMfaAdmin.jsx'
 
 function TiendaLayout({ children }) {
   return (
@@ -47,6 +48,7 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
+      <AvisoMfaAdmin />
       <ErrorBoundary>
         <Routes>
           <Route path="/" element={<TiendaLayout><Home /></TiendaLayout>} />

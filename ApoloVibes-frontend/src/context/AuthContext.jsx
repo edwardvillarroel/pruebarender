@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api.js'
+import { olvidarAvisoMfa } from '../utils/avisoMfa.js'
 
 const AUTH_KEY = 'apolovibes_auth'
 
@@ -27,7 +28,10 @@ export function AuthProvider({ children }) {
 
   const user = auth?.user ?? null
 
-  const login = useCallback((sesion) => setAuth(sesion), [])
+  const login = useCallback((sesion) => {
+    olvidarAvisoMfa(sesion?.user?.id)
+    setAuth(sesion)
+  }, [])
 
   function actualizarUsuario(nuevoUser) {
     setAuth(prev => (prev ? { ...prev, user: nuevoUser } : prev))
@@ -54,7 +58,6 @@ export function AuthProvider({ children }) {
       return
     }
     if (params.get('mfa')) {
-      // MFA pendiente: se abre el modal en modo MFA (ver LoginModal).
       sessionStorage.setItem('apolovibes_mfa_pendiente', '1')
       window.dispatchEvent(new CustomEvent('apolovibes:google-mfa'))
       return
@@ -62,7 +65,7 @@ export function AuthProvider({ children }) {
     ;(async () => {
       try {
         const data = await api.post('/auth/refresh', {})
-        setAuth({ token: data.access_token, user: data.user })
+        login({ token: data.access_token, user: data.user })
       } catch {
         alert('No se pudo iniciar sesión con Google')
       }
