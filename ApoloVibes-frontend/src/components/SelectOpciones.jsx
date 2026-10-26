@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTheme } from '../context/ThemeContext.jsx'
-import { ChevronDown } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 
 export default function SelectOpciones({
   id,
@@ -133,17 +133,23 @@ export default function SelectOpciones({
                   onClick={() => { onChange(valor); cerrar() }}
                   style={{
                     width: '100%',
-                    background: seleccionado ? 'var(--accent-soft)' : sobre ? 'var(--accent-soft)' : 'transparent',
+                    background: sobre ? 'var(--accent-soft)' : 'transparent',
                     border: 'none',
                     padding: '10px 12px',
                     fontSize: 14,
                     fontFamily: 'var(--font-body)',
-                    color: texto,
+                    color: seleccionado ? 'var(--accent)' : texto,
+                    fontWeight: seleccionado ? 600 : 400,
                     textAlign: 'left',
                     cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
                   }}
                 >
-                  {etiqueta}
+                  <span>{etiqueta}</span>
+                  {seleccionado && <Check size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />}
                 </button>
               </li>
             )

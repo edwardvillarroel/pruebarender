@@ -145,8 +145,7 @@ class PedidoRepository(RepositoryBase[Pedido], ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def actualizar_seguimiento(
-        self,
+    def actualizar_seguimiento(        self,
         pedido_id: UUID,
         codigo_seguimiento: str | None,
         estado_seguimiento: str | None,
@@ -154,6 +153,14 @@ class PedidoRepository(RepositoryBase[Pedido], ABC):
         transportista: str | None = None,
     ) -> Pedido | None:
 
+        raise NotImplementedError
+
+    @abstractmethod
+    def marcar_aviso_cancelacion(self, pedido_id: UUID) -> Pedido | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def marcar_aviso_cancelacion_visto(self, pedido_id: UUID) -> Pedido | None:
         raise NotImplementedError
 
 

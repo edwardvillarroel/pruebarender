@@ -11,6 +11,10 @@ interesante no es que el estado cambie, es QUÉTransiciones existen:
   desde `entregado`, son errores que el frontend nunca va a cometer porque el
   boton no existe, pero la API es publica para el gateway y no depende de que
   la UI sea cuidadosa.
+- Cancelar solo tiene sentido mientras el pedido no salio de produccion:
+  `pendiente -> cancelado` y `en_produccion -> cancelado`. Desde `enviado` el
+  paquete ya esta en manos del transportista, y desde `entregado` no hay nada
+  que cancelar.
 
 Por eso la validacion va en `CambiarEstadoPedido`: si viviera en la ruta, el
 siguiente que agregue una forma de cambiar el estado (un worker deventory sync,
@@ -26,6 +30,7 @@ import pytest
 from app.application.pedidos_pagos.cambiar_estado_pedido import (
     CambiarEstadoPedido,
     EstadoInvalidoError,
+    PedidoDeOtroUsuarioError,
     PedidoNoEncontradoError,
     TransicionInvalidaError,
 )
@@ -81,6 +86,31 @@ def test_no_se_puede_entregar_desde_en_produccion_ni_desde_cancelado(origen):
 
     with pytest.raises(TransicionInvalidaError):
         CambiarEstadoPedido(repos).ejecutar(repos._pedido.id, "entregado")
+
+    assert repos.cambios == [], "un rechazo no puede dejar el pedido a medio cambiar"
+
+
+@pytest.mark.parametrize("origen", [EstadoPedido.PENDIENTE, EstadoPedido.EN_PRODUCCION])
+def test_se_puede_cancelar_antes_de_despachar(origen):
+    """Se cancela mientras el pedido no salio: pendiente o en produccion."""
+    repos = _PedidosFalsos(_pedido_en(origen))
+
+    resultado = CambiarEstadoPedido(repos).ejecutar(repos._pedido.id, "cancelado")
+
+    assert resultado.estado is EstadoPedido.CANCELADO
+    assert repos.cambios == [(repos._pedido.id, EstadoPedido.CANCELADO)]
+
+
+@pytest.mark.parametrize(
+    "origen",
+    [EstadoPedido.ENVIADO, EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO],
+)
+def test_no_se_puede_cancelar_un_pedido_que_ya_salio(origen):
+    """Desde `enviado` el paquete ya viaja; `entregado` y `cancelado` son terminales."""
+    repos = _PedidosFalsos(_pedido_en(origen))
+
+    with pytest.raises(TransicionInvalidaError):
+        CambiarEstadoPedido(repos).ejecutar(repos._pedido.id, "cancelado")
 
     assert repos.cambios == [], "un rechazo no puede dejar el pedido a medio cambiar"
 
@@ -144,5 +174,46 @@ def test_pedido_inexistente():
 
     with pytest.raises(PedidoNoEncontradoError):
         CambiarEstadoPedido(repos).ejecutar(uuid.uuid4(), "entregado")
+
+    assert repos.cambios == []
+
+
+# El cliente cancelando lo suyo: misma regla de estado, pero con dueño.
+
+
+@pytest.mark.parametrize("origen", [EstadoPedido.PENDIENTE, EstadoPedido.EN_PRODUCCION])
+def test_el_dueno_cancela_su_pedido_antes_del_despacho(origen):
+    repos = _PedidosFalsos(_pedido_en(origen))
+
+    resultado = CambiarEstadoPedido(repos).cancelar(repos._pedido.id, repos._pedido.usuario_id)
+
+    assert resultado.estado is EstadoPedido.CANCELADO
+    assert repos.cambios == [(repos._pedido.id, EstadoPedido.CANCELADO)]
+
+
+@pytest.mark.parametrize("origen", [EstadoPedido.ENVIADO, EstadoPedido.ENTREGADO])
+def test_el_dueno_no_cancela_un_pedido_ya_despachado(origen):
+    repos = _PedidosFalsos(_pedido_en(origen))
+
+    with pytest.raises(TransicionInvalidaError):
+        CambiarEstadoPedido(repos).cancelar(repos._pedido.id, repos._pedido.usuario_id)
+
+    assert repos.cambios == []
+
+
+def test_nadie_cancela_el_pedido_de_otro():
+    repos = _PedidosFalsos(_pedido_en(EstadoPedido.PENDIENTE))
+
+    with pytest.raises(PedidoDeOtroUsuarioError):
+        CambiarEstadoPedido(repos).cancelar(repos._pedido.id, uuid.uuid4())
+
+    assert repos.cambios == []
+
+
+def test_cancelar_un_pedido_inexistente():
+    repos = _PedidosFalsos(None)
+
+    with pytest.raises(PedidoNoEncontradoError):
+        CambiarEstadoPedido(repos).cancelar(uuid.uuid4(), uuid.uuid4())
 
     assert repos.cambios == []

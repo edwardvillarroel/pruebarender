@@ -95,13 +95,11 @@ export default function Navbar() {
       if (nav) {
         const boton = target.closest('button')
         if (boton) {
-          // Permitir abrir/cerrar modales/carrito/theme/hamburger/mi cuenta sin salir
           if (boton.getAttribute('aria-label') === 'Carrito') return
           if (boton.classList.contains('theme-toggle')) return
           if (boton.classList.contains('hamburger')) return
           if (boton.getAttribute('aria-label') === 'Mi cuenta') return
           if (boton.closest('.cart-icon')) return
-          // Para el resto, preguntar antes de salir
           e.preventDefault()
           e.stopPropagation()
           e.stopImmediatePropagation()
@@ -395,6 +393,8 @@ export default function Navbar() {
             )}
           </div>
 
+          {/* El carrito es solo para clientes */}
+          {!isAdmin && (
           <div className="cart-icon" ref={cartMenuRef} style={{ position: 'relative', color: '#FBF7EE' }}>
             <button
               onClick={() => setCartOpen(v => !v)}
@@ -638,6 +638,7 @@ export default function Navbar() {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
@@ -685,7 +686,7 @@ export default function Navbar() {
             )}
             </div>
 
-            {/* Mis pedidos (o panel admin) */}
+            {/* Mis pedidos*/}
             {isLoggedIn && (
               <div className="nm-section">
                 {isAdmin ? (

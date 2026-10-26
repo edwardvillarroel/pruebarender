@@ -6,6 +6,7 @@ import Footer from './components/Footer.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import ScrollToTop from './components/ScrollToTop.jsx'
 import RutaCliente from './components/RutaCliente..jsx'
+import RutaNoAdmin from './components/RutaNoAdmin.jsx'
 
 import Home from './pages/Home.jsx'
 import Categorias from './pages/Categorias.jsx'
@@ -51,8 +52,8 @@ export default function App() {
           <Route path="/" element={<TiendaLayout><Home /></TiendaLayout>} />
           <Route path="/categorias" element={<TiendaLayout><Categorias /></TiendaLayout>} />
           <Route path="/producto/:id" element={<TiendaLayout><ProductoDetalle /></TiendaLayout>} />
-          <Route path="/carrito" element={<TiendaLayout><Carrito /></TiendaLayout>} />
-          <Route path="/checkout" element={<TiendaLayout><Checkout /></TiendaLayout>} />
+          <Route path="/carrito" element={<TiendaLayout><RutaNoAdmin><Carrito /></RutaNoAdmin></TiendaLayout>} />
+          <Route path="/checkout" element={<TiendaLayout><RutaNoAdmin><Checkout /></RutaNoAdmin></TiendaLayout>} />
           <Route path="/pago/retorno" element={<TiendaLayout><PagoRetorno /></TiendaLayout>} />
           <Route path="/cotizar" element={<TiendaLayout><RutaCliente><Cotizacion /></RutaCliente></TiendaLayout>} />
           <Route path="/mis-pedidos" element={<TiendaLayout><MisPedidos /></TiendaLayout>} />

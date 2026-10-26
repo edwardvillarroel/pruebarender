@@ -263,9 +263,6 @@ export default function Footer() {
                 Política de cookies
               </button>
                 <button  style={LINK_BUTTON_STYLE}>
-                Despachos
-              </button>
-                <button  style={LINK_BUTTON_STYLE}>
                 Cambios y devoluciones
               </button>
               

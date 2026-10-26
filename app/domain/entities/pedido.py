@@ -23,8 +23,11 @@ class Pedido:
     creado_en: datetime = field(default_factory=utcnow)
     detalles: list[DetallePedido] = field(default_factory=list)
     resenas_pendientes: int = 0
+    resenas_completadas: int = 0
     subtotal: int | None = None
     descuento_productos: int = 0
     descuento_cupon: int = 0
     cupon_codigo: str | None = None
     estado_pago: str | None = None
+    aviso_cancelacion_en: datetime | None = None
+    aviso_cancelacion_visto: bool = False

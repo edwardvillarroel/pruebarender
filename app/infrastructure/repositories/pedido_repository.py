@@ -5,12 +5,13 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, case, exists, literal, select
+from sqlalchemy import and_, case, exists, func, literal, select
 from sqlalchemy.orm import selectinload
 
 from app.domain.entities.detalle_pedido import DetallePedido
 from app.domain.entities.pedido import Pedido
 from app.domain.enums import EstadoPago, EstadoPedido, TipoDocumentoTributario
+from app.domain.time import utcnow
 from app.domain.interfaces.repositories import (
     PedidoRepository as PedidoRepositoryInterface,
 )
@@ -80,10 +81,21 @@ class PedidoRepository(PedidoRepositoryInterface):
             else_=literal(0),
         ).label("resenas_pendientes")
 
+        resenas_completadas = (
+            select(func.count())
+            .select_from(ResenaModel)
+            .where(ResenaModel.usuario_id == usuario_id)
+            .where(ResenaModel.pedido_id == PedidoModel.id)
+            .correlate(PedidoModel)
+            .scalar_subquery()
+            .label("resenas_completadas")
+        )
+
         filas = db.session.execute(
             select(
                 self.model,
                 resenas_pendientes,
+                resenas_completadas,
                 self._estado_pago().label("estado_pago"),
             )
             .options(selectinload(self.model.detalles))
@@ -91,9 +103,10 @@ class PedidoRepository(PedidoRepositoryInterface):
             .order_by(self.model.creado_en.desc())
         ).all()
         pedidos = []
-        for modelo, pendientes, estado_pago in filas:
+        for modelo, pendientes, completadas, estado_pago in filas:
             entidad = _a_entidad(modelo)
             entidad.resenas_pendientes = int(pendientes)
+            entidad.resenas_completadas = int(completadas)
             entidad.estado_pago = estado_pago
             pedidos.append(entidad)
         return self._con_imagenes(pedidos)
@@ -223,6 +236,25 @@ class PedidoRepository(PedidoRepositoryInterface):
         db.session.commit()
         return _a_entidad(modelo)
 
+    def marcar_aviso_cancelacion(self, pedido_id: UUID) -> Pedido | None:
+        """Enciende el aviso de anulacion aceptada por Tuu (badge del cliente)."""
+        modelo = db.session.get(self.model, pedido_id)
+        if modelo is None:
+            return None
+        modelo.aviso_cancelacion_en = utcnow()
+        modelo.aviso_cancelacion_visto = False
+        db.session.commit()
+        return _a_entidad(modelo)
+
+    def marcar_aviso_cancelacion_visto(self, pedido_id: UUID) -> Pedido | None:
+        """Apaga el badge: el cliente ya abrio el aviso."""
+        modelo = db.session.get(self.model, pedido_id)
+        if modelo is None:
+            return None
+        modelo.aviso_cancelacion_visto = True
+        db.session.commit()
+        return _a_entidad(modelo)
+
     def add(self, entidad: Pedido) -> Pedido:
         db.session.add(_a_modelo(entidad))
         db.session.commit()
@@ -340,6 +372,8 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
         estado_seguimiento=modelo.estado_seguimiento,
         seguimiento_actualizado_en=modelo.seguimiento_actualizado_en,
         transportista=modelo.transportista,
+        aviso_cancelacion_en=modelo.aviso_cancelacion_en,
+        aviso_cancelacion_visto=bool(modelo.aviso_cancelacion_visto),
         creado_en=modelo.creado_en,
         detalles=[
             DetallePedido(
