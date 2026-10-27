@@ -5,7 +5,8 @@ import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
 import { mediaPath } from '../utils/media.js'
-import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Moon, Sun, CircleCheck, ClipboardList, Minus, Plus, Trash2, ShieldCheck, Calculator, ChevronRight } from 'lucide-react'
+import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Moon, Sun, CircleCheck, ClipboardList, 
+  Minus, Plus, Trash2, ShieldCheck, Calculator, ChevronRight, LogIn } from 'lucide-react'
 import { useProductos } from '../context/ProductContext.jsx'
 import LoginModal from './LoginModal.jsx'
 import SeguridadModal from './SeguridadModal.jsx'
@@ -476,7 +477,7 @@ export default function Navbar() {
                         onClick={() => { setCartOpen(false); abrirLogin() }}
                         style={{ color: 'var(--text)' }}
                       >
-                        Iniciar sesión
+                         <LogIn size={16} /> Iniciar sesión
                       </button>
                     </div>
                   ) : items.length === 0 ? (

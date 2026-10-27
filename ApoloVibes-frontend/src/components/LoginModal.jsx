@@ -3,7 +3,7 @@ import { mediaPath } from '../utils/media.js'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { api } from '../services/api.js'
-import { CheckCircle2, Eye, EyeOff, Lock, Mail, User, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, Eye, EyeOff, Lock, Mail, User, ShieldCheck, LogIn } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import CaptchaWidget from './CaptchaWidget.jsx'
 
@@ -115,7 +115,7 @@ export default function LoginModal({ onClose }) {
     // --- reCAPTCHA ---
     const [captchaRequerido, setCaptchaRequerido] = useState(false)
     const [captchaToken, setCaptchaToken] = useState('')
-    
+
 
     useEffect(() => {
         const abrir = () => {
@@ -248,7 +248,7 @@ export default function LoginModal({ onClose }) {
             } else if (d.captcha_requerido) {
                 setCaptchaRequerido(true)
                 if (/credenciales/i.test(msg)) {
-                    setErrores({ email: 'Credenciales incorrectas', password: 'Credenciales incorrectas'})
+                    setErrores({ email: 'Credenciales incorrectas', password: 'Credenciales incorrectas' })
                 } else {
                     setError(msg)
                 }
@@ -929,7 +929,7 @@ export default function LoginModal({ onClose }) {
                                 onMouseEnter={(e) => { if (!cargando && !bloqueadoPorCaptcha) e.currentTarget.style.opacity = '.9' }}
                                 onMouseLeave={(e) => { if (!cargando && !bloqueadoPorCaptcha) e.currentTarget.style.opacity = '1' }}
                             >
-                                {cargando ? 'Entrando...' : 'Entrar'} <span></span>
+                                <LogIn size={16} /> {cargando ? 'Ingresando...' : 'Iniciar Sesión'} <span></span>
                             </button>
                         </form>
                     ) : exito ? (
@@ -1284,9 +1284,13 @@ export default function LoginModal({ onClose }) {
 
                     {modo === 'login' && !enPasoMfa && (
                         <>
-                            <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', margin: '0 0 14px' }}>
-                                o continua con
-                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '0 0 14px' }}>
+                                <span style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+                                <span style={{ fontSize: 12, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+                                    o continúa con
+                                </span>
+                                <span style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+                            </div>
 
                             <div style={{ display: 'flex', gap: 10, marginBottom: 22 }}>
                                 <button

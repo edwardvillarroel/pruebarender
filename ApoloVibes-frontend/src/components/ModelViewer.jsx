@@ -213,7 +213,7 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
               No se pudo cargar el modelo 3D.
             </p>
             <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, textAlign: 'center' }}>
-              La imagen será enviada de todas formas. Asegurate de detallar bien en la descripción para que el prodcuto cumpla con tus estándares.
+              La imagen será enviada de todas formas. Asegurate de detallar bien en la descripción para que el producto cumpla con tus estándares.
             </p>
           </div>
         </div>
