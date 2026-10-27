@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime
 
 from app.infrastructure.database.connection import db, utcnow
 
@@ -17,5 +16,12 @@ class SolicitudDisenoModel(db.Model):
     estado = db.Column(db.String(30), nullable=False, default="pendiente")
     imagen = db.Column(db.String(500))
     modelo_url = db.Column(db.String(500))
-    precio = db.Column(db.Integer)
+    precio = db.Column(db.Numeric(10, 2))
     creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    alto = db.Column(db.Numeric(8, 2))
+    ancho = db.Column(db.Numeric(8, 2))
+    largo = db.Column(db.Numeric(8, 2))
+    unidad = db.Column(db.String(10), default="cm")
+    cantidad = db.Column(db.Integer, nullable=False, default=1)
+    uso = db.Column(db.String(30))
+    color = db.Column(db.String(60))

@@ -21,6 +21,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     _configurar_pedidos_pagos(app)
     _configurar_ventas(app)
     _configurar_resenas(app)
+    _configurar_disenos(app)
 
     from app.api import register_blueprints
 
@@ -165,7 +166,7 @@ def _configurar_ventas(app: Flask) -> None:
 
 def _configurar_resenas(app: Flask) -> None:
     from app.application.resenas.gestionar_resena import GestionarResena
-    from app.infrastructure.database.models.resena_model import ResenaModel  # noqa: F401
+    from app.infrastructure.database.models.resena_model import ResenaModel  
     from app.infrastructure.repositories.pedido_repository import PedidoRepository
     from app.infrastructure.repositories.producto_repository import (
         ProductoRepository,
@@ -174,6 +175,23 @@ def _configurar_resenas(app: Flask) -> None:
 
     app.config["RESENA_SERVICE"] = GestionarResena(
         ResenaRepository(), PedidoRepository(), ProductoRepository()
+    )
+
+
+def _configurar_disenos(app: Flask) -> None:
+    from app.application.diseno.crear_solicitud_diseno import CrearSolicitudDiseno
+    from app.infrastructure.database.models.solicitud_diseno_model import ( 
+        SolicitudDisenoModel,
+    )
+    from app.infrastructure.imagenes.almacen_cotizaciones import (
+        guardar_imagen_cotizacion,
+    )
+    from app.infrastructure.repositories.solicitud_diseno_repository import (
+        SolicitudDisenoRepository,
+    )
+
+    app.config["COTIZACION_SERVICE"] = CrearSolicitudDiseno(
+        SolicitudDisenoRepository(), guardar_imagen=guardar_imagen_cotizacion
     )
 
 

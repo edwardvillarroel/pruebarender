@@ -13,11 +13,20 @@ import ModalValidacion from '../components/ModalValidacion.jsx'
 
 const ESTADO_INICIAL = {
   nombre: '', email: '', telefono: '',
-  material: 'PLA', descripcion: '',
+  material: 'PLA+',
+  alto: '', ancho: '', largo: '', unidad: 'cm',
+  cantidad: '1',
+  uso: 'Decorativo',
+  color: '', colorOtro: '',
+  descripcion: '',
 }
 
 const MATERIALES = ['PLA', 'PLA+', 'ABS+', 'No estoy seguro']
+const USOS = ['Decorativo', 'Funcional', 'Prototipo', 'Exterior', 'Otro']
+const COLORES = ['Negro', 'Blanco', 'Rojo', 'Azul', 'Verde', 'Amarillo', 'Otro']
+const UNIDADES = ['cm']
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const esPositivo = v => Number(v) > 0
 
 const estiloError = { color: '#ef4444', fontSize: 12, margin: '6px 0 0' }
 
@@ -76,7 +85,12 @@ export default function Cotizacion() {
     nombre: form.nombre.trim() ? '' : 'Por favor complete su nombre.',
     email: !email ? 'Por favor ingrese su email.' : EMAIL_RE.test(email) ? '' : 'Ingrese un email válido',
     telefono: !telefono ? 'Por favor ingrese su teléfono.' : /^\d{9}$/.test(telefono) ? '' : 'Ingrese un teléfono móvil válido.',
-    descripcion: form.descripcion.trim() ? '' : 'Por favor describa la pieza.',
+    tamano: esPositivo(form.alto) && esPositivo(form.ancho) && esPositivo(form.largo)
+      ? '' : 'Ingresa alto, ancho y largo (mayores a 0).',
+    cantidad: Number.isInteger(Number(form.cantidad)) && Number(form.cantidad) >= 1
+      ? '' : 'La cantidad mínima es 1.',
+    color: !form.color ? 'Elige un color.'
+      : form.color === 'Otro' && !form.colorOtro.trim() ? 'Indica qué color necesitas.' : '',
   }
 
   const errorDe = campo => (tocado[campo] ? erroresCampo[campo] : '')
@@ -86,7 +100,7 @@ export default function Cotizacion() {
   const procesando = validandoImagen || generando
   const paso1Completo = !!archivo && !procesando
   const paso2Completo = paso1Completo && !erroresCampo.nombre && !erroresCampo.email && !erroresCampo.telefono
-  const paso3Completo = paso2Completo && !erroresCampo.descripcion
+  const paso3Completo = paso2Completo && !erroresCampo.tamano && !erroresCampo.cantidad && !erroresCampo.color
 
   const modeloValido = !!modeloUrl && !visorFallo
 
@@ -97,6 +111,12 @@ export default function Cotizacion() {
 
   function actualizar(campo, valor) {
     setForm(prev => ({ ...prev, [campo]: valor }))
+  }
+
+  function soloNumero(campo, valor) {
+    const limpio = valor.replace(',', '.').replace(/[^\d.]/g, '')
+    const partes = limpio.split('.')
+    actualizar(campo, partes.length > 1 ? partes[0] + '.' + partes.slice(1).join('') : limpio)
   }
 
   async function manejarArchivo(e) {
@@ -204,8 +224,20 @@ export default function Cotizacion() {
     setEnviando(true)
     setError(null)
 
+    const colorFinal = form.color === 'Otro' ? form.colorOtro.trim() : form.color
+
+    const resumen = [
+      `Tamaño: ${form.alto} x ${form.ancho} x ${form.largo} ${form.unidad}`,
+      `Cantidad: ${form.cantidad}`,
+      `Uso: ${form.uso}`,
+      `Color: ${colorFinal}`,
+      form.descripcion.trim() ? `Detalles: ${form.descripcion.trim()}` : '',
+    ].filter(Boolean).join('\n')
+
     const data = new FormData()
     Object.entries(form).forEach(([k, v]) => data.append(k, v))
+    data.set('color', colorFinal)
+    data.set('descripcion', resumen)
     data.set('telefono', '+56' + form.telefono.trim())
     data.append('imagen', archivo)
     if (modeloValido) data.append('modeloUrl', modeloUrl)
@@ -452,19 +484,102 @@ export default function Cotizacion() {
           bloqueado={!paso2Completo}
           textoBloqueo="Completa tus datos de contacto para continuar."
         >
-          <label htmlFor="cot-descripcion" >Describe lo que necesitas</label>
+          {/*tamaño */}
+          <label htmlFor="cot-alto">Tamaño aproximado</label>
+          <div
+            className="cotizacion-medidas"
+            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) 90px', gap: 8 }}
+          >
+            {[
+              ['alto', 'Alto'],
+              ['ancho', 'Ancho'],
+              ['largo', 'Largo'],
+            ].map(([campo, etiqueta]) => (
+              <input
+                key={campo}
+                id={campo === 'alto' ? 'cot-alto' : undefined}
+                inputMode="decimal"
+                placeholder={etiqueta}
+                aria-label={etiqueta}
+                value={form[campo]}
+                onChange={e => soloNumero(campo, e.target.value)}
+                onBlur={() => marcar('tamano')}
+                aria-invalid={errorDe('tamano') ? true : undefined}
+                style={{ background: 'var(--input-bg)', ...borde('tamano') }}
+              />
+            ))}
+            <SelectOpciones options={UNIDADES} value={form.unidad} onChange={v => actualizar('unidad', v)} />
+          </div>
+          {errorDe('tamano') && <p role="alert" style={estiloError}>{errorDe('tamano')}</p>}
+
+          {/*cantidad*/}
+          <div className="cotizacion-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+            <div>
+              <label htmlFor="cot-cantidad">Cantidad</label>
+              <input
+                id="cot-cantidad"
+                inputMode="numeric"
+                value={form.cantidad}
+                onChange={e => actualizar('cantidad', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                onBlur={() => marcar('cantidad')}
+                aria-invalid={errorDe('cantidad') ? true : undefined}
+                style={{ background: 'var(--input-bg)', ...borde('cantidad') }}
+              />
+              {errorDe('cantidad') && <p role="alert" style={estiloError}>{errorDe('cantidad')}</p>}
+            </div>
+            <div>
+              <label>Uso de la pieza</label>
+              <SelectOpciones options={USOS} value={form.uso} onChange={v => actualizar('uso', v)} />
+            </div>
+          </div>
+
+          {/*Color */}
+          <label style={{ display: 'block', marginTop: 14 }}>Color</label>
+          <div role="group" aria-label="Color" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {COLORES.map(c => {
+              const activo = form.color === c
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={activo}
+                  onClick={() => { actualizar('color', c); marcar('color') }}
+                  style={{
+                    padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                    border: `1px solid ${activo ? 'var(--accent)' : 'var(--line)'}`,
+                    background: activo ? 'var(--accent)' : 'var(--input-bg)',
+                    color: activo ? 'var(--text)' : 'var(--surface-2)', transition: 'border-color .15s, background .15s',
+                  }}
+                >
+                  {c}
+                </button>
+              )
+            })}
+          </div>
+          {form.color === 'Otro' && (
+            <input
+              placeholder="¿Qué color necesitas?"
+              aria-label="Otro color"
+              value={form.colorOtro}
+              onChange={e => actualizar('colorOtro', e.target.value)}
+              onBlur={() => marcar('color')}
+              style={{ background: 'var(--input-bg)', marginTop: 10, ...borde('color') }}
+            />
+          )}
+          {errorDe('color') && <p role="alert" style={estiloError}>{errorDe('color')}</p>}
+
+          {/*Detalle opcionales */}
+          <label htmlFor="cot-descripcion" style={{ display: 'flex', marginTop: 14 }}>
+            Detalles adicionales (opcional)
+          </label>
           <textarea
             id="cot-descripcion"
-            rows={4}
-            required
-            placeholder="Dimensiones aproximadas, cantidad, uso de la pieza, color, acabado deseado, etc."
+            rows={3}
+            placeholder="Referencias, restricciones, etc"
             value={form.descripcion}
             onChange={e => actualizar('descripcion', e.target.value)}
-            onBlur={() => marcar('descripcion')}
-            aria-invalid={errorDe('descripcion') ? true : undefined}
-            style={{ resize: 'vertical', minHeight: 100, background: 'var(--input-bg)', ...borde('descripcion') }}
+            style={{ resize: 'vertical', minHeight: 80, background: 'var(--input-bg)' }}
           />
-          {errorDe('descripcion') && <p role="alert" style={estiloError}>{errorDe('descripcion')}</p>}
         </Paso>
 
         {error && (
@@ -507,8 +622,12 @@ export default function Cotizacion() {
       )}
 
       <style>{`
-        @keyframes spin {
+     @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+        @media (max-width: 560px) {
+          .cotizacion-medidas { grid-template-columns: repeat(3, 1fr) !important; }
+          .cotizacion-medidas > :last-child { grid-column: 1 / -1; }
         }
       `}</style>
     </section>

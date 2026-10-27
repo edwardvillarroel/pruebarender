@@ -1,32 +1,15 @@
-"""Conversión de fotos RAW de cámara a JPEG para almacenarlas como BLOB.
-
-Los navegadores no saben decodificar los formatos RAW de cámara (CR2, NEF,
-DNG, ...), así que el backend los transforma a JPEG antes de guardarlos y
-servirlos; de lo contrario el tag `<img>` mostraría la imagen en blanco y el
-tipo MIME guardado haría que el navegador se negara a renderizarla.
-
-Este módulo es la única pieza de infraestructura que conoce `rawpy`/Pillow
-para el catálogo: la capa API nunca lo importa, recibe el conversor
-inyectado via `current_app.config["CONVERSOR_IMAGEN"]` (ver `app/__init__.py`).
-
-Además de convertir, `normalizar_imagen` OPTIMIZA: las fotos de camara pesan
-2-4 MB y llegan con miles de píxeles de lado, y la web solo muestra tarjetas de
-~240px y fotos ampliadas de ~800px. `optimizar_imagen` las deja en 1600px como
-máximo y en JPEG quality 85, respetando el canal alfa de los PNG/WEBP.
-"""
 
 from __future__ import annotations
-
 import io
 
-try:  # dependencia opcional: no debe romper el arranque de la app
+try: 
     import rawpy
-except Exception:  # pragma: no cover - dependencia opcional ausente
+except Exception:  
     rawpy = None
 
-try:  # dependencia opcional: no debe romper el arranque de la app
+try: 
     from PIL import Image
-except Exception:  # pragma: no cover - dependencia opcional ausente
+except Exception:  
     Image = None
 
 # Extensiones de archivo RAW de cámara (minúsculas, sin punto).
@@ -70,24 +53,10 @@ _MENSAJE_FORMATO = (
     "SVG, o una foto RAW de camara (CR2, NEF, DNG, ARW, RAF, RW2, ORF...)."
 )
 
-# Lado mayor (px) con el que se guarda la foto de producto. Por encima de esto
-# no hay nada que ver: la tarjeta del catalogo mide ~240px y la foto ampliada del
-# detalle ~800px, asi que 1600px sigue cubriendo pantallas retina. Las fotos
-# de camara (6000x4000) bajan de 3-5 MB a unos 400 KB.
+
 LADO_MAXIMO_ORIGINAL = 1600
-
-# JPEG quality 85: diferencia invisible frente a la original en fotos de
-# producto y pesa ~5x menos que el JPEG de camara (q90 + metadatos EXIF).
 CALIDAD_JPEG_OPTIMIZADO = 85
-
-# Techo de bytes para dar la foto por "ya optimizada" si además cabe en el lado
-# maximo. 2 MB es el techo de la columna BLOB de los productos en la practica:
-# lo que pesa mas es una foto sin comprimir o un PNG sin alfa, que se
-# recomprimen aunque entren en 1600px.
 TAMANIO_MAXIMO_INTACTO = 2 * 1024 * 1024
-
-# Formatos que conservan el canal alfa y por lo tanto no se fuerzan a JPEG:
-# convertirlos taparia la transparencia de logos y disenos.
 _FORMATOS_CON_ALFA = ("PNG", "WEBP", "GIF")
 
 
@@ -222,8 +191,6 @@ def optimizar_imagen(datos: bytes, content_type: str) -> tuple[bytes, str]:
     try:
         with Image.open(io.BytesIO(datos)) as imagen:
             imagen.load()
-            # Una animacion (GIF) perderia todos los cuadros menos el primero si
-            # se reescala y se guarda como imagen simple.
             if getattr(imagen, "is_animated", False):
                 return datos, content_type
 
@@ -234,8 +201,6 @@ def optimizar_imagen(datos: bytes, content_type: str) -> tuple[bytes, str]:
                 return datos, content_type
 
             if max(imagen.size) > LADO_MAXIMO_ORIGINAL:
-                # `thumbnail` conserva la proporcion y no agranda una imagen que
-                # ya es mas chica que el lado maximo.
                 imagen.thumbnail(
                     (LADO_MAXIMO_ORIGINAL, LADO_MAXIMO_ORIGINAL), Image.LANCZOS
                 )
@@ -243,16 +208,9 @@ def optimizar_imagen(datos: bytes, content_type: str) -> tuple[bytes, str]:
             formato = _formato_de_salida(imagen, (imagen.format or "").upper())
             bytes_nuevos = _guardar(imagen, formato)
             if len(bytes_nuevos) >= len(datos):
-                # Reprocesar puede PESAR MAS que el archivo original: un PNG de
-                # logo muy comprensible que al reescalar queda en 1600px y se
-                # guarda como JPEG puede pasar de 40 KB a 100 KB. Optimizar
-                # para que el archivo crezca seria traicionar el objetivo, asi
-                # que en ese caso se deja el original como estaba.
                 return datos, content_type
             return bytes_nuevos, _MIME_POR_FORMATO_PIL[formato]
     except Exception:
-        # Optimizar es una mejora, no un requisito: una foto que Pillow no sabe
-        # decodificar se guarda como se subio en vez de rechazar el alta.
         return datos, content_type
 
 
@@ -297,9 +255,6 @@ def normalizar_imagen(
 
     if _tipo_mime_normalizado(content_type) in TIPOS_IMAGEN_RENDERIZABLES:
         return optimizar_imagen(datos, content_type)
-
-    # Tipo no navegable y sin extension RAW: puede ser un RAW con extension
-    # rara o una imagen valida con content_type mal declarado.
     try:
         return optimizar_imagen(convertir_raw_a_jpeg(datos), "image/jpeg")
     except ValueError:
