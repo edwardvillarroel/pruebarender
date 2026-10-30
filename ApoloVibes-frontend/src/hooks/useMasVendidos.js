@@ -8,12 +8,14 @@ export function useMasVendidos(periodo, limite = 10, activo = true) {
   const cached = cache.get(key);
 
   const [productos, setProductos] = useState(cached?.productos ?? []);
+  const [semana, setSemana] = useState(cached?.semana ?? null);
   const [cargando, setCargando] = useState(activo && !cached);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!activo) {
       setProductos([]);
+      setSemana(null);
       setCargando(false);
       setError(null);
       return;
@@ -21,6 +23,7 @@ export function useMasVendidos(periodo, limite = 10, activo = true) {
     if (cache.has(key)) {
       const c = cache.get(key);
       setProductos(c.productos);
+      setSemana(c.semana ?? null);
       setCargando(false);
       setError(null);
       return;
@@ -33,8 +36,12 @@ export function useMasVendidos(periodo, limite = 10, activo = true) {
       .then((res) => {
         if (!vigente) return;
         const prods = res.productos ?? [];
-        cache.set(key, { productos: prods });
+        // `semana` solo viene con `periodo=semana`: dice si el backend mostro
+        // la semana actual o la anterior (regla de los 4 productos distintos).
+        const meta = res.semana ?? null;
+        cache.set(key, { productos: prods, semana: meta });
         setProductos(prods);
+        setSemana(meta);
         setCargando(false);
       })
       .catch((err) => {
@@ -47,5 +54,5 @@ export function useMasVendidos(periodo, limite = 10, activo = true) {
     };
   }, [periodo, limite, activo, key]);
 
-  return { productos, cargando: activo ? cargando : false, error };
+  return { productos, cargando: activo ? cargando : false, error, semana };
 }

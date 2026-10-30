@@ -669,6 +669,15 @@ def iniciar_sesion_google(email, google_sub, nombre, apellido, ip, user_agent, f
             usuario = repositorios.buscar_usuario_por_id(creado["id"])
             repositorios.registrar_log("registro_google", creado["id"], ip, email)
 
+    # Cuenta bloqueada o eliminada desde el panel: Google no debe saltarse el
+    # bloqueo. Va unificado despues de resolver el usuario porque las tres
+    # ramas (por google_sub, vinculacion y alta) terminan aca.
+    if not usuario.get("activo"):
+        repositorios.registrar_log(
+            "login_cuenta_inactiva", usuario["id"], ip, "google"
+        )
+        raise CredencialesInvalidas()
+
     repositorios.limpiar_bloqueo(email, "password")
 
     if usuario.get("mfa_activo"):
@@ -703,7 +712,13 @@ def rotar_refresh(jti, ip, fabrica_tokens):
         raise SesionExpirada()
 
     usuario = repositorios.buscar_usuario_por_id(registro["user_id"])
-    if usuario is None:
+    if usuario is None or not usuario["activo"]:
+        # Cuenta bloqueada o eliminada desde el panel: el refresh deja de valer
+        # aunque el refresh token siga vigente. El access token actual expira
+        # solo (15 min).
+        repositorios.registrar_log(
+            "refresh_cuenta_inactiva", registro["user_id"], ip, ""
+        )
         raise CredencialesInvalidas()
 
     repositorios.revocar_refresh(jti)

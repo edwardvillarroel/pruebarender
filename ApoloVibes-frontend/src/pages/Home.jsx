@@ -31,7 +31,9 @@ function fondoDeCategoria(nombre) {
 
 export default function Home() {
   const { productos, categorias, cargando } = useProductos()
-  const rankingSemanal = useMasVendidos('7d', 10)
+  // La semana la decide el backend: si la actual no tiene mas de 4 productos
+  // distintos vendidos, devuelve la anterior y lo informa en `semana.tipo`.
+  const rankingSemanal = useMasVendidos('semana', 10)
   const lanzamientos = useMemo(
     () => productos
       .filter(p => p.nuevo_lanzamiento)
@@ -45,6 +47,7 @@ export default function Home() {
   )
 
   const hayRanking = !rankingSemanal.cargando && !rankingSemanal.error
+  const esSemanaAnterior = rankingSemanal.semana?.tipo === 'anterior'
 
   return (
     <>
@@ -52,7 +55,9 @@ export default function Home() {
       <section className="wrap section-py-mobile" style={{ paddingTop: '80px' }}>
         <hr className="separador" />
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>
-          {hayRanking ? 'Los más vendidos de la semana' : 'Nuestros productos'}
+          {hayRanking
+            ? (esSemanaAnterior ? 'Los más vendidos de la semana anterior' : 'Los más vendidos de la semana')
+            : 'Nuestros productos'}
         </h2>
         {rankingSemanal.cargando && (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Cargando productos…</p>
@@ -73,7 +78,7 @@ export default function Home() {
         )}
         {hayRanking && rankingSemanal.productos.length === 0 && (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
-            Todavía no hay ventas registradas esta semana.
+            Todavía no hay ventas registradas en las últimas semanas.
           </p>
         )}
         {hayRanking && rankingSemanal.productos.length > 0 && (

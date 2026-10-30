@@ -20,6 +20,8 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     _configurar_catalogo(app)
     _configurar_pedidos_pagos(app)
     _configurar_ventas(app)
+    _configurar_reportes(app)
+    _configurar_usuarios(app)
     _configurar_resenas(app)
     _configurar_disenos(app)
 
@@ -166,6 +168,33 @@ def _configurar_ventas(app: Flask) -> None:
 
     app.config["VENTA_SERVICE"] = GestionarVentaLocal(
         VentaLocalRepository(), ProductoRepository()
+    )
+
+
+def _configurar_reportes(app: Flask) -> None:
+    from app.application.reportes.gestionar_reporte import GestionarReporte
+    from app.infrastructure.repositories.pedido_repository import PedidoRepository
+    from app.infrastructure.repositories.solicitud_diseno_repository import (
+        SolicitudDisenoRepository,
+    )
+    from app.infrastructure.repositories.venta_local_repository import (
+        VentaLocalRepository,
+    )
+
+    app.config["REPORTE_SERVICE"] = GestionarReporte(
+        VentaLocalRepository(),
+        PedidoRepository(),
+        SolicitudDisenoRepository(),
+    )
+
+
+def _configurar_usuarios(app: Flask) -> None:
+    from app.application.usuarios.gestionar_usuarios import GestionarUsuarios
+    from app.infrastructure.repositories.usuario_repository import UsuarioRepository
+    from app.infrastructure.security.passwords import crear_hash
+
+    app.config["USUARIOS_SERVICE"] = GestionarUsuarios(
+        UsuarioRepository(), crear_hash
     )
 
 

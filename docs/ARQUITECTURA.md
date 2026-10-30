@@ -346,6 +346,14 @@ POST   /api/cotizaciones               # multipart: nombre, email, telefono,
 GET    /api/cotizaciones               # admin
 PATCH  /api/cotizaciones/:id           # { estado: aprobada, precio }
 
+GET    /api/reportes                   # admin: resumen de ventas, pedidos y cotizaciones
+GET    /api/usuarios                   # admin: usuarios con compras y cotizaciones
+
+POST   /api/usuarios                   # admin: crear usuario { nombre, apellido, email, password, rol } → 201
+PATCH  /api/usuarios/<id>/rol          # admin: cambiar rol { rol } → 200 / 409 (si dejaría sin admin)
+PATCH  /api/usuarios/<id>/estado       # admin: bloquear/desbloquear { activo } → 200 / 409 (último admin)
+DELETE /api/usuarios/<id>             # admin: soft delete → 200 / 409 (auto-eliminación o último admin)
+
 POST   /api/ai/image-to-3d             # multipart: imagen → { taskId }
 GET    /api/ai/image-to-3d/:taskId     # { status, modelUrl, error } (polling)
 ```

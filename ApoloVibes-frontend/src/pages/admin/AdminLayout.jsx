@@ -1,12 +1,13 @@
 ﻿import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
-import { Menu, LogOut, LayoutDashboard, ClipboardList, Package, FileText, ShoppingCart, User, Tag } from 'lucide-react'
+import { Menu, LogOut, LayoutDashboard, ClipboardList, Package, FileText, ShoppingCart, User, Tag, Users } from 'lucide-react'
 import ConfirmModal from '../../components/ConfirmModal.jsx'
 
 const navItems = [
   { to: '/admin', end: true, label: 'Dashboard', icon: LayoutDashboard },
   { to: '/admin/pedidos', label: 'Pedidos', icon: ClipboardList },
+  { to: '/admin/usuarios', label: 'Usuarios', icon: Users },
   { to: '/admin/inventario', label: 'Inventario', icon: Package },
   { to: '/admin/cotizaciones', label: 'Cotizaciones', icon: FileText },
   { to: '/admin/venta', label: 'Registrar Venta', icon: ShoppingCart },

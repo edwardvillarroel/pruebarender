@@ -26,6 +26,7 @@ import Pedidos from './pages/admin/Pedidos.jsx'
 import RegistrarVentaLocal from './pages/admin/RegistrarVentaLocal.jsx'
 import Inventario from './pages/admin/Inventario.jsx'
 import Cotizaciones from './pages/admin/Cotizaciones.jsx'
+import Usuarios from './pages/admin/Usuarios.jsx'
 import ReportesVentas from './pages/admin/ReportesVentas.jsx'
 import CuponesAdmin from './pages/admin/CuponesAdmin.jsx'
 import WhatsAppFlotante from './components/whatsAppFlotante.jsx'
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="pedidos" element={<Pedidos />} />
+            <Route path="usuarios" element={<Usuarios />} />
             <Route path="venta" element={<RegistrarVentaLocal />} />
             <Route path="inventario" element={<Inventario />} />
             <Route path="cotizaciones" element={<Cotizaciones />} />

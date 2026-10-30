@@ -89,6 +89,12 @@ _ALTERS_USUARIOS = [
         "mfa_activo",
         "ALTER TABLE usuarios ADD COLUMN mfa_activo boolean DEFAULT false NOT NULL",
     ),
+    (
+        # Soft delete del panel de administracion (ver
+        # migrations/postgres/agregar_eliminado_usuario.sql).
+        "eliminado_en",
+        "ALTER TABLE usuarios ADD COLUMN eliminado_en timestamptz",
+    ),
 ]
 
 
