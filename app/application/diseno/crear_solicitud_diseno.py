@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from app.domain.entities.solicitud_diseno import EstadoSolicitud, SolicitudDiseno
 from app.infrastructure.imagenes.validador_imagen_segura import validar_imagen_segura
+from app.infrastructure.cotizador import ClienteCotizadorIA
 
 
 MATERIALES_PERMITIDOS = {"PLA", "PLA+", "ABS+", "ABS", "PETG", "Resina", "No estoy seguro"}
@@ -13,9 +15,10 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class CrearSolicitudDiseno:
-    def __init__(self, repositorio, guardar_imagen=None):
+    def __init__(self, repositorio, guardar_imagen=None, cotizador_ia: ClienteCotizadorIA | None = None):
         self.repositorio = repositorio
         self.guardar_imagen = guardar_imagen
+        self.cotizador_ia = cotizador_ia
 
     def ejecutar(self, usuario_id: UUID, datos: dict, imagen) -> SolicitudDiseno:
         nombre = str(datos.get("nombre") or "").strip()
@@ -105,7 +108,58 @@ class CrearSolicitudDiseno:
             precio=None,
             estado=EstadoSolicitud.PENDIENTE,
         )
+
+        try:
+            if self.cotizador_ia is not None:
+                res = self.cotizador_ia.estimar(
+                    imagen_bytes=contenido,
+                    filename=f"cotizacion.{extension}",
+                    alto=float(alto) if alto else 10,
+                    ancho=float(ancho) if ancho else 10,
+                    largo=float(largo) if largo else 10,
+                    unidad=unidad,
+                    cantidad=cantidad,
+                    uso=uso or "Decorativo",
+                    material_usuario=material,
+                    color=color or "Negro",
+                )
+                solicitud.material_sugerido_ia = res.get("material_detectado")
+                solicitud.complejidad_ia = res.get("complejidad")
+                solicitud.gramos_estimados_ia = self._to_decimal(res.get("gramos_estimados"))
+                solicitud.tiempo_estimado_horas_ia = self._to_decimal(res.get("tiempo_estimado_horas"))
+                solicitud.precio_estimado_ia = self._to_decimal(res.get("precio_clp") or res.get("precio_estimado_ia"))
+                solicitud.confianza_material_ia = self._to_decimal(res.get("confianza_material"))
+                solicitud.confianza_complejidad_ia = self._to_decimal(res.get("confianza_complejidad"))
+                solicitud.ia_calculado_en = datetime.utcnow()
+                solicitud.ia_origen = "cotizador-apolovibes-v2"
+        except Exception as e:
+            import traceback
+            print(f"[IA] Fallo cotizador: {e}")
+            traceback.print_exc()
+
         return self.repositorio.crear(solicitud)
+
+    def _altura_referencia(self, alto, ancho, largo):
+        vals = []
+        for v in (alto, ancho, largo):
+            if v is not None:
+                try:
+                    vals.append(float(v))
+                except Exception:
+                    pass
+        if not vals:
+            return None
+        return max(vals)
+
+    def _to_decimal(self, v):
+        if v is None:
+            return None
+        try:
+            if isinstance(v, float):
+                return Decimal(str(v))
+            return Decimal(str(v))
+        except Exception:
+            return None
 
     def _parse_decimal_pos(self, valor, campo: str):
         if valor is None or str(valor).strip() == "":

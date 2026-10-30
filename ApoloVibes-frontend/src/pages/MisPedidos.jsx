@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { RefreshCw, AlertTriangle, Eye, Star, Package, CircleCheck, X, ChevronLeft, ChevronRight, Check, Clock, Truck, Store, User, Phone, Mail, FileText, Building2, Briefcase, Trash2, CreditCard, Info} from 'lucide-react';
+import { RefreshCw, AlertTriangle, Eye, Star, Package, CircleCheck, X, ChevronLeft, ChevronRight, Check, Clock, Truck, Store, User, Phone, Mail, FileText, Building2, Briefcase, Trash2, CreditCard, Info } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import { pedidosApi } from '../services/orders.js';
@@ -545,9 +545,9 @@ function AvisoCancelacionModal({ pedido, onClose }) {
         <p style={{ margin: '0 0 18px', fontSize: 14, color: 'var(--text)', lineHeight: 1.6, textAlign: 'center' }}>
           {aceptada
             ? 'Tu solicitud de anulación fue enviada a Tuu y quedó aceptada. '
-              + 'La devolución del dinero estará disponible en tu cuenta entre 8 y 10 días hábiles.'
+            + 'La devolución del dinero estará disponible en tu cuenta entre 8 y 10 días hábiles.'
             : 'Tu pedido quedó cancelado. Estamos gestionando la anulación del pago con Tuu; '
-              + 'te avisaremos acá en cuanto esté resuelta.'}
+            + 'te avisaremos acá en cuanto esté resuelta.'}
         </p>
 
         <button
@@ -602,9 +602,6 @@ export default function MisPedidos() {
     if (isLoggedIn) cargar(hayCache);
   }, [isLoggedIn, user?.id]);
 
-  // El aviso de anulación lo escribe el admin mientras esta página ya está
-  // abierta: se refresca al volver a la pestaña y cada 20s con la pestaña
-  // visible, así el badge aparece sin recargar a mano.
   useEffect(() => {
     if (!isLoggedIn) return undefined;
     const alVolver = () => {
@@ -680,9 +677,6 @@ export default function MisPedidos() {
 
   async function abrirAviso(pedido) {
     setAviso(pedido);
-    // La fila puede venir de una lista cacheada, anterior al aviso que el
-    // admin acaba de enviar: se refresca para no mostrar "en proceso" cuando
-    // Tuu ya confirmó. Si el refresh falla se mantiene la fila actual.
     try {
       const data = await pedidosApi.mios();
       const lista = data.pedidos || [];
@@ -694,19 +688,15 @@ export default function MisPedidos() {
       actualizarPedido(pedido.id, { aviso_cancelacion_pendiente: false });
       await pedidosApi.marcarAvisoVisto(pedido.id);
     } catch {
-      // Sin red: el modal sigue mostrando lo que ya sabíamos.
     }
   }
 
   const fecha = (f) => f ? new Date(f).toLocaleDateString('es-CL') : '—';
-  // Una reseña ya enviada deja el ícono bloqueado, igual que el aviso de
-  // anulación una vez visto. Si quedan productos sin valorar sigue activo.
   const yaValorado = (p) => p.estado === 'entregado'
     && (p.resenas_completadas || 0) > 0
     && !((p.resenas_pendientes || 0) > 0);
   const puedeValorar = (p) => p.estado === 'entregado' && !yaValorado(p);
-  // El aviso de anulación se apaga una vez que el cliente lo abrió: mismo
-  // tratamiento que la estrella después de valorar.
+
   const avisoVisto = (p) => p.estado === 'cancelado'
     && !!p.aviso_cancelacion_en
     && !p.aviso_cancelacion_pendiente;
@@ -769,9 +759,17 @@ export default function MisPedidos() {
               {mensaje.texto}
             </p>
           )}
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ color: 'var(--surface-2)', textAlign: 'center', fontSize: 11, textTransform: 'uppercase', borderBottom: '1px solid var(--line)' }}>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'center' }}>
+            <thead style={{ borderBottom: '1px solid var(--surface-3)' }}>
+              <tr
+                style={{
+                  color: 'var(--surface)',
+                  textAlign: 'center',
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                }}
+              >
                 <th style={{ padding: '0 10px 12px', textAlign: 'left' }}>Pedido</th>
                 <th style={{ padding: '0 10px 12px' }}>Fecha</th>
                 <th style={{ padding: '0 10px 12px' }}>Detalles</th>

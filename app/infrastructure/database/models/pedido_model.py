@@ -9,6 +9,12 @@ class PedidoModel(db.Model):
 
     id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
     usuario_id = db.Column(db.Uuid, db.ForeignKey("usuarios.id"), nullable=False)
+    cotizacion_id = db.Column(
+        db.Uuid,
+        db.ForeignKey("solicitudes_diseno.id"),
+        nullable=True,
+        unique=True,
+    )
     estado = db.Column(db.String(30), nullable=False, default="pendiente")
     total = db.Column(db.Integer, nullable=False, default=0)
     subtotal = db.Column(db.Integer)

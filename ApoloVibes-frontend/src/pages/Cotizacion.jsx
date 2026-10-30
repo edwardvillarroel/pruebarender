@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { api } from '../services/api.js'
+import { api, apiCotizador } from '../services/api.js'
 import { generarModelo3DMock } from '../services/ai-model.js'
 import ModelViewer from '../components/ModelViewer.jsx'
 import GenerationProgress from '../components/GenerationProgress.jsx'
@@ -20,6 +20,8 @@ const ESTADO_INICIAL = {
   color: '', colorOtro: '',
   descripcion: '',
 }
+
+const estiloImagen = { display: 'block', width: 200, height: 200, objectFit: 'contain', margin: '0 auto 12px'}
 
 const MATERIALES = ['PLA', 'PLA+', 'ABS+', 'No estoy seguro']
 const USOS = ['Decorativo', 'Funcional', 'Prototipo', 'Exterior', 'Otro']
@@ -78,6 +80,7 @@ export default function Cotizacion() {
   const [mensajeImagenInvalida, setMensajeImagenInvalida] = useState('La imagen seleccionada no es válida o contiene contenido no permitido. Por favor sube una imagen JPG, PNG o WebP.')
   const [validandoImagen, setValidandoImagen] = useState(false)
   const [progresoValidacion, setProgresoValidacion] = useState({ status: 'idle', percent: 0, message: '' })
+  const [cotizacionIA, setCotizacionIA] = useState(null)
 
   const email = form.email.trim()
   const telefono = form.telefono.trim()
@@ -119,20 +122,12 @@ export default function Cotizacion() {
     actualizar(campo, partes.length > 1 ? partes[0] + '.' + partes.slice(1).join('') : limpio)
   }
 
+ 
   async function manejarArchivo(e) {
     const file = e.target.files[0]
     if (!file) return
-
-    if (!file.type.startsWith('image/')) {
-      setError('El archivo debe ser una imagen (JPG, PNG o WEBP).')
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      return
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      setError('La imagen no puede pesar más de 8MB.')
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      return
-    }
+    if (!file.type.startsWith('image/')) return 
+    if (file.size > 8 * 1024 * 1024) return 
 
     setError(null)
     setArchivo(file)
@@ -140,67 +135,88 @@ export default function Cotizacion() {
     setModeloUrl(null)
     setVisorFallo(false)
     setProgreso({ status: 'idle', percent: 0, message: '' })
+    setCotizacionIA(null) 
 
-    setValidandoImagen(true)
-    setProgresoValidacion({ status: 'uploading', percent: 0, message: 'Iniciando validación de seguridad...' })
-
-    const interval = setInterval(() => {
-      setProgresoValidacion(prev => {
-        if (prev.percent >= 95) return { ...prev, status: 'processing', message: 'Finalizando análisis...' }
-        const next = prev.percent + 7
-        const messages = [
-          'Comprobando firma mágica...',
-          'Verificando tipo de archivo...',
-          'Escaneando contenido embebido...',
-          'Validando estructura de imagen...',
-          'Revisando patrones sospechosos...',
-          'Aplicando filtros de seguridad...',
-          'Verificando integridad...',
-        ]
-        const idx = Math.min(Math.floor((next) / 13), messages.length - 1)
-        return { status: next > 25 ? (next > 65 ? 'processing' : 'uploading') : 'uploading', percent: Math.min(next, 95), message: messages[idx] || messages[messages.length - 1] }
-      })
-    }, 180)
-
-    try {
-      const fd = new FormData()
-      fd.append('imagen', file)
-      await Promise.all([
-        api.post('/cotizaciones/validar-imagen', fd),
-        new Promise(r => setTimeout(r, 2000))
-      ])
-      clearInterval(interval)
-      setProgresoValidacion({ status: 'processing', percent: 98, message: 'Finalizando análisis...' })
-      await new Promise(r => setTimeout(r, 400))
-      setProgresoValidacion({ status: 'completed', percent: 100, message: 'Imagen segura - Validación completada' })
-      await new Promise(r => setTimeout(r, 700))
-    } catch (err) {
-      clearInterval(interval)
-      setValidandoImagen(false)
-      setProgresoValidacion({ status: 'idle', percent: 0, message: '' })
-      setArchivo(null)
-      setPrevisualizacion(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      const msg = err?.response?.data?.error || 'La imagen seleccionada no es válida o contiene contenido no permitido. Por favor sube una imagen JPG, PNG o WebP.'
-      setMensajeImagenInvalida(msg)
-      setMostrarModalImagenInvalida(true)
-      return
-    }
-    setValidandoImagen(false)
-    setProgresoValidacion({ status: 'idle', percent: 0, message: '' })
-
-    // Iniciar generación
     setGenerando(true)
-    setProgreso({ status: 'uploading', percent: 5, message: 'Subiendo imagen...' })
-
     try {
       const resultado = await generarModelo3DMock(file, setProgreso)
       setModeloUrl(resultado.modelUrl)
+    } catch { setError('No pudimos generar el modelo 3D.') }
+    finally { setGenerando(false) }
+  }
+
+  async function enviarSolicitud(e) {
+    e.preventDefault()
+    if (!paso3Completo || enviando) return
+    setEnviando(true)
+    setError(null)
+
+    let cotizacion = form._cotizacionInstantanea
+    if (!cotizacion && archivo) {
+      try {
+        const fdCotizar = new FormData()
+        fdCotizar.append('file', archivo)
+        fdCotizar.append('alto', form.alto)
+        fdCotizar.append('ancho', form.ancho)
+        fdCotizar.append('largo', form.largo)
+        fdCotizar.append('unidad', form.unidad)
+        fdCotizar.append('cantidad', form.cantidad)
+        fdCotizar.append('uso', form.uso)
+        fdCotizar.append('material_usuario', form.material)
+        fdCotizar.append('color', form.color === 'Otro' ? form.colorOtro : form.color)
+        cotizacion = await apiCotizador.cotizar(fdCotizar)
+        setCotizacionIA(cotizacion)
+      } catch (err) {
+        console.warn('Fallo cotizacion IA, se envia sin precio', err)
+      }
+    }
+
+    const colorFinal = form.color === 'Otro' ? form.colorOtro.trim() : form.color
+    const resumen = [
+      `Tamaño: ${form.alto} x ${form.ancho} x ${form.largo} ${form.unidad}`,
+      `Cantidad: ${form.cantidad}`,
+      `Uso: ${form.uso}`,
+      `Color: ${colorFinal}`,
+      form.descripcion.trim() ? `Detalles: ${form.descripcion.trim()}` : '',
+    ].filter(Boolean).join('\n')
+
+    const data = new FormData()
+    data.append('nombre', form.nombre.trim())
+    data.append('email', form.email.trim())
+    data.append('telefono', '+56' + form.telefono.trim())
+    data.append('material', form.material)
+    data.append('alto', form.alto)
+    data.append('ancho', form.ancho)
+    data.append('largo', form.largo)
+    data.append('unidad', form.unidad)
+    data.append('cantidad', form.cantidad)
+    data.append('uso', form.uso)
+    data.append('color', colorFinal)
+    data.append('descripcion', resumen)
+    
+    if (cotizacion) {
+      data.append('precio_estimado_ia', cotizacion.precio_clp)
+      data.append('precio_unitario_ia', cotizacion.precio_unitario_clp)
+      data.append('gramos_estimados', cotizacion.gramos_estimados)
+      data.append('tiempo_estimado_horas', cotizacion.tiempo_estimado_horas)
+      data.append('gramos_1_pieza', cotizacion.gramos_1_pieza)
+      data.append('material_detectado', cotizacion.material_detectado)
+      data.append('complejidad_detectada', cotizacion.complejidad)
+      data.append('confianza_material', cotizacion.confianza_material)
+      data.append('confianza_complejidad', cotizacion.confianza_complejidad)
+      data.append('detalle_costos', JSON.stringify(cotizacion.detalle))
+    }
+
+    data.append('imagen', archivo)
+    if (modeloValido && modeloUrl) data.append('modeloUrl', modeloUrl)
+
+    try {
+      await api.post('/cotizaciones', data)
+      setEnviado(true)
     } catch (err) {
-      setError('No pudimos generar el modelo 3D. Puedes continuar con la cotización de todas formas.')
-      setProgreso({ status: 'failed', percent: 0, message: 'Error en la generación' })
+      setError(err?.datos?.mensaje || 'No pudimos enviar tu solicitud.')
     } finally {
-      setGenerando(false)
+      setEnviando(false)
     }
   }
 
@@ -225,28 +241,53 @@ export default function Cotizacion() {
     setError(null)
 
     const colorFinal = form.color === 'Otro' ? form.colorOtro.trim() : form.color
+    const cotizacion = form._cotizacionInstantanea 
 
     const resumen = [
       `Tamaño: ${form.alto} x ${form.ancho} x ${form.largo} ${form.unidad}`,
       `Cantidad: ${form.cantidad}`,
       `Uso: ${form.uso}`,
       `Color: ${colorFinal}`,
+      cotizacion ? `Precio estimado IA: $${cotizacion.precio_unitario_clp?.toLocaleString('es-CL')} x unidad (${cotizacion.gramos_1_pieza}g / ${cotizacion.tiempo_unitario_horas}h)` : '',
+      cotizacion ? `Material IA: ${cotizacion.material_detectado} (${cotizacion.confianza_material}) - Complejidad: ${cotizacion.complejidad}` : '',
       form.descripcion.trim() ? `Detalles: ${form.descripcion.trim()}` : '',
     ].filter(Boolean).join('\n')
 
     const data = new FormData()
-    Object.entries(form).forEach(([k, v]) => data.append(k, v))
-    data.set('color', colorFinal)
-    data.set('descripcion', resumen)
-    data.set('telefono', '+56' + form.telefono.trim())
+    data.append('nombre', form.nombre.trim())
+    data.append('email', form.email.trim())
+    data.append('telefono', '+56' + form.telefono.trim())
+    data.append('material', form.material)
+    data.append('alto', form.alto)
+    data.append('ancho', form.ancho)
+    data.append('largo', form.largo)
+    data.append('unidad', form.unidad)
+    data.append('cantidad', form.cantidad)
+    data.append('uso', form.uso)
+    data.append('color', colorFinal)
+    data.append('descripcion', resumen)
+    
+    if (cotizacion) {
+      data.append('precio_estimado_ia', cotizacion.precio_clp)
+      data.append('precio_unitario_ia', cotizacion.precio_unitario_clp)
+      data.append('gramos_estimados', cotizacion.gramos_estimados)
+      data.append('tiempo_estimado_horas', cotizacion.tiempo_estimado_horas)
+      data.append('material_detectado', cotizacion.material_detectado)
+      data.append('complejidad_detectada', cotizacion.complejidad)
+      data.append('confianza_material', cotizacion.confianza_material)
+      data.append('confianza_complejidad', cotizacion.confianza_complejidad)
+      data.append('detalle_costos', JSON.stringify(cotizacion.detalle))
+    }
+
     data.append('imagen', archivo)
-    if (modeloValido) data.append('modeloUrl', modeloUrl)
+    if (modeloValido && modeloUrl) data.append('modeloUrl', modeloUrl)
 
     try {
       await api.post('/cotizaciones', data)
       setEnviado(true)
     } catch (err) {
-      setError('No pudimos enviar tu solicitud. Intenta nuevamente.')
+      const msg = err?.datos?.mensaje || err?.message || 'No pudimos enviar tu solicitud. Intenta nuevamente.'
+      setError(msg)
     } finally {
       setEnviando(false)
     }
@@ -255,10 +296,11 @@ export default function Cotizacion() {
   if (enviado) {
     return (
       <section className="wrap" style={{ paddingTop: '100px', paddingBottom: '100px', textAlign: 'center', maxWidth: 480, margin: '0 auto' }}>
+        <img src={mediaPath('logoExitoCompra.webp')} alt="" loading="lazy" decoding="async" style={estiloImagen} />
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, marginBottom: 12 }}>Solicitud enviada</h1>
         <p style={{ color: 'var(--text-dim)' }}>
           Recibimos tu pieza de referencia{modeloValido ? ' y el modelo 3D generado' : ''}.
-          Nuestro equipo la revisa y te responde con un precio estimado dentro de 24 a 48 horas hábiles a {form.email}.
+          Nuestro equipo revisará tu cotización. Te enviaremos la cotización dentro de 24 a 48 horas hábiles a tu correo: {form.email}.
         </p>
       </section>
     )

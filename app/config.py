@@ -120,8 +120,10 @@ class Config:
     FRONTEND_DIST = os.getenv(
         "FRONTEND_DIST", str(BASE_DIR.parent / "ApoloVibes-frontend" / "dist")
     )
-    # Prefijo del build de Vite (vite.config.js usa base: "/ApoloVibes3D-Frontend/").
+   
     FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "/ApoloVibes3D-Frontend/")
+
+    COTIZADOR_IA_URL = os.getenv("COTIZADOR_IA_URL", "http://127.0.0.1:8001")
 
     JSON_SORT_KEYS = False
 

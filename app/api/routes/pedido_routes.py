@@ -137,6 +137,9 @@ def _cliente(pedido) -> dict:
 def _a_publico_pedido(pedido, admin: bool = False) -> dict:
     datos = {
         "id": str(pedido.id),
+        "cotizacion_id": (
+            str(pedido.cotizacion_id) if pedido.cotizacion_id else None
+        ),
         "estado": pedido.estado.value,
         "total": pedido.total,
         "subtotal": pedido.subtotal,
@@ -159,7 +162,9 @@ def _a_publico_pedido(pedido, admin: bool = False) -> dict:
         ),
         "items": [
             {
-                "producto_id": str(detalle.producto_id),
+                "producto_id": (
+                    str(detalle.producto_id) if detalle.producto_id else None
+                ),
                 "cantidad": detalle.cantidad,
                 "precio_unitario": detalle.precio_unitario,
                 "precio_original": detalle.precio_original,
@@ -472,20 +477,30 @@ def _a_publico_documento(documento) -> dict:
 @requiere_sesion()
 def crear_pago():
     datos = request.get_json(silent=True) or {}
-    if not datos.get("items"):
-        return _error("items es obligatorio", 400)
+    cotizacion_raw = datos.get("cotizacion_id") or datos.get("cotizacionId")
+    if not datos.get("items") and not cotizacion_raw:
+        return _error("items o cotizacion_id es obligatorio", 400)
+    cotizacion_id = None
+    if cotizacion_raw:
+        try:
+            cotizacion_id = UUID(str(cotizacion_raw))
+        except (ValueError, TypeError):
+            return _error("cotizacion_id inválido", 400)
     try:
         dto = IniciarPagoDTO(
             usuario_id=_usuario_uuid(),
             items=_items(datos),
             entrega=datos.get("entrega") or "retiro",
             cliente=datos.get("cliente") or None,
-            total_esperado=_entero_opcional(datos.get("total")),
+            total_esperado=_entero_opcional(
+                datos.get("total") or datos.get("totalEsperado")
+            ),
             clave_idempotencia=_clave_idempotencia(
                 datos.get("claveIdempotencia") or datos.get("clave_idempotencia")
             ),
             guardar_datos=bool(datos.get("guardarDatos") or datos.get("guardar_datos")),
             cupon_codigo=str(datos.get("cuponCodigo") or datos.get("cupon_codigo") or "").strip().upper() or None,
+            cotizacion_id=cotizacion_id,
         )
     except (ValueError, TypeError) as exc:
         return _error(f"Datos inválidos: {exc}", 400)
@@ -515,6 +530,7 @@ def _cuerpo_confirmacion(resultado) -> dict:
         "pedido_id": resultado.pedido_id,
         "mensaje": resultado.mensaje,
         "correo_enviado": resultado.correo_enviado,
+        "cotizacion_id": resultado.cotizacion_id,
     }
 
 
@@ -534,3 +550,11 @@ def callback_pago():
     except ErrorPasarela as exc:
         return _error(str(exc), 400)
     return jsonify(**_cuerpo_confirmacion(resultado))
+
+
+@pedido_bp.post("/pago/crear-cotizacion")
+@requiere_sesion()
+def crear_pago_cotizacion():
+    return _error(
+        "El pago de cotizaciones ahora se realiza desde el checkout.", 410
+    )

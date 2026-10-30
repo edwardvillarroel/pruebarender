@@ -2,13 +2,17 @@ import { api } from './api.js'
 import { VERSION_LEGAL } from './legal.js'
 
 export async function iniciarPago({ items, cliente, entrega, totalEsperado, claveIdempotencia,
-  guardarDatos, mayorEdad, aceptaTerminos, cuponCodigo}) {
+  guardarDatos, mayorEdad, aceptaTerminos, cuponCodigo, cotizacionId}) {
   const pedido = {
-    items: items.map(i => ({
-      id: i.id,
-      cantidad: i.cantidad,
-      ...(i.color ? { color: i.color } : {}),
-    })),
+    ...(cotizacionId
+      ? { cotizacionId }
+      : {
+          items: (items || []).map(i => ({
+            id: i.id,
+            cantidad: i.cantidad,
+            ...(i.color ? { color: i.color } : {}),
+          })),
+        }),
     entrega,
     cliente: {
       ...cliente,

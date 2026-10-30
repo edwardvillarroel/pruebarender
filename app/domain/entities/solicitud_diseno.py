@@ -34,3 +34,16 @@ class SolicitudDiseno:
     estado: EstadoSolicitud = EstadoSolicitud.PENDIENTE
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=utcnow)
+
+    # Sugerido por IA (Cotizador ApoloVibes)
+    material_sugerido_ia: str | None = None
+    complejidad_ia: str | None = None
+    gramos_estimados_ia: Decimal | None = None
+    tiempo_estimado_horas_ia: Decimal | None = None
+    precio_estimado_ia: Decimal | None = None
+    confianza_material_ia: Decimal | None = None
+    confianza_complejidad_ia: Decimal | None = None
+    ia_calculado_en: datetime | None = None
+    ia_origen: str | None = None
+    aviso_estado_en: datetime | None = None
+    aviso_estado_visto: bool = False

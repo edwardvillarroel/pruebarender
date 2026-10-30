@@ -123,6 +123,10 @@ class PedidoRepository(RepositoryBase[Pedido], ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_by_cotizacion(self, cotizacion_id: UUID) -> Pedido | None:
+        raise NotImplementedError
+
+    @abstractmethod
     def list_todos(self) -> list[Pedido]:
         
         raise NotImplementedError

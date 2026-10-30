@@ -68,6 +68,7 @@ class IniciarPagoDTO:
     clave_idempotencia: str | None = None
     guardar_datos: bool = False
     cupon_codigo: str | None = None
+    cotizacion_id: UUID | None = None
 
 
 @dataclass
@@ -76,3 +77,4 @@ class ResultadoConfirmacionPago:
     pedido_id: str
     mensaje: str
     correo_enviado: bool | None = None
+    cotizacion_id: str | None = None

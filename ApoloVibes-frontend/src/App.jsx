@@ -16,6 +16,7 @@ import Checkout from './pages/Checkout.jsx'
 import PagoRetorno from './pages/PagoRetorno.jsx'
 import Cotizacion from './pages/Cotizacion.jsx'
 import MisPedidos from './pages/MisPedidos.jsx'
+import MisCotizaciones from './pages/MisCotizaciones.jsx'
 import NotFound from './pages/NotFound.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/pago/retorno" element={<TiendaLayout><PagoRetorno /></TiendaLayout>} />
           <Route path="/cotizar" element={<TiendaLayout><RutaCliente><Cotizacion /></RutaCliente></TiendaLayout>} />
           <Route path="/mis-pedidos" element={<TiendaLayout><MisPedidos /></TiendaLayout>} />
+          <Route path="/mis-cotizaciones" element={<TiendaLayout><MisCotizaciones /></TiendaLayout>} />
 
           <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />

@@ -8,7 +8,7 @@ class DetallePedidoModel(db.Model):
 
     id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
     pedido_id = db.Column(db.Uuid, db.ForeignKey("pedidos.id"), nullable=False, index=True)
-    producto_id = db.Column(db.Uuid, db.ForeignKey("productos.id"), nullable=False)
+    producto_id = db.Column(db.Uuid, db.ForeignKey("productos.id"), nullable=True)
     cantidad = db.Column(db.Integer, nullable=False)
     precio_unitario = db.Column(db.Integer, nullable=False)
     precio_original = db.Column(db.Integer)

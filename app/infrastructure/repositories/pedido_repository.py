@@ -41,6 +41,35 @@ class PedidoRepository(PedidoRepositoryInterface):
         ).one_or_none()
         return self._con_estado_pago([fila])[0] if fila else None
 
+    def get_by_cotizacion(self, cotizacion_id: UUID) -> Pedido | None:
+        fila = db.session.execute(
+            select(self.model, self._estado_pago().label("estado_pago"))
+            .options(selectinload(self.model.detalles))
+            .where(self.model.cotizacion_id == cotizacion_id)
+        ).one_or_none()
+        return self._con_estado_pago([fila])[0] if fila else None
+
+    def pagos_por_cotizacion(
+        self, cotizacion_ids: list[UUID]
+    ) -> dict[UUID, dict[str, Any]]:
+        """Estado de pago de varias cotizaciones en una sola consulta."""
+        if not cotizacion_ids:
+            return {}
+        filas = db.session.execute(
+            select(PedidoModel.cotizacion_id, PedidoModel.id, PagoModel.estado)
+            .outerjoin(PagoModel, PagoModel.pedido_id == PedidoModel.id)
+            .where(PedidoModel.cotizacion_id.in_(cotizacion_ids))
+        ).all()
+        resultado: dict[UUID, dict[str, Any]] = {}
+        for cotizacion_id, pedido_id, estado_pago in filas:
+            actual = resultado.setdefault(
+                cotizacion_id,
+                {"pedido_id": str(pedido_id), "pagada": False},
+            )
+            if estado_pago == EstadoPago.COMPLETADO.value:
+                actual["pagada"] = True
+        return resultado
+
     def list(self, *filters: Any) -> list[Pedido]:
         consulta = db.session.query(self.model).options(
             selectinload(self.model.detalles)
@@ -68,6 +97,7 @@ class PedidoRepository(PedidoRepositoryInterface):
             select(literal(1))
             .select_from(DetallePedidoModel)
             .where(DetallePedidoModel.pedido_id == PedidoModel.id)
+            .where(DetallePedidoModel.producto_id.isnot(None))
             .where(sin_resena_de_este)
         )
         resenas_pendientes = case(
@@ -177,6 +207,7 @@ class PedidoRepository(PedidoRepositoryInterface):
         modelo = PedidoModel(
             id=pedido.id,
             usuario_id=pedido.usuario_id,
+            cotizacion_id=pedido.cotizacion_id,
             estado=pedido.estado.value,
             total=pedido.total,
             subtotal=pedido.subtotal,
@@ -265,6 +296,7 @@ class PedidoRepository(PedidoRepositoryInterface):
         if modelo is None:
             raise ValueError("Pedido no encontrado en BD")
         modelo.usuario_id = entidad.usuario_id
+        modelo.cotizacion_id = entidad.cotizacion_id
         modelo.estado = entidad.estado.value
         modelo.total = entidad.total
         modelo.subtotal = entidad.subtotal
@@ -301,7 +333,16 @@ def _resolver_imagenes(detalles: list[DetallePedido]) -> None:
     if not detalles:
         return
 
-    ids = {detalle.producto_id for detalle in detalles}
+    ids = {
+        detalle.producto_id
+        for detalle in detalles
+        if detalle.producto_id is not None
+    }
+    if not ids:
+        for detalle in detalles:
+            detalle.imagen = None
+        return
+
     filas = db.session.execute(
         select(
             ProductoModel.id,
@@ -359,6 +400,7 @@ def _a_entidad(modelo: PedidoModel) -> Pedido:
     return Pedido(
         id=modelo.id,
         usuario_id=modelo.usuario_id,
+        cotizacion_id=modelo.cotizacion_id,
         estado=EstadoPedido(modelo.estado),
         total=modelo.total,
         subtotal=modelo.subtotal,
@@ -395,6 +437,7 @@ def _a_modelo(entidad: Pedido) -> PedidoModel:
     modelo = PedidoModel(
         id=entidad.id,
         usuario_id=entidad.usuario_id,
+        cotizacion_id=entidad.cotizacion_id,
         estado=entidad.estado.value,
         total=entidad.total,
         subtotal=entidad.subtotal,
