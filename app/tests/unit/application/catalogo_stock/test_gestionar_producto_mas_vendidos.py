@@ -9,16 +9,25 @@ ruta ni del repositorio:
    semana, y el titulo "Los mas vendidos de la semana" mentiria.
 2. El limite se acota. Sin tope, un `limite=100000` arrastra el catalogo
    entero a memoria.
+
+Ademas, la variante semanal aplica la regla de negocio: si la semana en curso
+tiene mas de 4 productos distintos vendidos se muestra esa; si no, la anterior.
 """
 
+from datetime import datetime, time, timedelta, timezone
 from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
 
-from app.application.catalogo_stock.gestionar_producto import GestionarProducto
+from app.application.catalogo_stock.gestionar_producto import (
+    DIAS_SEMANA,
+    GestionarProducto,
+    UMBRAL_PRODUCTOS_SEMANA,
+    _lunes_de,
+)
 from app.domain.entities.producto import FotoColorCatalogo, Producto, ProductoVendido
-from app.domain.time import utcnow
+from app.domain.time import ZONA_CHILE, hoy_chile, utcnow
 
 
 def _servicio(vendidos=None) -> tuple[GestionarProducto, Mock]:
@@ -172,3 +181,101 @@ def test_un_producto_con_foto_no_consulta_los_colores():
     servicio.listar_mas_vendidos("todo", 10)
 
     repositorio.primera_imagen_color_por_producto.assert_not_called()
+
+
+# --- Ranking semanal con fallback -------------------------------------------
+#
+# La regla es sobre productos DISTINTOS, no unidades: 10 unidades del mismo
+# producto cuentan como uno. La semana es calendario (lunes a domingo) en hora
+# de Chile, y el corte se evalua con la fecha local, no con la del servidor.
+
+
+def _ventana_chile(lunes):
+    inicio = datetime.combine(lunes, time.min, tzinfo=ZONA_CHILE)
+    fin = datetime.combine(lunes + timedelta(days=DIAS_SEMANA), time.min, tzinfo=ZONA_CHILE)
+    return inicio.astimezone(timezone.utc), fin.astimezone(timezone.utc)
+
+
+def _semana_actual_y_anterior():
+    lunes_actual = _lunes_de(hoy_chile())
+    actual = _ventana_chile(lunes_actual)
+    anterior = _ventana_chile(lunes_actual - timedelta(days=DIAS_SEMANA))
+    return lunes_actual, actual, anterior
+
+
+def _servicio_semana(distintos: int, vendidos=None):
+    servicio, repositorio = _servicio(vendidos)
+    repositorio.contar_productos_distintos.return_value = distintos
+    repositorio.listar_mas_vendidos_en_ventana.return_value = vendidos or []
+    return servicio, repositorio
+
+
+def test_con_mas_de_cuatro_productos_distintos_usa_la_semana_actual():
+    _, (inicio_actual, fin_actual), _ = _semana_actual_y_anterior()
+    servicio, repositorio = _servicio_semana(UMBRAL_PRODUCTOS_SEMANA + 1)
+
+    resultado = servicio.listar_mas_vendidos_semana(10)
+
+    desde, hasta, limite = repositorio.listar_mas_vendidos_en_ventana.call_args[0]
+    assert (desde, hasta, limite) == (inicio_actual, fin_actual, 10)
+    assert resultado.tipo == "actual"
+    assert resultado.desde == inicio_actual
+    assert resultado.hasta == fin_actual
+    assert resultado.productos_distintos_semana_actual == 5
+
+
+def test_con_exactamente_cuatro_productos_distintos_usa_la_semana_anterior():
+    """El umbral es "mas de 4": cuatro todavia no alcanza."""
+    _, _, (inicio_anterior, fin_anterior) = _semana_actual_y_anterior()
+    servicio, repositorio = _servicio_semana(UMBRAL_PRODUCTOS_SEMANA)
+
+    resultado = servicio.listar_mas_vendidos_semana(10)
+
+    desde, hasta, _ = repositorio.listar_mas_vendidos_en_ventana.call_args[0]
+    assert (desde, hasta) == (inicio_anterior, fin_anterior)
+    assert resultado.tipo == "anterior"
+    assert resultado.productos_distintos_semana_actual == 4
+
+
+def test_sin_ventas_en_la_semana_actual_usa_la_semana_anterior():
+    _, _, (inicio_anterior, fin_anterior) = _semana_actual_y_anterior()
+    servicio, repositorio = _servicio_semana(0)
+
+    resultado = servicio.listar_mas_vendidos_semana(10)
+
+    desde, hasta, _ = repositorio.listar_mas_vendidos_en_ventana.call_args[0]
+    assert (desde, hasta) == (inicio_anterior, fin_anterior)
+    assert resultado.tipo == "anterior"
+    assert resultado.productos == []
+
+
+def test_las_semanas_actual_y_anterior_no_se_solapan():
+    """La ventana anterior termina justo cuando empieza la actual: sin la cota
+    superior, la semana pasada se comeria los pagos de esta."""
+    _, (inicio_actual, _), (_, fin_anterior) = _semana_actual_y_anterior()
+
+    assert fin_anterior == inicio_actual
+
+
+def test_el_ranking_semanal_devuelve_los_vendidos_de_la_ventana_elegida():
+    vendidos = [
+        ProductoVendido(producto=_producto(nombre="Semana"), unidades=3, ingresos=3000)
+    ]
+    servicio, _ = _servicio_semana(5, vendidos)
+
+    resultado = servicio.listar_mas_vendidos_semana(10)
+
+    assert [v.producto.nombre for v in resultado.productos] == ["Semana"]
+
+
+def test_el_limite_semanal_se_acota_igual_que_el_ranking_normal():
+    servicio, repositorio = _servicio_semana(5)
+
+    servicio.listar_mas_vendidos_semana(100000)
+    _, _, limite = repositorio.listar_mas_vendidos_en_ventana.call_args[0]
+    assert limite == 50
+
+    servicio.listar_mas_vendidos_semana(0)
+    _, _, limite = repositorio.listar_mas_vendidos_en_ventana.call_args[0]
+    assert limite == 1
+

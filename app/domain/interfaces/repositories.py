@@ -17,7 +17,7 @@ from app.domain.entities.producto import (
     ProductoVendido,
 )
 from app.domain.entities.solicitud_diseno import SolicitudDiseno
-from app.domain.entities.usuario import Usuario
+from app.domain.entities.usuario import Usuario, UsuarioMetricas
 from app.domain.enums import EstadoPedido
 from app.domain.interfaces.repository_base import RepositoryBase
 
@@ -25,6 +25,40 @@ from app.domain.interfaces.repository_base import RepositoryBase
 class UsuarioRepository(RepositoryBase[Usuario], ABC):
     @abstractmethod
     def get_by_email(self, email: str) -> Usuario | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def listar_con_metricas(self) -> list[UsuarioMetricas]:
+        """Todos los usuarios vivos con sus metricas de compra y cotizaciones.
+
+        Las metricas se agregan en la consulta (una sola pasada) para que el
+        panel de administracion no cargue pedidos ni cotizaciones en memoria.
+        Las cuentas con soft delete (`eliminado_en`) no se incluyen.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def buscar_por_id(self, usuario_id: UUID) -> Usuario | None:
+        """Usuario por id, incluidos los eliminados (para validar el estado)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def crear(self, usuario: Usuario) -> Usuario:
+        raise NotImplementedError
+
+    @abstractmethod
+    def actualizar(self, usuario: Usuario) -> Usuario:
+        """Persiste rol, estado activo y soft delete del usuario."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def contar_admins_activos(self) -> int:
+        """Administradores activos y no eliminados (para no dejar el sistema sin admin)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def correo_en_uso(self, email: str) -> bool:
+        """True si el correo ya existe, sin distinguir mayusculas ni eliminados."""
         raise NotImplementedError
 
 
@@ -47,6 +81,27 @@ class ProductoRepository(RepositoryBase[Producto], ABC):
         `desde` es la cota inferior de la ventana de venta (None = todo el
         historico). Solo cuenta lo pagado: un pedido sin pago completado no es
         una venta.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def listar_mas_vendidos_en_ventana(
+        self, desde: datetime, hasta: datetime, limite: int
+    ) -> list[ProductoVendido]:
+        """Igual que `listar_mas_vendidos`, pero dentro de `[desde, hasta)`.
+
+        Se usa para el ranking de una semana concreta (actual o anterior): la
+        cota superior es necesaria para que la semana anterior no se mezcle con
+        la actual.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def contar_productos_distintos(self, desde: datetime, hasta: datetime) -> int:
+        """Cantidad de productos distintos vendidos en `[desde, hasta)`.
+
+        Cuenta productos, no unidades: un producto con 10 unidades suma 1.
+        Solo cuenta pagos completados, igual que el ranking.
         """
         raise NotImplementedError
 

@@ -11,7 +11,7 @@ class UsuarioModel(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     nombre = db.Column(db.String(100), nullable=False)
-    apellido = db.Column(db.String(100), nullable=False)
+    apellido = db.Column(db.String(100))
     telefono = db.Column(db.String(30))
     rol = db.Column(db.String(20), nullable=False, default="cliente")
     activo = db.Column(db.Boolean, nullable=False, default=True)
@@ -20,3 +20,6 @@ class UsuarioModel(db.Model):
     mfa_secret = db.Column(db.String(64))
     mfa_activo = db.Column(db.Boolean, nullable=False, default=False)
     creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+    # Soft delete: NULL = cuenta viva. La fila se conserva porque pedidos,
+    # cotizaciones y resenas la referencian con FK.
+    eliminado_en = db.Column(db.DateTime(timezone=True))

@@ -618,3 +618,55 @@ def test_el_ranking_devuelve_lista_vacia_sin_ventas(monkeypatch):
     assert resultado == []
     # Sin resultados no hace falta la segunda consulta (los productos).
     assert session.execute.call_count == 1
+
+
+# --- Ranking de una semana concreta -----------------------------------------
+#
+# La semana anterior necesita cota superior: con solo `desde`, los pagos de la
+# semana en curso se colarian en el ranking anterior.
+
+
+def test_la_ventana_semanal_filtra_por_desde_y_hasta(monkeypatch):
+    session = _preparar_sesion_ranking(monkeypatch, [], [])
+
+    ProductoRepository().listar_mas_vendidos_en_ventana(
+        datetime(2026, 10, 19, tzinfo=timezone.utc),
+        datetime(2026, 10, 26, tzinfo=timezone.utc),
+        10,
+    )
+
+    sql = _sql_de(session.execute.call_args_list[0][0][0], literal_binds=True)
+    assert "pagos.creado_en >=" in sql
+    assert "pagos.creado_en <" in sql
+
+
+def test_contar_productos_distintos_cuenta_solo_pagos_completados(monkeypatch):
+    session = Mock()
+    session.execute.return_value.scalar.return_value = 3
+    monkeypatch.setattr(db, "session", session)
+
+    total = ProductoRepository().contar_productos_distintos(
+        datetime(2026, 10, 19, tzinfo=timezone.utc),
+        datetime(2026, 10, 26, tzinfo=timezone.utc),
+    )
+
+    assert total == 3
+    sql = _sql_de(session.execute.call_args[0][0], literal_binds=True)
+    assert "count(distinct(" in sql.lower()
+    assert "pagos.estado = 'completado'" in sql
+    assert "pagos.creado_en >=" in sql
+    assert "pagos.creado_en <" in sql
+
+
+def test_contar_productos_distintos_sin_ventas_devuelve_cero(monkeypatch):
+    session = Mock()
+    session.execute.return_value.scalar.return_value = None
+    monkeypatch.setattr(db, "session", session)
+
+    total = ProductoRepository().contar_productos_distintos(
+        datetime(2026, 10, 19, tzinfo=timezone.utc),
+        datetime(2026, 10, 26, tzinfo=timezone.utc),
+    )
+
+    assert total == 0
+

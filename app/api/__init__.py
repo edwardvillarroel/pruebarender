@@ -8,13 +8,17 @@ def register_blueprints(app: Flask) -> None:
     from app.api.routes.diseno_routes import diseno_bp
     from app.api.routes.llm_routes import llm_bp
     from app.api.routes.pedido_routes import pedido_bp
+    from app.api.routes.reportes_routes import reportes_bp
     from app.api.routes.resena_routes import resenas_bp
+    from app.api.routes.usuarios_routes import usuarios_bp
     from app.api.routes.ventas_routes import venta_bp
 
     app.register_blueprint(cart_bp, url_prefix="/api")
     app.register_blueprint(catalogo_bp, url_prefix="/api")
     app.register_blueprint(cupon_bp, url_prefix="/api")
     app.register_blueprint(pedido_bp, url_prefix="/api")
+    app.register_blueprint(reportes_bp, url_prefix="/api")
+    app.register_blueprint(usuarios_bp, url_prefix="/api")
     app.register_blueprint(venta_bp, url_prefix="/api")
     app.register_blueprint(diseno_bp, url_prefix="/api")
     app.register_blueprint(llm_bp, url_prefix="/api")

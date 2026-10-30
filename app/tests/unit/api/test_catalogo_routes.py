@@ -5,7 +5,7 @@ donde se decide que etiqueta viaja en `badge` y si la fecha de alta sale en el
 JSON. Home ordena "Lanzamientos" del mas nuevo al mas viejo, asi que
 `creado_en` tiene que estar disponible o la seccion no se puede ordenar.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import Mock
 from uuid import uuid4
 
@@ -13,6 +13,7 @@ from app.api.routes.catalogo_routes import (
     CACHE_IMAGENES_SEGUNDOS,
     _a_publico_producto,
 )
+from app.application.catalogo_stock.gestionar_producto import RankingSemana
 from app.domain.entities.producto import ImagenProducto, Producto, ProductoVendido
 
 
@@ -217,6 +218,58 @@ def test_el_limite_viaja_al_servicio(app, client):
 
     _periodo, limite = app.config["PRODUCTO_SERVICE"].listar_mas_vendidos.call_args[0]
     assert limite == "5"
+
+
+# --- Ranking semanal con fallback -------------------------------------------
+
+
+def _servicio_semana(tipo: str = "actual", distintos: int = 5) -> Mock:
+    servicio = Mock()
+    servicio.listar_mas_vendidos_semana.return_value = RankingSemana(
+        productos=[_vendido()],
+        tipo=tipo,
+        desde=datetime(2026, 10, 19, tzinfo=timezone.utc),
+        hasta=datetime(2026, 10, 26, tzinfo=timezone.utc),
+        productos_distintos_semana_actual=distintos,
+    )
+    return servicio
+
+
+def test_el_periodo_semana_usa_el_servicio_con_fallback(app, client):
+    servicio = _servicio_semana(tipo="anterior", distintos=3)
+    app.config["PRODUCTO_SERVICE"] = servicio
+
+    cuerpo = client.get("/api/productos/mas-vendidos?periodo=semana").get_json()
+
+    servicio.listar_mas_vendidos_semana.assert_called_once()
+    servicio.listar_mas_vendidos.assert_not_called()
+    assert cuerpo["periodo"] == "semana"
+    assert cuerpo["total"] == 1
+    assert cuerpo["semana"] == {
+        "tipo": "anterior",
+        "desde": "2026-10-19T00:00:00+00:00",
+        "hasta": "2026-10-26T00:00:00+00:00",
+        "productos_distintos_actual": 3,
+    }
+
+
+def test_el_limite_semanal_viaja_crudo_al_servicio(app, client):
+    app.config["PRODUCTO_SERVICE"] = _servicio_semana()
+
+    client.get("/api/productos/mas-vendidos?periodo=semana&limite=5")
+
+    app.config["PRODUCTO_SERVICE"].listar_mas_vendidos_semana.assert_called_once_with("5")
+
+
+def test_el_ranking_semanal_trae_los_mismos_campos_que_el_catalogo(app, client):
+    app.config["PRODUCTO_SERVICE"] = _servicio_semana()
+
+    producto = client.get("/api/productos/mas-vendidos?periodo=semana").get_json()[
+        "productos"
+    ][0]
+
+    for campo in ("id", "nombre", "precio", "imagen", "imagen_thumb", "badge"):
+        assert campo in producto
 
 
 # --- Cache de las fotos servidas ---------------------------------------------

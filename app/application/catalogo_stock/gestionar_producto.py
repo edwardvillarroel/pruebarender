@@ -1,4 +1,5 @@
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Callable
 from uuid import UUID
 
@@ -10,7 +11,7 @@ from app.domain.entities.producto import (
     ProductoVendido,
 )
 from app.domain.interfaces.repositories import ProductoRepository
-from app.domain.time import utcnow
+from app.domain.time import ZONA_CHILE, hoy_chile, utcnow
 
 
 IVA_PORCENTAJE = 19
@@ -21,6 +22,60 @@ IVA_PORCENTAJE = 19
 # forma tiene que ser un error visible, no un historico silencioso.
 PERIODOS_MAS_VENDIDOS = {"7d": 7, "30d": 30, "todo": None}
 LIMITE_MAS_VENDIDOS_MAX = 50
+
+# Ranking semanal con fallback: si la semana en curso no alcanza este numero de
+# productos distintos vendidos, se muestra la semana anterior. La semana es
+# calendario (lunes a domingo) en hora de Chile, igual que `hoy_chile()`.
+PERIODO_SEMANA = "semana"
+DIAS_SEMANA = 7
+UMBRAL_PRODUCTOS_SEMANA = 4
+
+
+@dataclass(frozen=True)
+class RankingSemana:
+    """Resultado del ranking semanal y de donde salio.
+
+    `tipo` es `"actual"` o `"anterior"`: el frontend lo usa para no mentir en
+    el titulo cuando la semana en curso no tiene suficientes productos.
+    """
+
+    productos: list[ProductoVendido]
+    tipo: str
+    desde: datetime
+    hasta: datetime
+    productos_distintos_semana_actual: int
+
+
+def _lunes_de(fecha: date) -> date:
+    """Lunes de la semana calendario a la que pertenece `fecha`."""
+    return fecha - timedelta(days=fecha.weekday())
+
+
+def _ventana_semana(lunes: date) -> tuple[datetime, datetime]:
+    """Ventana `[lunes 00:00, lunes siguiente 00:00)` en hora de Chile.
+
+    Los limites se devuelven en UTC con `tzinfo` para poder compararlos con
+    `pagos.creado_en` (un `timestamptz` que psycopg2 entrega aware).
+    """
+    inicio_local = datetime.combine(lunes, time.min, tzinfo=ZONA_CHILE)
+    fin_local = datetime.combine(
+        lunes + timedelta(days=DIAS_SEMANA), time.min, tzinfo=ZONA_CHILE
+    )
+    return inicio_local.astimezone(timezone.utc), fin_local.astimezone(timezone.utc)
+
+
+def _acotar_limite(limite: Any) -> int:
+    """Normaliza el limite: entero entre 1 y `LIMITE_MAS_VENDIDOS_MAX`.
+
+    La ruta pasa el query param crudo, asi que un valor no numerico usa el
+    default en vez de ser un error; el tope evita que `limite=100000` arrastre
+    el catalogo entero a memoria.
+    """
+    try:
+        valor = int(limite)
+    except (TypeError, ValueError):
+        valor = 10
+    return max(1, min(valor, LIMITE_MAS_VENDIDOS_MAX))
 
 
 def _aplicar_descuento(precio: int, descuento: int | None) -> int:
@@ -184,6 +239,9 @@ class GestionarProducto:
         es cuantos productos devuelve. Un periodo desconocido es un error de
         contrato y no algo que se ignore en silencio: un typo en el frontend
         devolveria el historico completo creyendo que pidio la semana.
+
+        La semana calendario con fallback no pasa por aca: ver
+        `listar_mas_vendidos_semana`.
         """
         clave = (periodo or "todo").strip().lower()
         if clave not in PERIODOS_MAS_VENDIDOS:
@@ -191,16 +249,48 @@ class GestionarProducto:
 
         dias = PERIODOS_MAS_VENDIDOS[clave]
         desde = None if dias is None else utcnow() - timedelta(days=dias)
-
-        try:
-            limite = int(limite)
-        except (TypeError, ValueError):
-            limite = 10
-        limite = max(1, min(limite, LIMITE_MAS_VENDIDOS_MAX))
+        limite = _acotar_limite(limite)
 
         vendidos = self._repositorio.listar_mas_vendidos(desde, limite)
         self._completar_fotos([v.producto for v in vendidos])
         return vendidos
+
+    def listar_mas_vendidos_semana(self, limite: int = 10) -> RankingSemana:
+        """Ranking de la semana actual, con fallback a la semana anterior.
+
+        Regla de negocio: si la semana en curso tiene **mas de**
+        `UMBRAL_PRODUCTOS_SEMANA` productos distintos vendidos, se muestra esa
+        semana; si tiene ese numero o menos, se muestra la semana anterior.
+        Se cuentan productos distintos, no unidades: diez unidades del mismo
+        producto cuentan como uno.
+
+        La semana es calendario, de lunes a domingo en hora de Chile
+        (`ZONA_CHILE`): un servidor en UTC no puede decidir el corte de semana
+        con su propia fecha.
+        """
+        limite = _acotar_limite(limite)
+        lunes_actual = _lunes_de(hoy_chile())
+        inicio_actual, fin_actual = _ventana_semana(lunes_actual)
+        distintos = self._repositorio.contar_productos_distintos(
+            inicio_actual, fin_actual
+        )
+
+        if distintos > UMBRAL_PRODUCTOS_SEMANA:
+            tipo = "actual"
+            desde, hasta = inicio_actual, fin_actual
+        else:
+            tipo = "anterior"
+            desde, hasta = _ventana_semana(lunes_actual - timedelta(days=DIAS_SEMANA))
+
+        vendidos = self._repositorio.listar_mas_vendidos_en_ventana(desde, hasta, limite)
+        self._completar_fotos([v.producto for v in vendidos])
+        return RankingSemana(
+            productos=vendidos,
+            tipo=tipo,
+            desde=desde,
+            hasta=hasta,
+            productos_distintos_semana_actual=distintos,
+        )
 
     def actualizar(self, dto: ActualizarProductoDTO) -> Producto:
         producto = self._repositorio.get_by_id(dto.id)

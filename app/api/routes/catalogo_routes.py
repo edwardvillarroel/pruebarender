@@ -5,7 +5,10 @@ from flask import Blueprint, Response, current_app, jsonify, request, send_file
 
 from app.api.middleware.auth import requiere_sesion, rol_requerido
 from app.application.catalogo_stock.gestionar_categoria import GestionarCategoria
-from app.application.catalogo_stock.gestionar_producto import GestionarProducto
+from app.application.catalogo_stock.gestionar_producto import (
+    PERIODO_SEMANA,
+    GestionarProducto,
+)
 from app.application.common.dto import ActualizarProductoDTO, CrearProductoDTO
 from app.domain.entities.producto import STOCK_BAJO
 
@@ -136,17 +139,34 @@ def mas_vendidos():
     """Ranking de productos por unidades vendidas.
 
     Publico, como el catalogo: lo consume la home ("Los mas vendidos de la
-    semana") y el panel de administracion. La ventana de venta va en `periodo`
-    ("7d", "30d" o "todo") y el corte del top en `limite`.
+    semana") y el panel de administracion. La ventana de venta va en `periodo`:
 
-    Cada producto sale con los mismos campos que el catalogo mas
-    `unidades_vendidas` e `ingresos`, asi la tarjeta se puede pintar sin
-    adaptaciones.
+    - `7d`, `30d`, `todo`: ventana movil desde el pago completado.
+    - `semana`: semana calendario (lunes a domingo, hora de Chile) con la regla
+      de negocio: si la semana actual tiene mas de 4 productos distintos
+      vendidos se muestra esa; si no, la semana anterior. En ese caso la
+      respuesta agrega `semana: {tipo, desde, hasta, productos_distintos_actual}`.
+
+    El corte del top va en `limite`. Cada producto sale con los mismos campos
+    que el catalogo mas `unidades_vendidas` e `ingresos`, asi la tarjeta se
+    puede pintar sin adaptaciones.
     """
     periodo = (request.args.get("periodo") or "todo").strip().lower()
     limite = request.args.get("limite", 10)
+    servicio = _servicio_producto()
+    metadatos: dict = {}
     try:
-        vendidos = _servicio_producto().listar_mas_vendidos(periodo, limite)
+        if periodo == PERIODO_SEMANA:
+            ranking = servicio.listar_mas_vendidos_semana(limite)
+            vendidos = ranking.productos
+            metadatos["semana"] = {
+                "tipo": ranking.tipo,
+                "desde": ranking.desde.isoformat(),
+                "hasta": ranking.hasta.isoformat(),
+                "productos_distintos_actual": ranking.productos_distintos_semana_actual,
+            }
+        else:
+            vendidos = servicio.listar_mas_vendidos(periodo, limite)
     except ValueError as error:
         return jsonify(mensaje=str(error)), 400
     return jsonify(
@@ -160,6 +180,7 @@ def mas_vendidos():
         ],
         periodo=periodo,
         total=len(vendidos),
+        **metadatos,
     )
 
 

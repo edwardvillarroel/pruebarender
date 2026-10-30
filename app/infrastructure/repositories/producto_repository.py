@@ -75,6 +75,41 @@ class ProductoRepository(ProductoRepositoryInterface):
     def listar_mas_vendidos(
         self, desde: datetime | None, limite: int
     ) -> list[ProductoVendido]:
+        """Ranking desde `desde` (None = historico completo)."""
+        return self._listar_mas_vendidos(desde, None, limite)
+
+    def listar_mas_vendidos_en_ventana(
+        self, desde: datetime, hasta: datetime, limite: int
+    ) -> list[ProductoVendido]:
+        """Ranking dentro de la ventana `[desde, hasta)`."""
+        return self._listar_mas_vendidos(desde, hasta, limite)
+
+    def contar_productos_distintos(self, desde: datetime, hasta: datetime) -> int:
+        """Cantidad de productos distintos vendidos en `[desde, hasta)`.
+
+        Cuenta productos, no unidades (un producto con 10 unidades suma 1) y
+        solo mira pagos completados, igual que el ranking. No filtra por
+        `activo`: la condicion de negocio habla de lo que se vendio, aunque el
+        producto se haya dado de baja despues.
+        """
+        pago_completado = (
+            select(literal(1))
+            .select_from(PagoModel)
+            .where(PagoModel.pedido_id == DetallePedidoModel.pedido_id)
+            .where(PagoModel.estado == EstadoPago.COMPLETADO.value)
+            .where(PagoModel.creado_en >= desde)
+            .where(PagoModel.creado_en < hasta)
+        )
+        total = db.session.execute(
+            select(func.count(func.distinct(DetallePedidoModel.producto_id))).where(
+                pago_completado.exists()
+            )
+        ).scalar()
+        return int(total or 0)
+
+    def _listar_mas_vendidos(
+        self, desde: datetime | None, hasta: datetime | None, limite: int
+    ) -> list[ProductoVendido]:
         """Ranking de productos por unidades vendidas.
 
         "Vendido" es lo que tiene un pago completado: es el mismo criterio con
@@ -86,9 +121,9 @@ class ProductoRepository(ProductoRepositoryInterface):
         completado, o reintentos) y un `JOIN` multiplicaria las lineas de
         `detalle_pedidos`, inflando el `SUM` de unidades.
 
-        La ventana `desde` se aplica sobre `pagos.creado_en` (cuando se cobro),
-        no sobre `pedidos.creado_en` (cuando se pidio): lo que se quiere es
-        "vendido en los ultimos N dias".
+        La ventana `desde`/`hasta` se aplica sobre `pagos.creado_en` (cuando se
+        cobro), no sobre `pedidos.creado_en` (cuando se pidio): lo que se quiere
+        es "vendido en los ultimos N dias" o "vendido en tal semana".
         """
         pago_completado = (
             select(literal(1))
@@ -98,6 +133,8 @@ class ProductoRepository(ProductoRepositoryInterface):
         )
         if desde is not None:
             pago_completado = pago_completado.where(PagoModel.creado_en >= desde)
+        if hasta is not None:
+            pago_completado = pago_completado.where(PagoModel.creado_en < hasta)
 
         # `precio_unitario` es `numeric(10,2)` en la base (el modelo lo declara
         # como Integer), asi que la suma vuelve como `Decimal`: sin el cast
