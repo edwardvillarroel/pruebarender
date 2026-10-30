@@ -182,7 +182,7 @@ export default function Inventario() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ color: 'var(--surface)', textAlign: 'left', fontSize: 11, textTransform: 'uppercase' }}>
-                  <th style={{ padding: '0 10px 12px' }}>#</th>
+                  <th style={{ padding: '0 10px 12px' }}>Pedido</th>
                   <th style={{ padding: '0 10px 12px' }}>Categoría</th>
                   <th style={{ padding: '0 10px 12px' }}>Nombre</th>
                   <th style={{ padding: '0 10px 12px' }}>Descripción</th>

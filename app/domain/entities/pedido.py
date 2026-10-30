@@ -29,5 +29,6 @@ class Pedido:
     descuento_cupon: int = 0
     cupon_codigo: str | None = None
     estado_pago: str | None = None
+    cotizacion_id: UUID | None = None
     aviso_cancelacion_en: datetime | None = None
     aviso_cancelacion_visto: bool = False

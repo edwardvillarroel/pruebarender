@@ -5,8 +5,10 @@ import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
 import { mediaPath } from '../utils/media.js'
-import { ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Moon, Sun, CircleCheck, ClipboardList, 
-  Minus, Plus, Trash2, ShieldCheck, Calculator, ChevronRight, LogIn } from 'lucide-react'
+import {
+  ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Moon, Sun, CircleCheck, ClipboardList,
+  Minus, Plus, Trash2, ShieldCheck, Calculator, ChevronRight, LogIn, ReceiptText
+} from 'lucide-react'
 import { useProductos } from '../context/ProductContext.jsx'
 import LoginModal from './LoginModal.jsx'
 import SeguridadModal from './SeguridadModal.jsx'
@@ -72,8 +74,8 @@ export default function Navbar() {
       if (!(target instanceof Element)) return
 
       const estaEnCheckout = window.__checkoutBlocking && (
-        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-        window.location.pathname.endsWith('/checkout') || 
+        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+        window.location.pathname.endsWith('/checkout') ||
         window.location.pathname.includes('/checkout')
       )
       if (!estaEnCheckout) return
@@ -115,8 +117,8 @@ export default function Navbar() {
 
   function handleMobileNav(path) {
     const estaEnCheckout = window.__checkoutBlocking && (
-      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-      window.location.pathname.endsWith('/checkout') || 
+      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+      window.location.pathname.endsWith('/checkout') ||
       window.location.pathname.includes('/checkout')
     )
     if (estaEnCheckout) {
@@ -177,8 +179,8 @@ export default function Navbar() {
           <div
             onClick={(e) => {
               const estaEnCheckout = window.__checkoutBlocking && (
-                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                window.location.pathname.endsWith('/checkout') || 
+                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                window.location.pathname.endsWith('/checkout') ||
                 window.location.pathname.includes('/checkout')
               )
               if (estaEnCheckout) {
@@ -200,8 +202,8 @@ export default function Navbar() {
             to="/categorias"
             onClick={(e) => {
               const estaEnCheckout = window.__checkoutBlocking && (
-                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                window.location.pathname.endsWith('/checkout') || 
+                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                window.location.pathname.endsWith('/checkout') ||
                 window.location.pathname.includes('/checkout')
               )
               if (estaEnCheckout) {
@@ -214,8 +216,8 @@ export default function Navbar() {
             to="/cotizar"
             onClick={(e) => {
               const estaEnCheckout = window.__checkoutBlocking && (
-                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                window.location.pathname.endsWith('/checkout') || 
+                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                window.location.pathname.endsWith('/checkout') ||
                 window.location.pathname.includes('/checkout')
               )
               if (estaEnCheckout) {
@@ -228,8 +230,8 @@ export default function Navbar() {
             to="/"
             onClick={(e) => {
               const estaEnCheckout = window.__checkoutBlocking && (
-                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                window.location.pathname.endsWith('/checkout') || 
+                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                window.location.pathname.endsWith('/checkout') ||
                 window.location.pathname.includes('/checkout')
               )
               if (estaEnCheckout) {
@@ -306,17 +308,17 @@ export default function Navbar() {
                 </div>
                 {isAdmin && (
                   <button
-                    onClick={() => { 
+                    onClick={() => {
                       const estaEnCheckout = window.__checkoutBlocking && (
-                        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                        window.location.pathname.endsWith('/checkout') || 
+                        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                        window.location.pathname.endsWith('/checkout') ||
                         window.location.pathname.includes('/checkout')
                       )
                       if (estaEnCheckout) {
                         window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/admin' } }))
                         return
                       }
-                      setUserMenuOpen(false); navigate('/admin') 
+                      setUserMenuOpen(false); navigate('/admin')
                     }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
@@ -334,17 +336,17 @@ export default function Navbar() {
                 )}
                 {!isAdmin && (
                   <button
-                    onClick={() => { 
+                    onClick={() => {
                       const estaEnCheckout = window.__checkoutBlocking && (
-                        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                        window.location.pathname.endsWith('/checkout') || 
+                        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                        window.location.pathname.endsWith('/checkout') ||
                         window.location.pathname.includes('/checkout')
                       )
                       if (estaEnCheckout) {
                         window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/mis-pedidos' } }))
                         return
                       }
-                      setUserMenuOpen(false); navigate('/mis-pedidos') 
+                      setUserMenuOpen(false); navigate('/mis-pedidos')
                     }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
@@ -358,6 +360,34 @@ export default function Navbar() {
                   >
                     <ClipboardList size={16} color="var(--text)" />
                     Mis pedidos
+                  </button>
+                )}
+                {!isAdmin && (
+                  <button
+                    onClick={() => {
+                      const estaEnCheckout = window.__checkoutBlocking && (
+                        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                        window.location.pathname.endsWith('/checkout') ||
+                        window.location.pathname.includes('/checkout')
+                      )
+                      if (estaEnCheckout) {
+                        window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/mis-cotizaciones' } }))
+                        return
+                      }
+                      setUserMenuOpen(false); navigate('/mis-cotizaciones')
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '12px 16px', border: 'none', background: 'none',
+                      color: 'var(--text)', fontSize: 13, cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'background .15s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-soft)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                  >
+                    <ReceiptText size={16} color="var(--text)" />
+                    Mis cotizaciones
                   </button>
                 )}
                 <button
@@ -396,249 +426,249 @@ export default function Navbar() {
 
           {/* El carrito es solo para clientes */}
           {!isAdmin && (
-          <div className="cart-icon" ref={cartMenuRef} style={{ position: 'relative', color: '#FBF7EE' }}>
-            <button
-              onClick={() => setCartOpen(v => !v)}
-              aria-label="Carrito"
-              aria-expanded={cartOpen}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                position: 'relative',
-                display: 'inline-flex',
-                alignItems: 'center',
-                cursor: 'pointer',
-                color: '#FBF7EE',
-              }}
-            >
-              <ShoppingCart size={24} />
-              {cantidadTotal > 0 && (
-                <span className="cart-badge">{cantidadTotal}</span>
-              )}
-            </button>
-
-            {cartOpen && (
-              <div style={{
-                position: 'absolute',
-                top: 'calc(100% + 8px)',
-                right: 0,
-                background: 'var(--bg)',
-                border: '1px solid var(--line)',
-                borderRadius: 12,
-                width: 380,
-                maxWidth: '92vw',
-                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.25)',
-                overflow: 'hidden',
-                zIndex: 200,
-                animation: 'toast-entrada 0.3s ease',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--bg)' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                    <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--surface)' }}> Tu carrito</h1>
-                    <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>
-                      ({cantidadTotal} {cantidadTotal === 1 ? 'producto' : 'productos'})
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => setCartOpen(false)}
-                    aria-label="Cerrar carrito"
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 2 }}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                {!requiereLogin && items.length > 0 && (
-                  <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 5, marginTop: -15, marginLeft: 15 }}>
-                    (Los Productos en tu carrito no están reservados).
-                  </p>
+            <div className="cart-icon" ref={cartMenuRef} style={{ position: 'relative', color: '#FBF7EE' }}>
+              <button
+                onClick={() => setCartOpen(v => !v)}
+                aria-label="Carrito"
+                aria-expanded={cartOpen}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  position: 'relative',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  color: '#FBF7EE',
+                }}
+              >
+                <ShoppingCart size={24} />
+                {cantidadTotal > 0 && (
+                  <span className="cart-badge">{cantidadTotal}</span>
                 )}
+              </button>
 
-                <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)' }}></div>
-
-                <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                  {requiereLogin ? (
-                    <div style={{ padding: '32px 16px', textAlign: 'center' }}>
-                      <img
-                        src={mediaPath('carritoVacio.webp')}
-                        alt="Carrito"
-                        loading="lazy"
-                        decoding="async"
-                        width="512"
-                        height="512"
-                        style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
-                      />
-                      <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
-                        Inicia sesión para usar el carrito.
-                      </p>
-                      <button
-                        className="btn btn-primary"
-                        onClick={() => { setCartOpen(false); abrirLogin() }}
-                        style={{ color: 'var(--text)' }}
-                      >
-                         <LogIn size={16} /> Iniciar sesión
-                      </button>
+              {cartOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  background: 'var(--bg)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 12,
+                  width: 380,
+                  maxWidth: '92vw',
+                  boxShadow: '0 12px 40px rgba(0, 0, 0, 0.25)',
+                  overflow: 'hidden',
+                  zIndex: 200,
+                  animation: 'toast-entrada 0.3s ease',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--bg)' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--surface)' }}> Tu carrito</h1>
+                      <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>
+                        ({cantidadTotal} {cantidadTotal === 1 ? 'producto' : 'productos'})
+                      </span>
                     </div>
-                  ) : items.length === 0 ? (
-                    <div style={{ padding: '32px 16px', textAlign: 'center' }}>
-                        <img
-                        src={mediaPath('carritoVacio.webp')}
-                        alt="Carrito vacío"
-                        loading="lazy"
-                        decoding="async"
-                        width="512"
-                        height="512"
-                        style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
-                      />
-                      <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
-                        Tu carrito está vacío.
-                      </p>
                     <button
-                      className="btn btn-primary"
-                      onClick={() => { 
-                        const estaEnCheckout = window.__checkoutBlocking && (
-                          (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                          window.location.pathname.endsWith('/checkout') || 
-                          window.location.pathname.includes('/checkout')
-                        )
-                        if (estaEnCheckout) {
-                          window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/carrito' } }))
-                          setCartOpen(false)
-                          return
-                        }
-                        setCartOpen(false); navigate('/carrito') 
-                      }}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', background: 'var(--surface)' }}
+                      onClick={() => setCartOpen(false)}
+                      aria-label="Cerrar carrito"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-dim)', padding: 2 }}
                     >
-                      Continuar con la compra
+                      <X size={18} />
                     </button>
-                    </div>
-                  ) : (
-                    items.map((item, index) => (
-                      <div
-                        key={item.itemId}
-                        style={{
-                          display: 'flex',
-                          gap: 12,
-                          padding: '12px 16px',
-                          borderBottom: index < items.length - 1 ? '1px solid var(--surface-3)' : 'none',
-                        }}
-                      >
+                  </div>
+
+                  {!requiereLogin && items.length > 0 && (
+                    <p style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 5, marginTop: -15, marginLeft: 15 }}>
+                      (Los Productos en tu carrito no están reservados).
+                    </p>
+                  )}
+
+                  <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)' }}></div>
+
+                  <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+                    {requiereLogin ? (
+                      <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+                        <img
+                          src={mediaPath('carritoVacio.webp')}
+                          alt="Carrito"
+                          loading="lazy"
+                          decoding="async"
+                          width="512"
+                          height="512"
+                          style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
+                        />
+                        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
+                          Inicia sesión para usar el carrito.
+                        </p>
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => { setCartOpen(false); abrirLogin() }}
+                          style={{ color: 'var(--text)' }}
+                        >
+                          <LogIn size={16} /> Iniciar sesión
+                        </button>
+                      </div>
+                    ) : items.length === 0 ? (
+                      <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+                        <img
+                          src={mediaPath('carritoVacio.webp')}
+                          alt="Carrito vacío"
+                          loading="lazy"
+                          decoding="async"
+                          width="512"
+                          height="512"
+                          style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
+                        />
+                        <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: '0 0 14px' }}>
+                          Tu carrito está vacío.
+                        </p>
+                        <button
+                          className="btn btn-primary"
+                          onClick={() => {
+                            const estaEnCheckout = window.__checkoutBlocking && (
+                              (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                              window.location.pathname.endsWith('/checkout') ||
+                              window.location.pathname.includes('/checkout')
+                            )
+                            if (estaEnCheckout) {
+                              window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/carrito' } }))
+                              setCartOpen(false)
+                              return
+                            }
+                            setCartOpen(false); navigate('/carrito')
+                          }}
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', background: 'var(--surface)' }}
+                        >
+                          Continuar con la compra
+                        </button>
+                      </div>
+                    ) : (
+                      items.map((item, index) => (
                         <div
+                          key={item.itemId}
                           style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: 8,
-                            overflow: 'hidden',
-                            background: item.imagen ? '#FFFFFF' : 'var(--surface-2)',
-                            flexShrink: 0,
                             display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            gap: 12,
+                            padding: '12px 16px',
+                            borderBottom: index < items.length - 1 ? '1px solid var(--surface-3)' : 'none',
                           }}
                         >
-                          {item.imagen && (
-                            <img
-                              src={item.imagen}
-                              alt={item.nombre}
-                              loading="lazy"
-                              decoding="async"
-                              width="56"
-                              height="56"
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
-                          )}
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                            <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--surface)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {item.nombre}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => quitarItem(item.itemId)}
-                              aria-label={`Quitar ${item.nombre} del carrito`}
-                              title="Quitar producto"
-                              style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 2, flexShrink: 0 }}
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                          <div
+                            style={{
+                              width: 56,
+                              height: 56,
+                              borderRadius: 8,
+                              overflow: 'hidden',
+                              background: item.imagen ? '#FFFFFF' : 'var(--surface-2)',
+                              flexShrink: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {item.imagen && (
+                              <img
+                                src={item.imagen}
+                                alt={item.nombre}
+                                loading="lazy"
+                                decoding="async"
+                                width="56"
+                                height="56"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            )}
                           </div>
-                          <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 8px' }}>
-                            ${item.precio.toLocaleString('es-CL')} c/u
-                          </p>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                            <div style={{ display: 'flex', background: 'var(--bg)', alignItems: 'center', border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                              <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--surface)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {item.nombre}
+                              </p>
                               <button
                                 type="button"
-                                onClick={() => actualizarCantidadItem(item.itemId, Math.max(1, item.cantidad - 1))}
-                                aria-label={`Reducir cantidad de ${item.nombre}`}
-                                style={{
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  width: 26, height: 26, border: 'none', background: 'var(--surface-3)',
-                                  color: 'inherit', cursor: 'pointer',
-                                }}
+                                onClick={() => quitarItem(item.itemId)}
+                                aria-label={`Quitar ${item.nombre} del carrito`}
+                                title="Quitar producto"
+                                style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 2, flexShrink: 0 }}
                               >
-                                <Minus size={13} style={{ color: 'var(--surface)' }} />
-                              </button>
-                              <span style={{ minWidth: 26, textAlign: 'center', fontSize: 13, color: 'var(--surface)' }}>
-                                {item.cantidad}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => actualizarCantidadItem(item.itemId, item.cantidad + 1)}
-                                aria-label={`Aumentar cantidad de ${item.nombre}`}
-                                style={{
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  width: 26, height: 26, border: 'none', background: 'var(--surface-3)',
-                                  color: 'inherit', cursor: 'pointer',
-                                }}
-                              >
-                                <Plus size={13} style={{ color: 'var(--surface)' }} />
+                                <Trash2 size={16} />
                               </button>
                             </div>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 800, color: 'var(--surface-2)' }}>
-                              ${(item.precio * item.cantidad).toLocaleString('es-CL')}
-                            </span>
+                            <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 8px' }}>
+                              ${item.precio.toLocaleString('es-CL')} c/u
+                            </p>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                              <div style={{ display: 'flex', background: 'var(--bg)', alignItems: 'center', border: '1px solid var(--line)', borderRadius: 6, overflow: 'hidden' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => actualizarCantidadItem(item.itemId, Math.max(1, item.cantidad - 1))}
+                                  aria-label={`Reducir cantidad de ${item.nombre}`}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 26, height: 26, border: 'none', background: 'var(--surface-3)',
+                                    color: 'inherit', cursor: 'pointer',
+                                  }}
+                                >
+                                  <Minus size={13} style={{ color: 'var(--surface)' }} />
+                                </button>
+                                <span style={{ minWidth: 26, textAlign: 'center', fontSize: 13, color: 'var(--surface)' }}>
+                                  {item.cantidad}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => actualizarCantidadItem(item.itemId, item.cantidad + 1)}
+                                  aria-label={`Aumentar cantidad de ${item.nombre}`}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 26, height: 26, border: 'none', background: 'var(--surface-3)',
+                                    color: 'inherit', cursor: 'pointer',
+                                  }}
+                                >
+                                  <Plus size={13} style={{ color: 'var(--surface)' }} />
+                                </button>
+                              </div>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 800, color: 'var(--surface-2)' }}>
+                                ${(item.precio * item.cantidad).toLocaleString('es-CL')}
+                              </span>
+                            </div>
                           </div>
                         </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)' }}></div>
+                  {!requiereLogin && items.length > 0 && (
+                    <div style={{ padding: '14px 16px', borderTop: '1px solid var(--bg)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, color: 'var(--surface)', marginBottom: 12 }}>
+                        <span>Total</span>
+                        <span style={{ fontFamily: 'var(--font-mono)' }}>${total.toLocaleString('es-CL')} CLP</span>
                       </div>
-                    ))
+                      <button
+                        className="btn btn-primary"
+                        onClick={() => {
+                          const estaEnCheckout = window.__checkoutBlocking && (
+                            (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                            window.location.pathname.endsWith('/checkout') ||
+                            window.location.pathname.includes('/checkout')
+                          )
+                          if (estaEnCheckout) {
+                            window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/carrito' } }))
+                            setCartOpen(false)
+                            return
+                          }
+                          setCartOpen(false); navigate('/carrito')
+                        }}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', background: 'var(--surface)' }}
+                      >
+                        Continuar con la compra
+                      </button>
+                    </div>
                   )}
                 </div>
-                <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)' }}></div>
-                {!requiereLogin && items.length > 0 && (
-                  <div style={{ padding: '14px 16px', borderTop: '1px solid var(--bg)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, color: 'var(--surface)', marginBottom: 12 }}>
-                      <span>Total</span>
-                      <span style={{ fontFamily: 'var(--font-mono)' }}>${total.toLocaleString('es-CL')} CLP</span>
-                    </div>
-                    <button
-                      className="btn btn-primary"
-                    onClick={() => { 
-                      const estaEnCheckout = window.__checkoutBlocking && (
-                        (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                        window.location.pathname.endsWith('/checkout') || 
-                        window.location.pathname.includes('/checkout')
-                      )
-                      if (estaEnCheckout) {
-                        window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/carrito' } }))
-                        setCartOpen(false)
-                        return
-                      }
-                      setCartOpen(false); navigate('/carrito') 
-                    }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', background: 'var(--surface)' }}
-                  >
-                    Continuar con la compra
-                  </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -668,68 +698,126 @@ export default function Navbar() {
                   <X size={24} />
                 </button>
               </div>
-            {!isLoggedIn && (
-              <button className="nm-login" onClick={() => { 
-                const estaEnCheckout = window.__checkoutBlocking && (
-                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                  window.location.pathname.endsWith('/checkout') || 
-                  window.location.pathname.includes('/checkout')
-                )
-                if (estaEnCheckout) {
-                  window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
-                  setMobileOpen(false)
-                  return
-                }
-                setMobileOpen(false); abrirLogin() 
-              }}>
-                Inicia sesión
-              </button>
-            )}
+              {!isLoggedIn && (
+                <button className="nm-login" onClick={() => {
+                  const estaEnCheckout = window.__checkoutBlocking && (
+                    (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                    window.location.pathname.endsWith('/checkout') ||
+                    window.location.pathname.includes('/checkout')
+                  )
+                  if (estaEnCheckout) {
+                    window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
+                    setMobileOpen(false)
+                    return
+                  }
+                  setMobileOpen(false); abrirLogin()
+                }}>
+                  Inicia sesión
+                </button>
+              )}
             </div>
 
-            {/* Mis pedidos*/}
+
+            {/* Menú de usuario: pedidos, cotizaciones o panel admin */}
             {isLoggedIn && (
-              <div className="nm-section">
-                {isAdmin ? (
-                  <button className="nm-item" onClick={() => {
-                    const estaEnCheckout = window.__checkoutBlocking && (
-                      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                      window.location.pathname.endsWith('/checkout') || 
-                      window.location.pathname.includes('/checkout')
-                    )
-                    if (estaEnCheckout) {
-                      window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/admin' } }))
-                      setMobileOpen(false)
-                      return
-                    }
-                    handleMobileNav('/admin')
-                  }}>
-                    <LayoutDashboard size={18} /> Panel admin
+              isAdmin ? (
+                <div className="nm-section">
+                  <button
+                    className="nm-item"
+                    onClick={() => {
+                      const estaEnCheckout = window.__checkoutBlocking && (
+                        (window.__checkoutLocation &&
+                          window.__checkoutLocation.endsWith('/checkout')) ||
+                        window.location.pathname.endsWith('/checkout') ||
+                        window.location.pathname.includes('/checkout')
+                      );
+
+                      if (estaEnCheckout) {
+                        window.dispatchEvent(
+                          new CustomEvent('checkout:request-confirm', {
+                            detail: { to: '/admin' }
+                          })
+                        );
+                        setMobileOpen(false);
+                        return;
+                      }
+
+                      handleMobileNav('/admin');
+                    }}
+                  >
+                    <LayoutDashboard size={18} />
+                    Panel admin
                   </button>
-                ) : (
-                  <button className="nm-item" onClick={() => {
-                    const estaEnCheckout = window.__checkoutBlocking && (
-                      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                      window.location.pathname.endsWith('/checkout') || 
-                      window.location.pathname.includes('/checkout')
-                    )
-                    if (estaEnCheckout) {
-                      window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/mis-pedidos' } }))
-                      setMobileOpen(false)
-                      return
-                    }
-                    handleMobileNav('/mis-pedidos')
-                  }}>
-                    <ClipboardList size={18} /> Mis pedidos
-                  </button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <>
+                  {/* Mis pedidos */}
+                  <div className="nm-section">
+                    <button
+                      className="nm-item"
+                      onClick={() => {
+                        const estaEnCheckout = window.__checkoutBlocking && (
+                          (window.__checkoutLocation &&
+                            window.__checkoutLocation.endsWith('/checkout')) ||
+                          window.location.pathname.endsWith('/checkout') ||
+                          window.location.pathname.includes('/checkout')
+                        );
+
+                        if (estaEnCheckout) {
+                          window.dispatchEvent(
+                            new CustomEvent('checkout:request-confirm', {
+                              detail: { to: '/mis-pedidos' }
+                            })
+                          );
+                          setMobileOpen(false);
+                          return;
+                        }
+
+                        handleMobileNav('/mis-pedidos');
+                      }}
+                    >
+                      <ClipboardList size={18} />
+                      Mis pedidos
+                    </button>
+                  </div>
+
+                  {/* Mis cotizaciones */}
+                  <div className="nm-section">
+                    <button
+                      className="nm-item"
+                      onClick={() => {
+                        const estaEnCheckout = window.__checkoutBlocking && (
+                          (window.__checkoutLocation &&
+                            window.__checkoutLocation.endsWith('/checkout')) ||
+                          window.location.pathname.endsWith('/checkout') ||
+                          window.location.pathname.includes('/checkout')
+                        );
+
+                        if (estaEnCheckout) {
+                          window.dispatchEvent(
+                            new CustomEvent('checkout:request-confirm', {
+                              detail: { to: '/mis-cotizaciones' }
+                            })
+                          );
+                          setMobileOpen(false);
+                          return;
+                        }
+
+                        handleMobileNav('/mis-cotizaciones');
+                      }}
+                    >
+                      <ReceiptText size={18} />
+                      Mis cotizaciones
+                    </button>
+                  </div>
+                </>
+              )
             )}
             <div className="nm-section">
               <button className="nm-item" onClick={() => {
                 const estaEnCheckout = window.__checkoutBlocking && (
-                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                  window.location.pathname.endsWith('/checkout') || 
+                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                  window.location.pathname.endsWith('/checkout') ||
                   window.location.pathname.includes('/checkout')
                 )
                 if (estaEnCheckout) {
@@ -749,8 +837,8 @@ export default function Navbar() {
               <div className="nm-title">Categorías</div>
               <button className="nm-item" onClick={() => {
                 const estaEnCheckout = window.__checkoutBlocking && (
-                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                  window.location.pathname.endsWith('/checkout') || 
+                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                  window.location.pathname.endsWith('/checkout') ||
                   window.location.pathname.includes('/checkout')
                 )
                 if (estaEnCheckout) {
@@ -769,8 +857,8 @@ export default function Navbar() {
                   onClick={() => {
                     const path = `/categorias?cat=${c.id}`
                     const estaEnCheckout = window.__checkoutBlocking && (
-                      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                      window.location.pathname.endsWith('/checkout') || 
+                      (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                      window.location.pathname.endsWith('/checkout') ||
                       window.location.pathname.includes('/checkout')
                     )
                     if (estaEnCheckout) {
@@ -788,30 +876,30 @@ export default function Navbar() {
 
             {/* Resto */}
             {isLoggedIn && (
-            <div className="nm-section">
-              <button className="nm-item" onClick={() => { 
-                const estaEnCheckout = window.__checkoutBlocking && (
-                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                  window.location.pathname.endsWith('/checkout') || 
-                  window.location.pathname.includes('/checkout')
-                )
-                if (estaEnCheckout) {
-                  window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/mis-pedidos' } }))
-                  setMobileOpen(false)
-                  return
-                }
-                setMobileOpen(false); setSeguridadOpen(true)
-              }}>
-                <ShieldCheck size={18} /> Seguridad
-              </button>         
-            </div>
+              <div className="nm-section">
+                <button className="nm-item" onClick={() => {
+                  const estaEnCheckout = window.__checkoutBlocking && (
+                    (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                    window.location.pathname.endsWith('/checkout') ||
+                    window.location.pathname.includes('/checkout')
+                  )
+                  if (estaEnCheckout) {
+                    window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/mis-pedidos' } }))
+                    setMobileOpen(false)
+                    return
+                  }
+                  setMobileOpen(false); setSeguridadOpen(true)
+                }}>
+                  <ShieldCheck size={18} /> Seguridad
+                </button>
+              </div>
             )}
 
             <div className="nm-section">
               <button className="nm-item" onClick={() => {
                 const estaEnCheckout = window.__checkoutBlocking && (
-                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) || 
-                  window.location.pathname.endsWith('/checkout') || 
+                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                  window.location.pathname.endsWith('/checkout') ||
                   window.location.pathname.includes('/checkout')
                 )
                 if (estaEnCheckout) {
@@ -824,28 +912,35 @@ export default function Navbar() {
                 {theme === 'dark' ? <><Sun size={18} /> Modo claro</> : <><Moon size={18} /> Modo oscuro</>}
               </button>
             </div>
-          </div> 
+          </div>
         </div>,
         document.body
-      )}
+      )
+      }
 
-      {solicitarLogin && (
-        <LoginModal onClose={cerrarLogin} />
-      )}
+      {
+        solicitarLogin && (
+          <LoginModal onClose={cerrarLogin} />
+        )
+      }
 
-      {seguridadOpen && (
-        <SeguridadModal onClose={() => setSeguridadOpen(false)} />
-      )}
+      {
+        seguridadOpen && (
+          <SeguridadModal onClose={() => setSeguridadOpen(false)} />
+        )
+      }
 
 
-      {confirmarLogout && createPortal(
-        <ConfirmModal
-          onConfirm={handleLogout}
-          onCancel={() => setConfirmarLogout(false)}
-          mensaje="Vas a cerrar tu sesión en Apolo Vibes. ¿Seguro?"
-        />,
-        document.body
-      )}
-    </header>
+      {
+        confirmarLogout && createPortal(
+          <ConfirmModal
+            onConfirm={handleLogout}
+            onCancel={() => setConfirmarLogout(false)}
+            mensaje="Vas a cerrar tu sesión en Apolo Vibes. ¿Seguro?"
+          />,
+          document.body
+        )
+      }
+    </header >
   )
 }

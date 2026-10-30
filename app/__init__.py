@@ -107,6 +107,9 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     from app.infrastructure.repositories.producto_repository import (
         ProductoRepository,
     )
+    from app.infrastructure.repositories.solicitud_diseno_repository import (
+        SolicitudDisenoRepository,
+    )
     from app.infrastructure.repositories.usuario_repository import UsuarioRepository
 
     pedidos = PedidoRepository()
@@ -135,6 +138,7 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
         usuarios=UsuarioRepository(),
         cupones=cupones,
         documentacion=documentacion,
+        cotizaciones=SolicitudDisenoRepository(),
     )
     app.config["PEDIDO_NO_PAGADO_SERVICE"] = GestionarPedidoNoPagado(
         pedidos,
@@ -151,6 +155,7 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     app.config["SEGUIMIENTO_STARKEN_SERVICE"] = GestionarSeguimientoStarken(
         pedidos, cliente_starken
     )
+    app.config["PASARELA_PAGO"] = pasarela  #solo para cotizaciones
 
 
 def _configurar_ventas(app: Flask) -> None:
@@ -180,18 +185,21 @@ def _configurar_resenas(app: Flask) -> None:
 
 def _configurar_disenos(app: Flask) -> None:
     from app.application.diseno.crear_solicitud_diseno import CrearSolicitudDiseno
-    from app.infrastructure.database.models.solicitud_diseno_model import ( 
-        SolicitudDisenoModel,
+    from app.infrastructure.repositories.solicitud_diseno_repository import (
+        SolicitudDisenoRepository,
     )
     from app.infrastructure.imagenes.almacen_cotizaciones import (
         guardar_imagen_cotizacion,
     )
-    from app.infrastructure.repositories.solicitud_diseno_repository import (
-        SolicitudDisenoRepository,
-    )
+    from app.infrastructure.cotizador import ClienteCotizadorIA
 
+    repo = SolicitudDisenoRepository()
+    cotizador_ia = ClienteCotizadorIA(base_url=app.config.get("COTIZADOR_IA_URL"))
+    app.config["SOLICITUD_DISENO_REPOSITORY"] = repo 
     app.config["COTIZACION_SERVICE"] = CrearSolicitudDiseno(
-        SolicitudDisenoRepository(), guardar_imagen=guardar_imagen_cotizacion
+        repo,
+        guardar_imagen=guardar_imagen_cotizacion,
+        cotizador_ia=cotizador_ia,
     )
 
 

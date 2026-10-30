@@ -15,6 +15,7 @@ from app.application.common.referencias import (
 from app.domain.entities.detalle_pedido import DetallePedido
 from app.domain.entities.pago import Pago
 from app.domain.entities.pedido import Pedido
+from app.domain.entities.solicitud_diseno import EstadoSolicitud
 from app.domain.enums import EstadoPago, EstadoPedido
 from app.domain.interfaces.carrito_repository import CarritoRepository
 from app.domain.interfaces.correo import ServicioCorreo
@@ -57,6 +58,7 @@ class ProcesarPago:
         usuarios: UsuarioRepository | None = None,
         cupones: CuponRepository | None = None,
         documentacion: ServicioDocumentacionTributaria | None = None,
+        cotizaciones: Any = None,
     ) -> None:
         self._pedidos = pedidos
         self._pagos = pagos
@@ -67,11 +69,15 @@ class ProcesarPago:
         self._usuarios = usuarios
         self._cupones = cupones
         self._documentacion = documentacion
+        self._cotizaciones = cotizaciones
 
     def iniciar(self, dto: IniciarPagoDTO) -> ResultadoIntentoPago:
         reintento = self._buscar_reintento(dto)
         if reintento is not None:
             return reintento
+
+        if getattr(dto, "cotizacion_id", None) is not None:
+            return self._iniciar_cotizacion(dto)
 
         pedido, detalles = self._construir_pedido(dto)
         if getattr(dto, "cupon_codigo", None) and self._cupones:
@@ -234,6 +240,7 @@ class ProcesarPago:
                 return ResultadoConfirmacionPago(
                     estado="completado", pedido_id=str(pedido.id),
                     mensaje="Pago ya confirmado",
+                    cotizacion_id=self._cotizacion_id(pedido),
                 )
             try:
                 self._descontar_stock(pedido)
@@ -242,7 +249,8 @@ class ProcesarPago:
             if pago is not None:
                 pago.estado = EstadoPago.COMPLETADO
                 self._pagos.update(pago)
-            self._carritos.eliminar(str(pedido.usuario_id))
+            if pedido.cotizacion_id is None:
+                self._carritos.eliminar(str(pedido.usuario_id))
             self._emitir_documento(pedido)
             correo_enviado = self._enviar_comprobante(
                 pedido, pago.estado.value if pago is not None else "completado"
@@ -251,6 +259,7 @@ class ProcesarPago:
                 estado="completado", pedido_id=str(pedido.id),
                 mensaje="Pago confirmado",
                 correo_enviado=correo_enviado,
+                cotizacion_id=self._cotizacion_id(pedido),
             )
 
         if resultado in ("failed", "aborted", "cancelled"):
@@ -258,13 +267,134 @@ class ProcesarPago:
                 return ResultadoConfirmacionPago(
                     estado="fallido", pedido_id=str(pedido.id),
                     mensaje="Pago ya rechazado",
+                    cotizacion_id=self._cotizacion_id(pedido),
                 )
             return self._rechazar(pedido, pago, "Pago rechazado por la pasarela")
 
         return ResultadoConfirmacionPago(
             estado="pendiente", pedido_id=str(pedido.id),
             mensaje="El pago aún no ha sido procesado",
+            cotizacion_id=self._cotizacion_id(pedido),
         )
+
+    def _iniciar_cotizacion(self, dto: IniciarPagoDTO) -> ResultadoIntentoPago:
+        """Abre el pago de una cotización aprobada usando un pedido real.
+
+        La cotización no tiene un producto de catálogo, así que el pedido lleva
+        una línea con el precio que asignó el administrador. El vínculo único
+        `pedidos.cotizacion_id` evita que dos intentos generen dos pedidos.
+        """
+        if self._cotizaciones is None:
+            raise ValueError("El pago de cotizaciones no está configurado")
+
+        solicitud = self._cotizaciones.obtener_por_id(dto.cotizacion_id)
+        if solicitud is None or solicitud.usuario_id != dto.usuario_id:
+            raise ValueError("La cotización no existe o no pertenece al usuario")
+        if solicitud.estado != EstadoSolicitud.APROBADA:
+            raise ValueError("La cotización todavía no fue aprobada")
+        precio = int(solicitud.precio or 0)
+        if precio <= 0:
+            raise ValueError("La cotización no tiene un precio asignado")
+
+        existente = self._pedidos.get_by_cotizacion(solicitud.id)
+        creado_nuevo = existente is None
+        pago = None
+        if existente is not None:
+            pago = self._pagos.get_by_pedido(existente.id)
+            if pago is not None and pago.estado == EstadoPago.COMPLETADO:
+                raise ValueError("La cotización ya fue pagada")
+            self._validar_total_esperado(int(existente.total), dto.total_esperado)
+            pedido = existente
+            if pedido.estado == EstadoPedido.CANCELADO:
+                pedido.estado = EstadoPedido.PENDIENTE
+                self._pedidos.update(pedido)
+            solicitud_referencia = codificar_referencia(pedido.id)
+        else:
+            pedido, detalles = self._construir_pedido_cotizacion(
+                dto, solicitud, precio
+            )
+            self._validar_total_esperado(int(pedido.total), dto.total_esperado)
+            self._pedidos.crear_con_detalles(pedido, detalles)
+            solicitud_referencia = codificar_referencia(pedido.id)
+
+        if pago is not None:
+            pago.estado = EstadoPago.PENDIENTE
+            pago.monto = pedido.total
+            pago.token = None
+            pago.url_intento = None
+            pago.clave_idempotencia = dto.clave_idempotencia
+            self._pagos.update(pago)
+        else:
+            pago = Pago(
+                pedido_id=pedido.id,
+                monto=pedido.total,
+                proveedor="tuu",
+                clave_idempotencia=dto.clave_idempotencia,
+            )
+            try:
+                self._pagos.add(pago)
+            except ClaveIdempotenciaOcupada:
+                if creado_nuevo:
+                    self._descartar_pedido(pedido)
+                reintento = self._buscar_reintento(dto)
+                if reintento is not None:
+                    return reintento
+                raise ClaveIdempotenciaReutilizadaError(
+                    "Hay otra operacion de pago en curso con esa clave. "
+                    "Espera a que termine e intenta de nuevo."
+                ) from None
+
+        solicitud_pago = SolicitudPago(
+            monto=pedido.total,
+            referencia=solicitud_referencia,
+            descripcion=f"Pedido {solicitud_referencia} en ApoloVibes",
+            nombre_cliente=self._nombre_cliente(dto.cliente),
+            email_cliente=(dto.cliente or {}).get("email", ""),
+            telefono_cliente=(dto.cliente or {}).get("telefono", ""),
+            apellido_cliente=self._apellido_cliente(dto.cliente),
+        )
+        try:
+            resultado = self._pasarela.crear_intento(solicitud_pago)
+        except ErrorPasarela:
+            self._marcar_fallido(pedido, pago)
+            raise
+
+        pago.token = resultado.token
+        pago.url_intento = resultado.url
+        self._pagos.update(pago)
+        return resultado
+
+    def _construir_pedido_cotizacion(
+        self, dto: IniciarPagoDTO, solicitud: Any, precio: int
+    ) -> tuple[Pedido, list[DetallePedido]]:
+        pedido = Pedido(
+            usuario_id=dto.usuario_id,
+            cotizacion_id=solicitud.id,
+            direccion_envio=(
+                json.dumps(dto.cliente, ensure_ascii=False) if dto.cliente else None
+            ),
+            entrega=dto.entrega,
+            tipo_documento=tipo_documento_de((dto.cliente or {}).get("tipoDocumento")),
+        )
+        corto = str(solicitud.id).split("-")[0].upper()
+        material = solicitud.material or "Impresión 3D"
+        descripcion = f"Cotización #{corto} - {material}"
+        cantidad = int(solicitud.cantidad or 1)
+        if cantidad > 1:
+            descripcion += f" x{cantidad}"
+        detalle = DetallePedido(
+            pedido_id=pedido.id,
+            producto_id=None,
+            cantidad=1,
+            precio_unitario=precio,
+            color=solicitud.color,
+            nombre=descripcion[:150],
+        )
+        pedido.subtotal = precio
+        pedido.descuento_productos = 0
+        pedido.total = calcular_total_con_envio(precio, dto.entrega)
+        pedido.detalles = [detalle]
+        return pedido, [detalle]
 
     def _construir_pedido(self, dto: IniciarPagoDTO) -> tuple[Pedido, list[DetallePedido]]:
         if not dto.items:
@@ -317,7 +447,13 @@ class ProcesarPago:
         return pedido, detalles
 
     def _descontar_stock(self, pedido: Pedido) -> None:
-        items = [(d.producto_id, d.cantidad) for d in pedido.detalles]
+        items = [
+            (d.producto_id, d.cantidad)
+            for d in pedido.detalles
+            if d.producto_id is not None
+        ]
+        if not items:
+            return
         if not self._productos.descontar_stock(items):
             producto = pedido.detalles[0].producto_id if pedido.detalles else "-"
             raise ValueError(
@@ -380,8 +516,13 @@ class ProcesarPago:
             self._pagos.update(pago)
         self._pedidos.actualizar_estado(pedido.id, EstadoPedido.CANCELADO)
         return ResultadoConfirmacionPago(
-            estado="fallido", pedido_id=str(pedido.id), mensaje=mensaje
+            estado="fallido", pedido_id=str(pedido.id), mensaje=mensaje,
+            cotizacion_id=self._cotizacion_id(pedido),
         )
+
+    @staticmethod
+    def _cotizacion_id(pedido: Pedido) -> str | None:
+        return str(pedido.cotizacion_id) if pedido.cotizacion_id else None
 
     @staticmethod
     def _nombre_cliente(cliente: dict[str, Any] | None) -> str:

@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { iniciarPago } from '../services/payment.js'
+import { api } from '../services/api.js'
 import SelectOpciones from '../components/SelectOpciones.jsx'
 import LegalModal from '../components/LegalModal.jsx'
 import ConfirmModal from '../components/ConfirmModal.jsx'
@@ -66,7 +67,7 @@ function Campo({ id, label, error, ayuda, style, children }) {
 
 export default function Checkout() {
   const cart = useCart() || {}
-  const { items = [], total = 0 } = cart
+  const { items: itemsCarrito = [], total: totalCarrito = 0 } = cart
   const auth = useAuth() || {}
   const { user } = auth
   const location = useLocation()
@@ -89,6 +90,22 @@ export default function Checkout() {
   const [rutaDestino, setRutaDestino] = useState(null)
   const cuponFromState = location.state?.cupon || null
   const [cupon, setCupon] = useState(cuponFromState)
+  const cotizacionId = new URLSearchParams(location.search).get('cotizacion')
+  const [cotizacion, setCotizacion] = useState(location.state?.cotizacion || null)
+  const [cargandoCotizacion, setCargandoCotizacion] = useState(Boolean(cotizacionId))
+  const [errorCotizacion, setErrorCotizacion] = useState(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    const x_result = params.get('x_result') || hashParams.get('x_result');
+    if (x_result) {
+      bypassRef.current = true;
+      window.__checkoutBlocking = false;
+      const allParams = window.location.search || (window.location.hash.includes('?') ? '?' + window.location.hash.split('?')[1] : '');
+      navigate(`/pago/retorno${allParams}`, { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     const d = datosDesdeUsuario(user)
@@ -101,8 +118,25 @@ export default function Checkout() {
     }))
   }, [user])
 
-  // Aviso al salir con una compra en proceso. Si el cliente ya apreto "Pagar"
-  // no se pregunta nada: la redireccion a la pasarela debe pasar sin trabas.
+  useEffect(() => {
+    if (!cotizacionId) return
+    let activo = true
+    setCargandoCotizacion(true)
+    setErrorCotizacion(null)
+    api.get(`/cotizaciones/${cotizacionId}`)
+      .then(data => {
+        if (activo) setCotizacion(data)
+      })
+      .catch(err => {
+        if (activo) setErrorCotizacion(err.message || 'No pudimos cargar la cotización.')
+      })
+      .finally(() => {
+        if (activo) setCargandoCotizacion(false)
+      })
+    return () => { activo = false }
+  }, [cotizacionId])
+
+
   const hayCambios = Boolean(
     cliente.email || cliente.nombre || cliente.apellido || cliente.direccion ||
     cliente.telefono || cliente.rut || cliente.codigoPostal || cliente.comuna || cliente.region ||
@@ -191,13 +225,13 @@ export default function Checkout() {
 
   useEffect(() => {
     function onRequestConfirm(e) {
-    if (!window.__checkoutBlocking) return
-    const destino = e.detail?.to || window.__checkoutPendingUrl
-    window.__checkoutPendingUrl = null
-    if (!destino) return
-    setRutaDestino(destino)
-    setMostrarModalSalida(true)
-  }
+      if (!window.__checkoutBlocking) return
+      const destino = e.detail?.to || window.__checkoutPendingUrl
+      window.__checkoutPendingUrl = null
+      if (!destino) return
+      setRutaDestino(destino)
+      setMostrarModalSalida(true)
+    }
     window.addEventListener('checkout:request-confirm', onRequestConfirm)
     return () => window.removeEventListener('checkout:request-confirm', onRequestConfirm)
   }, [])
@@ -252,7 +286,7 @@ export default function Checkout() {
             navigate(destino)
             return
           }
-        } catch(e) {}
+        } catch (e) { }
         navigate(destino || '/')
         return
       }
@@ -265,8 +299,47 @@ export default function Checkout() {
     setRutaDestino(null)
   }
 
+  const esCotizacion = Boolean(cotizacionId)
+  const precioCotizacion = Number(cotizacion?.precio) || 0
+  const cantidadCotizacion = Math.max(1, Number(cotizacion?.cantidad) || 1)
+  const imagenCotizacion = cotizacion?.imagen
+    ? (String(cotizacion.imagen).startsWith('http')
+        ? cotizacion.imagen
+        : `/api/uploads/${String(cotizacion.imagen).replace(/\\/g, '/')}`)
+    : null
+  const items = esCotizacion && cotizacion
+    ? [{
+        id: null,
+        itemId: `cotizacion-${cotizacion.id}`,
+        cantidad: 1,
+        precio: precioCotizacion,
+        precio_original: null,
+        color: cotizacion.color,
+        imagen: imagenCotizacion,
+        nombre: `Cotización #${String(cotizacion.id).slice(0, 8).toUpperCase()} - ${cotizacion.material || 'Impresión 3D'}${cantidadCotizacion > 1 ? ` x${cantidadCotizacion}` : ''}`,
+      }]
+    : (Array.isArray(itemsCarrito) ? itemsCarrito : [])
+  const total = esCotizacion ? precioCotizacion : (Number(totalCarrito) || 0)
+  const cuponEfectivo = esCotizacion ? null : cupon
+
+  //AGREGAR IMAGENES !!!!
   if (!user) { return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>Inicia sesión para continuar</p></section> }
-  if (!Array.isArray(items) || items.length === 0) {
+  if (esCotizacion && cargandoCotizacion) {
+    return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>Cargando cotización...</p></section>
+  }
+  if (esCotizacion && errorCotizacion) {
+    return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}><p style={{ color: 'var(--danger, #D8302F)' }}>{errorCotizacion}</p><Link to="/mis-cotizaciones" style={{ color: '#2563eb' }}>Volver a mis cotizaciones</Link></section>
+  }
+  if (esCotizacion && !cotizacion) {
+    return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>No encontramos esa cotización.</p></section>
+  }
+  if (esCotizacion && cotizacion.pagada) {
+    return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}><p style={{ color: 'var(--text-dim)' }}>Esta cotización ya fue pagada.</p><Link className="btn btn-primary" to="/mis-pedidos">Ver mi pedido</Link></section>
+  }
+  if (esCotizacion && (cotizacion.estado !== 'aprobada' || precioCotizacion <= 0)) {
+    return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}><p style={{ color: 'var(--text-dim)' }}>Esta cotización todavía no está lista para pagar.</p><Link to="/mis-cotizaciones" style={{ color: '#2563eb' }}>Volver a mis cotizaciones</Link></section>
+  }
+  if (!esCotizacion && items.length === 0) {
     return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>Tu carrito está vacío</p></section>
   }
   const emailDeCuenta = !!(user?.email ?? user?.correo)
@@ -290,36 +363,35 @@ export default function Checkout() {
 
   const montoDescuento = Array.isArray(items)
     ? items.reduce((acc, item) => {
-        const precioOriginal = Number(item.precio_original)
-        const precio = Number(item.precio)
-        const cantidad = Number(item.cantidad || 1)
-        if (precioOriginal && precioOriginal > precio) {
-          return acc + (precioOriginal - precio) * cantidad
-        }
-        return acc
-      }, 0)
+      const precioOriginal = Number(item.precio_original)
+      const precio = Number(item.precio)
+      const cantidad = Number(item.cantidad || 1)
+      if (precioOriginal && precioOriginal > precio) {
+        return acc + (precioOriginal - precio) * cantidad
+      }
+      return acc
+    }, 0)
     : 0
 
-  // Subtotal a precio real (antes de descuentos): `total` ya trae la rebaja
-  // de los productos aplicada, así que se suma precio_original cuando existe.
+
   const subtotal = Array.isArray(items)
     ? items.reduce((acc, item) => {
-        const precioOriginal = Number(item.precio_original)
-        const precio = Number(item.precio)
-        const cantidad = Number(item.cantidad || 1)
-        const base = precioOriginal && precioOriginal > precio ? precioOriginal : precio
-        return acc + base * cantidad
-      }, 0)
+      const precioOriginal = Number(item.precio_original)
+      const precio = Number(item.precio)
+      const cantidad = Number(item.cantidad || 1)
+      const base = precioOriginal && precioOriginal > precio ? precioOriginal : precio
+      return acc + base * cantidad
+    }, 0)
     : 0
 
   let totalBase = Number(total) || 0
   let totalConCupon = totalBase
-  if (cupon) {
-    if (cupon.tipo === 'porcentaje') {
-      const desc = Math.round((totalBase * Number(cupon.valor)) / 100)
+  if (cuponEfectivo) {
+    if (cuponEfectivo.tipo === 'porcentaje') {
+      const desc = Math.round((totalBase * Number(cuponEfectivo.valor)) / 100)
       totalConCupon = Math.max(0, totalBase - desc)
-    } else if (cupon.tipo === 'monto') {
-      const desc = Number(cupon.valor)
+    } else if (cuponEfectivo.tipo === 'monto') {
+      const desc = Number(cuponEfectivo.valor)
       totalConCupon = Math.max(0, totalBase - desc)
     }
   }
@@ -388,6 +460,7 @@ export default function Checkout() {
     try {
       await iniciarPago({
         items,
+        cotizacionId: esCotizacion ? cotizacionId : undefined,
         cliente: clienteParaEnvio(cliente),
         entrega,
         totalEsperado: totalFinal,
@@ -395,7 +468,7 @@ export default function Checkout() {
         guardarDatos,
         mayorEdad: esMayor,
         aceptaTerminos,
-        cuponCodigo: cupon?.codigo || ''
+        cuponCodigo: cuponEfectivo?.codigo || ''
       })
     } catch (err) {
       setError(err.message || 'No pudimos iniciar el pago. Intenta nuevamente.')
@@ -411,9 +484,9 @@ export default function Checkout() {
   return (
     <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px' }}>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <img src={mediaPath('nombrelogo.webp')} alt='logo' className='nombre-logo' loading="lazy" decoding="async" width="512" height="72" />
+        <img src={mediaPath('nombrelogo.webp')} alt='logo' className='nombre-logo' loading="lazy" decoding="async" width="512" height="72" />
         <p style={{ fontSize: 13, color: 'var(--text-dim)', margin: 0 }}>
-          ({Array.isArray(items) ? items.length : 0} {Array.isArray(items) && items.length === 1 ? 'producto' : 'productos'}) &nbsp;
+          {esCotizacion ? 'Diseño personalizado' : `(${items.length} ${items.length === 1 ? 'producto' : 'productos'})`} &nbsp;
         </p>
       </div>
 
@@ -697,13 +770,14 @@ export default function Checkout() {
                 />
                 <label htmlFor="aceptaTerminos" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>
                   Acepto los{' '}
-                  <a 
-                  href="/terminos" 
-                  onClick={e =>{
-                    e.preventDefault();
-                    setModalAbierto('terminos')}}
-                  style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
-                  >Términos y condiciones</a> 
+                  <a
+                    href="/terminos"
+                    onClick={e => {
+                      e.preventDefault();
+                      setModalAbierto('terminos')
+                    }}
+                    style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
+                  >Términos y condiciones</a>
                 </label>
               </div>
               {errorDe('aceptaTerminos') && (
@@ -792,7 +866,7 @@ export default function Checkout() {
             }}
           >
             <span>{enviando ? 'Redirigiendo a' : 'Pagar con'}</span>
-            <img src={mediaPath('tuu.png')} alt="Tuu" style={{ height: 16, verticalAlign: 'middle' }} />
+            <img src={mediaPath('tuu.webp')} alt="Tuu" style={{ height: 16, verticalAlign: 'middle' }} />
           </button>
         </form>
 
@@ -810,28 +884,28 @@ export default function Checkout() {
               type="button"
               onClick={(e) => {
                 e.preventDefault()
-                intentarSalir('/carrito')
+                intentarSalir(esCotizacion ? '/mis-cotizaciones' : '/carrito')
               }}
-              style={{ 
-                fontSize: 13, 
-                color: 'var(--surface-2)', 
-                background: 'none', 
-                border: 'none', 
-                cursor: 'pointer', 
-                padding: 0 
+              style={{
+                fontSize: 13,
+                color: 'var(--surface-2)',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0
               }}
             >Editar</button>
           </div>
 
           <img src={mediaPath('apolo-vibes-logo.webp')} alt='logo-icon' className='logoicon' loading="lazy" decoding="async" width="447" height="512" />
-        <img src={mediaPath('nombrelogo.webp')} alt='logo' className='nombre-logo' loading="lazy" decoding="async" width="512" height="72" />
+          <img src={mediaPath('nombrelogo.webp')} alt='logo' className='nombre-logo' loading="lazy" decoding="async" width="512" height="72" />
 
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 15, margin: 0, color: 'var(--accent)' }}>Tu pedido</h3>
+            <h3 style={{ fontSize: 15, margin: 0, color: 'var(--accent)' }}>{esCotizacion ? 'Tu cotización' : 'Tu pedido'}</h3>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
-            <span>{Array.isArray(items) ? items.length : 0} {Array.isArray(items) && items.length === 1 ? 'producto' : 'productos'}</span>
+            <span>{esCotizacion ? '1 diseño' : `${items.length} ${items.length === 1 ? 'producto' : 'productos'}`}</span>
             <span>{clp(subtotal)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 14 }}>
@@ -843,7 +917,7 @@ export default function Checkout() {
             className="separador-suave"
             style={{ display: 'flex', flexDirection: 'column', paddingTop: 14, marginBottom: 20 }}
           >
-            {cupon && montoCupon > 0 && (
+            {cuponEfectivo && montoCupon > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
                 <span>Cupón de descuento</span>
                 <span>-{clp(montoCupon)}</span>
@@ -878,7 +952,7 @@ export default function Checkout() {
           </div>
           <div style={{ borderTop: '1px solid var(--surface-3)', paddingTop: 16, display: 'flex', flexDirection: 'column' }}>
             <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 16px' }}>
-              Detalle del pedido
+              {esCotizacion ? 'Detalle de la cotización' : 'Detalle del pedido'}
             </p>
             {items.map(item => (
               <div key={item.itemId ?? item.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -915,20 +989,20 @@ export default function Checkout() {
                   >
                     {item.cantidad}
                   </span>
-                  </div>
-
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--surface)' }}>{item.nombre}</p>
-                    {item.color && (
-                      <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
-                        Color: {item.color}
-                      </p>
-                    )}
-                    <p style={{ fontSize: 13, color: 'var(--text-dim)', flexShrink: 0 }}>
-                      ${item.precio.toLocaleString('es-CL')}
-                    </p>
-                  </div>
                 </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 4px', color: 'var(--surface)' }}>{item.nombre}</p>
+                  {item.color && (
+                    <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
+                      Color: {item.color}
+                    </p>
+                  )}
+                  <p style={{ fontSize: 13, color: 'var(--text-dim)', flexShrink: 0 }}>
+                    ${item.precio.toLocaleString('es-CL')}
+                  </p>
+                </div>
+              </div>
             ))}
           </div>
         </aside>

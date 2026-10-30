@@ -203,3 +203,22 @@ export const api = {
     localStorage.removeItem(AUTH_STORAGE_KEY)
   },
 }
+ 
+const COTIZADOR_URL = 'http://localhost:80000'  //cambiar url de render en prod
+
+export const apiCotizador = {
+  cotizar: (formData) => conErrorAmigable(
+    fetchConTimeout(
+      `${COTIZADOR_URL}/cotizar`,
+      {
+        method: 'POST',
+        body: formData
+      },
+      TIMEOUT_SUBIDA_MS
+    ).then(async res => {
+      if (!res.ok) throw await errorDeRespuesta(res, '/cotizar')
+        return res.json()
+    })
+  )
+} 
+ 
