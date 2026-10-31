@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { RefreshCw, AlertTriangle, Eye, Star, Package, CircleCheck, X, ChevronLeft, ChevronRight, Check, Clock, Truck, Store, User, Phone, Mail, FileText, Building2, Briefcase, Trash2, CreditCard, Info } from 'lucide-react';
+import { RefreshCw, AlertTriangle, Eye, Star, Package, CircleCheck, X, ChevronLeft, ChevronRight, Check, Clock, Truck, Store, User, Phone, Mail, FileText, Building2, Briefcase, Trash2, CreditCard, Info, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
 import { pedidosApi } from '../services/orders.js';
@@ -335,7 +335,12 @@ function DetalleModal({ pedido, onClose, onPagar, procesando, onCancelado, onMen
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       ) : (
-                        <Package size={24} color="#8A94A3" />
+                        <img
+                          src={mediaPath('cotizacionlogo.webp')}
+                          alt="Cotización personalizada"
+                          loading="lazy" decoding="async" width="56" height="56"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>

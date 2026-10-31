@@ -212,34 +212,38 @@ export default function Navbar() {
               }
             }}
           >Catálogo</Link>
-          <Link
-            to="/cotizar"
-            onClick={(e) => {
-              const estaEnCheckout = window.__checkoutBlocking && (
-                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
-                window.location.pathname.endsWith('/checkout') ||
-                window.location.pathname.includes('/checkout')
-              )
-              if (estaEnCheckout) {
-                e.preventDefault()
-                window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/cotizar' } }))
-              }
-            }}
-          >Cotiza tu producto</Link>
-          <Link
-            to="/"
-            onClick={(e) => {
-              const estaEnCheckout = window.__checkoutBlocking && (
-                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
-                window.location.pathname.endsWith('/checkout') ||
-                window.location.pathname.includes('/checkout')
-              )
-              if (estaEnCheckout) {
-                e.preventDefault()
-                window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
-              }
-            }}
-          >Nosotros</Link>
+          {!isAdmin && (
+            <>
+              <Link
+                to="/cotizar"
+                onClick={(e) => {
+                  const estaEnCheckout = window.__checkoutBlocking && (
+                    (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                    window.location.pathname.endsWith('/checkout') ||
+                    window.location.pathname.includes('/checkout')
+                  )
+                  if (estaEnCheckout) {
+                    e.preventDefault()
+                    window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/cotizar' } }))
+                  }
+                }}
+              >Cotiza tu producto</Link>
+              <Link
+                to="/"
+                onClick={(e) => {
+                  const estaEnCheckout = window.__checkoutBlocking && (
+                    (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                    window.location.pathname.endsWith('/checkout') ||
+                    window.location.pathname.includes('/checkout')
+                  )
+                  if (estaEnCheckout) {
+                    e.preventDefault()
+                    window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
+                  }
+                }}
+              >Nosotros</Link>
+            </>
+          )}
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'flex-end' }}>
@@ -813,23 +817,25 @@ export default function Navbar() {
                 </>
               )
             )}
-            <div className="nm-section">
-              <button className="nm-item" onClick={() => {
-                const estaEnCheckout = window.__checkoutBlocking && (
-                  (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
-                  window.location.pathname.endsWith('/checkout') ||
-                  window.location.pathname.includes('/checkout')
-                )
-                if (estaEnCheckout) {
-                  window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/cotizar' } }))
-                  setMobileOpen(false)
-                  return
-                }
-                handleMobileNav('/cotizar')
-              }}>
-                <Calculator size={18} /> Cotiza tu producto
-              </button>
-            </div>
+            {!isAdmin && (
+              <div className="nm-section">
+                <button className="nm-item" onClick={() => {
+                  const estaEnCheckout = window.__checkoutBlocking && (
+                    (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                    window.location.pathname.endsWith('/checkout') ||
+                    window.location.pathname.includes('/checkout')
+                  )
+                  if (estaEnCheckout) {
+                    window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/cotizar' } }))
+                    setMobileOpen(false)
+                    return
+                  }
+                  handleMobileNav('/cotizar')
+                }}>
+                  <Calculator size={18} /> Cotiza tu producto
+                </button>
+              </div>
+            )}
 
 
             {/* Categorías */}

@@ -207,7 +207,7 @@ select:-webkit-autofill:focus {
   opacity: 0.55;
 }
 
-/* Autofill en tema claro: evita el fondo celeste del navegador */
+/* Autofill en tema claro*/
 [data-theme="light"] input:-webkit-autofill,
 [data-theme="light"] input:-webkit-autofill:hover,
 [data-theme="light"] input:-webkit-autofill:focus,
@@ -217,7 +217,7 @@ select:-webkit-autofill:focus {
 [data-theme="light"] select:-webkit-autofill,
 [data-theme="light"] select:-webkit-autofill:hover,
 [data-theme="light"] select:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset !important;
   -webkit-text-fill-color: var(--surface) !important;
 }
 

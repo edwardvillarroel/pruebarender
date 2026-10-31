@@ -13,11 +13,11 @@ export default function AvisoMfaAdmin() {
   const clave = user?.id ? claveAvisoMfa(user.id) : null
 
   useEffect(() => {
-    if (!user || user.rol !== 'admin' || user.mfa_activo) return
+    if (!user || user.rol !== 'admin' || user.mfa_activo || user.tiene_password === false) return
     if (!clave) return
     if (sessionStorage.getItem(clave)) return
     setAviso(true)
-  }, [user?.id, user?.rol, user?.mfa_activo])
+  }, [user?.id, user?.rol, user?.mfa_activo, user?.tiene_password])
 
   function cerrarAviso() {
     if (clave) sessionStorage.setItem(clave, '1')
@@ -41,7 +41,7 @@ export default function AvisoMfaAdmin() {
     }
   }
 
-  if (!user || user.rol !== 'admin' || user.mfa_activo) return null
+  if (!user || user.rol !== 'admin' || user.mfa_activo || user.tiene_password === false) return null
 
   return (
     <>
