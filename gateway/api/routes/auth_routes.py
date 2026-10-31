@@ -12,6 +12,7 @@ from gateway.application.auth import (
     CorreoIncorrecto,
     CredencialesInvalidas,
     CuentaBloqueada,
+    CuentaSoloGoogle,
     DatosInvalidos,
     EmailRegistrado,
     MfaRequerido,
@@ -46,10 +47,22 @@ _FRONTEND_URL = "http://localhost:5173"
 
 
 def _frontend():
-    return current_app.config.get("FRONTEND_URL", _FRONTEND_URL)
+    # Sin barra final: si FRONTEND_URL viene como "https://sitio.cl/", el
+    # redirect termina en "https://sitio.cl//?login=google".
+    url = current_app.config.get("FRONTEND_URL") or _FRONTEND_URL
+    return url.rstrip("/")
 
 
 def _ip_cliente():
+    # Detras del proxy de Render, request.remote_addr es la IP del proxy: sin
+    # esto todas las sesiones y los logs de seguridad quedan con la misma IP.
+    # Se toma la ULTIMA IP de X-Forwarded-For (la que agrega el proxy), igual
+    # que el rate limiter. La columna es varchar(45), por eso se recorta.
+    reenviada = request.headers.get("X-Forwarded-For", "")
+    if reenviada:
+        ultima = reenviada.split(",")[-1].strip()
+        if ultima:
+            return ultima[:45]
     return request.remote_addr or "0.0.0.0"
 
 
@@ -57,17 +70,31 @@ def _user_agent():
     return (request.headers.get("User-Agent") or "")[:255]
 
 
-def _responder_con_sesion(cuerpo, sesion):
-    respuesta = make_response(jsonify(**cuerpo))
+def _samesite_cookie():
+    return current_app.config.get("COOKIE_SAMESITE", "Strict")
+
+
+def _aplicar_cookie_refresh(respuesta, refresh_token):
+    """Unico lugar que define los atributos de la cookie de sesion.
+
+    Antes el callback de Google repetia el set_cookie a mano; cualquier cambio
+    en las opciones habia que hacerlo en dos lugares y se desincronizaban.
+    """
     respuesta.set_cookie(
         COOKIE_REFRESH,
-        value=sesion["refresh_token"],
+        value=refresh_token,
         httponly=True,
         secure=current_app.config.get("COOKIE_SECURE", True),
-        samesite="Strict",
+        samesite=_samesite_cookie(),
         path="/api/auth",
     )
     return respuesta
+
+
+def _responder_con_sesion(cuerpo, sesion):
+    return _aplicar_cookie_refresh(
+        make_response(jsonify(**cuerpo)), sesion["refresh_token"]
+    )
 
 
 def _borrar_cookie_refresh(respuesta):
@@ -75,7 +102,7 @@ def _borrar_cookie_refresh(respuesta):
         COOKIE_REFRESH,
         path="/api/auth",
         secure=current_app.config.get("COOKIE_SECURE", True),
-        samesite="Strict",
+        samesite=_samesite_cookie(),
         httponly=True,
     )
     return respuesta
@@ -90,7 +117,7 @@ def _sete_cookie_mfa(respuesta, ticket):
         value=ticket,
         httponly=True,
         secure=current_app.config.get("COOKIE_SECURE", True),
-        samesite="Strict",
+        samesite=_samesite_cookie(),
         path="/api/auth",
         max_age=300,  # 5 min, igual que la validez del ticket
     )
@@ -102,7 +129,7 @@ def _borrar_cookie_mfa(respuesta):
         COOKIE_MFA,
         path="/api/auth",
         secure=current_app.config.get("COOKIE_SECURE", True),
-        samesite="Strict",
+        samesite=_samesite_cookie(),
         httponly=True,
     )
     return respuesta
@@ -207,6 +234,8 @@ def mfa_configurar():
         datos = configurar_mfa(get_jwt_identity())
     except CredencialesInvalidas:
         return jsonify(mensaje="Usuario no encontrado"), 404
+    except CuentaSoloGoogle as e:
+        return jsonify(mensaje=str(e)), 409
     return jsonify(**datos)
 
 
@@ -216,6 +245,8 @@ def mfa_activar():
     datos = request.get_json(silent=True) or {}
     try:
         resultado = activar_mfa(get_jwt_identity(), datos.get("codigo", ""))
+    except CuentaSoloGoogle as e:
+        return jsonify(mensaje=str(e)), 409
     except DatosInvalidos as e:
         return jsonify(mensaje=str(e)), 400
     except CredencialesInvalidas:
@@ -316,6 +347,8 @@ def crear_codigo_recuperacion():
     email = datos.get("email", "")
     try:
         _, expira_en = despachar_codigo_recuperacion(email, _ip_cliente())
+    except CuentaSoloGoogle as e:
+        return jsonify(mensaje=str(e)), 409
     except DatosInvalidos as e:
         return jsonify(mensaje=str(e)), 400
     except CodigoNoEnviado:
@@ -354,6 +387,8 @@ def confirmar_recuperacion():
             nueva_password=datos.get("password", ""),
             ip=_ip_cliente(),
         )
+    except CuentaSoloGoogle as e:
+        return jsonify(mensaje=str(e)), 409
     except DatosInvalidos as e:
         return jsonify(mensaje=str(e)), 400
     except CodigoIncorrecto:
@@ -375,6 +410,8 @@ def cambiar_contrasena_ruta():
             datos.get("nueva_password", ""),
             _ip_cliente(),
         )
+    except CuentaSoloGoogle as e:
+        return jsonify(mensaje=str(e)), 409
     except DatosInvalidos as e:
         return jsonify(mensaje=str(e)), 400
     except (ContrasenaIncorrecta, CredencialesInvalidas):
@@ -473,12 +510,4 @@ def google_callback():
         return redirect(_frontend() + "?login=google&error=" + urlencode({"e": mensaje}))
 
     respuesta = redirect(_frontend() + "?login=google")
-    respuesta.set_cookie(
-        COOKIE_REFRESH,
-        value=sesion["refresh_token"],
-        httponly=True,
-        secure=current_app.config.get("COOKIE_SECURE", True),
-        samesite="Strict",
-        path="/api/auth",
-    )
-    return respuesta
+    return _aplicar_cookie_refresh(respuesta, sesion["refresh_token"])

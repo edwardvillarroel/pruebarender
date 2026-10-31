@@ -23,6 +23,14 @@ class Config:
         "yes",
         "on",
     )
+    # SameSite de las cookies de sesion. "Strict" es lo correcto cuando front y
+    # API comparten dominio registrable (ej. apolovibes3d.cl y
+    # api.apolovibes3d.cl): el navegador las manda igual porque son same-site.
+    # "None" es solo para el caso cross-site (front en un dominio y API en
+    # otro) y exige COOKIE_SECURE=True o el navegador descarta la cookie.
+    COOKIE_SAMESITE = (
+        os.getenv("GATEWAY_COOKIE_SAMESITE", "").strip().capitalize() or "Strict"
+    )
     # --- EmailJS (envío real de correos del gateway) ---
     EMAILJS_PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY", "")
     EMAILJS_PRIVATE_KEY = os.getenv("EMAILJS_PRIVATE_KEY", "")

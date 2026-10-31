@@ -17,11 +17,21 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    CORS(
-        app,
-        origins=os.getenv("CORS_ORIGINS", "http://localhost:5173").split(","),
-        supports_credentials=True,
-    )
+    # Los origenes se comparan de forma exacta: un espacio despues de la coma
+    # ("https://a.cl, https://b.cl") hacia que el segundo origen nunca matcheara.
+    origenes = [
+        origen.strip()
+        for origen in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+        if origen.strip()
+    ]
+    if "*" in origenes:
+        # Con supports_credentials=True el wildcard es invalido: el navegador
+        # rechaza la respuesta. Se descarta en vez de romper todo el CORS.
+        _log.warning(
+            "CORS_ORIGINS contiene '*'; se ignora porque las cookies exigen origen exacto."
+        )
+        origenes = [origen for origen in origenes if origen != "*"]
+    CORS(app, origins=origenes, supports_credentials=True)
     JWTManager(app)
     limiter.init_app(app)
 
