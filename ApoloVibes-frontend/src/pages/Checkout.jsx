@@ -780,6 +780,17 @@ export default function Checkout() {
                   >Términos y condiciones</a>
                 </label>
               </div>
+              <p style={{ fontSize: 13, margin: '8px 0 0 24px', lineHeight: 1.5, color: '#4b5563' }}>
+                Declaro haber leído la{' '}
+                <a
+                  href="/privacidad"
+                  onClick={e => {
+                    e.preventDefault();
+                    setModalAbierto('privacidad')
+                  }}
+                  style={{ color: '#2563eb', textDecoration: 'underline', cursor: 'pointer' }}
+                >Política de Privacidad</a>.
+              </p>
               {errorDe('aceptaTerminos') && (
                 <p id="aceptaTerminos-error" role="alert" style={estiloError}>{errorDe('aceptaTerminos')}</p>
               )}

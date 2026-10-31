@@ -1,4 +1,4 @@
-export const VERSION_LEGAL = '2026-10-04'
+export const VERSION_LEGAL = '2026-10-31'
 
 export function fechaLegalLarga(iso = VERSION_LEGAL){
     const [a, m, d] = iso.split('-').map(Number)

@@ -258,12 +258,12 @@ function DetalleModal({ pedido, onClose, onCancelar }) {
   const descuentoProductos = pedido.descuento_productos != null
     ? Number(pedido.descuento_productos)
     : itemsPedido.reduce((acc, item) => {
-        const original = Number(item.precio_original || 0);
-        const precio = Number(item.precio_unitario || 0);
-        return original > precio && precio > 0
-          ? acc + (original - precio) * Number(item.cantidad || 1)
-          : acc;
-      }, 0);
+      const original = Number(item.precio_original || 0);
+      const precio = Number(item.precio_unitario || 0);
+      return original > precio && precio > 0
+        ? acc + (original - precio) * Number(item.cantidad || 1)
+        : acc;
+    }, 0);
   const descuentoCupon = pedido.descuento_cupon != null
     ? Number(pedido.descuento_cupon)
     : Number(pedido.descuento || pedido.monto_cupon || 0);
@@ -371,202 +371,207 @@ function DetalleModal({ pedido, onClose, onCancelar }) {
           </div>
         </div>
 
-     
+
         <div className="modal-scroll" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
-        <div style={{ padding: '20px 24px 0' }}>
+          <div style={{ padding: '20px 24px 0' }}>
 
-        <LineaEstado estado={estado} entrega={pedido.entrega} tieneSeguimiento={!!pedido.codigo_seguimiento} />
+            <LineaEstado estado={estado} entrega={pedido.entrega} tieneSeguimiento={!!pedido.codigo_seguimiento} />
 
-        <div style={{
-          display: 'flex', gap: 12, background: FONDO_TARJETA,
-          borderRadius: 12, padding: 14, marginBottom: 20,
-        }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-            background: 'rgba(250,127,25,.18)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            {esRetiro ? <Store size={20} color={ACENTO} /> : <Truck size={20} color={ACENTO} />}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLOR_TEXTO }}>
-              {esRetiro ? 'Retiro en tienda' : (ETIQUETA_ENTREGA[pedido.entrega] || pedido.entrega)}
-            </div>
-            {esRetiro ? (
-              <div style={{ marginTop: 2, fontSize: 13, color: COLOR_APAGADO }}>{DIRECCION_RETIRO}</div>
-            ) : (
-              <div style={{ marginTop: 2, fontSize: 13, color: COLOR_APAGADO, lineHeight: 1.5 }}>
-                {lineaCalle && <div>{lineaCalle}</div>}
-                {(lineaZona || lineaPostal) && <div>{lineaZona}{lineaPostal}</div>}
-                {pedido.codigo_seguimiento && (
-                  <div style={{ marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 12 }}>
-                    {pedido.transportista === 'bluexpress' ? 'Bluexpress' : 'Starken'} · {pedido.codigo_seguimiento}
+            <div style={{
+              display: 'flex', gap: 12, background: FONDO_TARJETA,
+              borderRadius: 12, padding: 14, marginBottom: 20,
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                background: 'rgba(250,127,25,.18)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {esRetiro ? <Store size={20} color={ACENTO} /> : <Truck size={20} color={ACENTO} />}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: COLOR_TEXTO }}>
+                  {esRetiro ? 'Retiro en tienda' : (ETIQUETA_ENTREGA[pedido.entrega] || pedido.entrega)}
+                </div>
+                {esRetiro ? (
+                  <div style={{ marginTop: 2, fontSize: 13, color: COLOR_APAGADO }}>{DIRECCION_RETIRO}</div>
+                ) : (
+                  <div style={{ marginTop: 2, fontSize: 13, color: COLOR_APAGADO, lineHeight: 1.5 }}>
+                    {lineaCalle && <div>{lineaCalle}</div>}
+                    {(lineaZona || lineaPostal) && <div>{lineaZona}{lineaPostal}</div>}
+                    {pedido.codigo_seguimiento && (
+                      <div style={{ marginTop: 4, fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+                        {pedido.transportista === 'bluexpress' ? 'Bluexpress' : 'Starken'} · {pedido.codigo_seguimiento}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Productos */}
-        <div style={{ borderTop: `1px solid ${LINEA}` }}>
-          {itemsPedido.map((item, i) => (
-            <div
-              key={`${item.producto_id}-${item.color || ''}-${i}`}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0',
-                borderBottom: `1px solid ${LINEA}`,
-              }}
-            >
-              <div style={{
-                width: 56, height: 56, borderRadius: 10, background: '#FFFFFF', flexShrink: 0,
-                overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                {item.imagen ? (
-                  <img
-                    src={item.imagen}
-                    alt={item.nombre || 'Producto'}
-                    loading="lazy" decoding="async" width="56" height="56"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  <Package size={24} color="#8A94A3" />
-                )}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: COLOR_TEXTO }}>
-                  {item.nombre || 'Producto'}
-                </div>
-                <div style={{ fontSize: 13, color: COLOR_APAGADO }}>
-                  {[item.color, `${item.cantidad} ${item.cantidad === 1 ? 'unidad' : 'unidades'}`].filter(Boolean).join(' · ')}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: COLOR_TEXTO, whiteSpace: 'nowrap' }}>
-                  {formatoPesos(item.precio_unitario * item.cantidad)}
-                </div>
-                <div style={{ fontSize: 12, color: COLOR_APAGADO, whiteSpace: 'nowrap' }}>
-                  {formatoPesos(item.precio_unitario)} c/u
-                </div>
-              </div>
             </div>
-          ))}
-        </div>
 
-        {/* Totales */}
-        <div style={{ padding: '14px 0 18px' }}>
-          {descuentoCupon > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#22c55e', marginBottom: 6 }}>
-              <span>Cupón de descuento{cuponCodigo ? ` (${cuponCodigo})` : ''}</span>
-              <span>- {formatoPesos(descuentoCupon)}</span>
-            </div>
-          )}
-          {descuentoProductos > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#22c55e', marginBottom: 6 }}>
-              <span>Descuento</span>
-              <span>- {formatoPesos(descuentoProductos)}</span>
-            </div>
-          )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLOR_APAGADO, marginBottom: 6 }}>
-            <span>Monto neto</span>
-            <span>{formatoPesos(neto)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLOR_APAGADO, marginBottom: 12 }}>
-            <span>IVA (19%)</span>
-            <span>{formatoPesos(iva)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <span style={{ fontSize: 14, color: COLOR_TEXTO }}>Total</span>
-            <span style={{ fontSize: 24, fontWeight: 700, color: COLOR_TEXTO }}>{formatoPesos(pedido.total)}</span>
-          </div>
-        </div>
-
-        {/* Datos del cliente */}
-        {datos.length > 0 && (
-          <div style={{ background: FONDO_TARJETA, borderRadius: 12, padding: 14, marginBottom: 18 }}>
-            <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: COLOR_APAGADO }}>
-              {esFactura ? 'Datos de facturación' : 'Datos del cliente'}
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {datos.map((d, i) => (
-                <FilaDato key={i} icono={d.icono} etiqueta={d.etiqueta} valor={d.valor} />
+            {/* Productos */}
+            <div style={{ borderTop: `1px solid ${LINEA}` }}>
+              {itemsPedido.map((item, i) => (
+                <div
+                  key={`${item.producto_id}-${item.color || ''}-${i}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0',
+                    borderBottom: `1px solid ${LINEA}`,
+                  }}
+                >
+                  <div style={{
+                    width: 56, height: 56, borderRadius: 10, background: '#FFFFFF', flexShrink: 0,
+                    overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {item.imagen ? (
+                      <img
+                        src={item.imagen}
+                        alt={item.nombre || 'Producto'}
+                        loading="lazy" decoding="async" width="56" height="56"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <img
+                        src={mediaPath('cotizacionlogo.webp')}
+                        alt="Cotización personalizada"
+                        loading="lazy" decoding="async" width="56" height="56"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: COLOR_TEXTO }}>
+                      {item.nombre || 'Producto'}
+                    </div>
+                    <div style={{ fontSize: 13, color: COLOR_APAGADO }}>
+                      {[item.color, `${item.cantidad} ${item.cantidad === 1 ? 'unidad' : 'unidades'}`].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: COLOR_TEXTO, whiteSpace: 'nowrap' }}>
+                      {formatoPesos(item.precio_unitario * item.cantidad)}
+                    </div>
+                    <div style={{ fontSize: 12, color: COLOR_APAGADO, whiteSpace: 'nowrap' }}>
+                      {formatoPesos(item.precio_unitario)} c/u
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-        )}
 
-        {/* Cancelar pedido*/}
-        {puedeCancelar && (
-          <div style={{
-            background: 'rgba(140,18,18,.12)', border: '1px solid rgba(255,90,90,.35)',
-            borderRadius: 12, padding: 14, marginBottom: 18,
-          }}>
-            <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#FF9B9B', textAlign: 'center' }}>
-              ¿Necesitas cancelar este pedido?
-            </p>
-            <p style={{ margin: '0 0 12px', textAlign: 'center', fontSize: 12, color: COLOR_APAGADO, lineHeight: 1.5 }}>
-              Opción disponible solo hasta antes del despacho del pedido. Si el pedido ya salió, no se puede cancelar.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <button
-              type="button"
-              onClick={() => { setErrorCancelacion(null); setConfirmarCancelacion(true) }}
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                padding: '9px 14px', borderRadius: 10,
-                border: '1px solid rgba(255,90,90,.45)', background: 'rgba(140,18,18,.18)',
-                color: '#FF9B9B', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              }}
-            >
-               Cancelar pedido
-            </button>
-          </div>
-
-            {errorCancelacion && (
-              <p style={{ margin: '10px 0 0', fontSize: 12, color: '#FF9B9B' }}>{errorCancelacion}</p>
-            )}
-          </div>
-        )}
-
-        {/* Anulación en Tuu */}
-        {estado === 'cancelado' && (
-          <div style={{
-            background: 'rgba(22,189,16,.10)', border: '1px solid rgba(22,189,16,.30)',
-            borderRadius: 12, padding: 14, marginBottom: 18,
-          }}>
-            <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#7BE07A', textAlign: 'center' }}>
-              Anulación en Tuu
-            </p>
-            <p style={{ margin: '0 0 12px', textAlign: 'center', fontSize: 12, color: COLOR_APAGADO, lineHeight: 1.5 }}>
-              {avisoEnviado
-                ? 'El cliente ya tiene el aviso en MisPedidos.'
-                : 'Cuando Tuu acepte la anulación, avísale al cliente: le aparecerá un aviso en MisPedidos.'}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={informarCliente}
-                disabled={avisando || avisoEnviado}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  padding: '9px 14px', borderRadius: 10,
-                  border: '1px solid rgba(22,189,16,.45)', background: 'rgba(22,189,16,.18)',
-                  color: '#7BE07A', fontSize: 13, fontWeight: 600,
-                  cursor: avisando || avisoEnviado ? 'not-allowed' : 'pointer',
-                  opacity: avisando || avisoEnviado ? 0.6 : 1,
-                }}
-              >
-                <Bell size={14} />
-                {avisoEnviado ? 'Cliente avisado' : avisando ? 'Avisando…' : 'Informar al cliente'}
-              </button>
+            {/* Totales */}
+            <div style={{ padding: '14px 0 18px' }}>
+              {descuentoCupon > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#22c55e', marginBottom: 6 }}>
+                  <span>Cupón de descuento{cuponCodigo ? ` (${cuponCodigo})` : ''}</span>
+                  <span>- {formatoPesos(descuentoCupon)}</span>
+                </div>
+              )}
+              {descuentoProductos > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#22c55e', marginBottom: 6 }}>
+                  <span>Descuento</span>
+                  <span>- {formatoPesos(descuentoProductos)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLOR_APAGADO, marginBottom: 6 }}>
+                <span>Monto neto</span>
+                <span>{formatoPesos(neto)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLOR_APAGADO, marginBottom: 12 }}>
+                <span>IVA (19%)</span>
+                <span>{formatoPesos(iva)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 14, color: COLOR_TEXTO }}>Total</span>
+                <span style={{ fontSize: 24, fontWeight: 700, color: COLOR_TEXTO }}>{formatoPesos(pedido.total)}</span>
+              </div>
             </div>
-            {errorAviso && (
-              <p style={{ margin: '10px 0 0', fontSize: 12, color: '#FF9B9B' }}>{errorAviso}</p>
-            )}
-          </div>
-        )}
 
-        </div>
+            {/* Datos del cliente */}
+            {datos.length > 0 && (
+              <div style={{ background: FONDO_TARJETA, borderRadius: 12, padding: 14, marginBottom: 18 }}>
+                <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: COLOR_APAGADO }}>
+                  {esFactura ? 'Datos de facturación' : 'Datos del cliente'}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {datos.map((d, i) => (
+                    <FilaDato key={i} icono={d.icono} etiqueta={d.etiqueta} valor={d.valor} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Cancelar pedido*/}
+            {puedeCancelar && (
+              <div style={{
+                background: 'rgba(140,18,18,.12)', border: '1px solid rgba(255,90,90,.35)',
+                borderRadius: 12, padding: 14, marginBottom: 18,
+              }}>
+                <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#FF9B9B', textAlign: 'center' }}>
+                  ¿Necesitas cancelar este pedido?
+                </p>
+                <p style={{ margin: '0 0 12px', textAlign: 'center', fontSize: 12, color: COLOR_APAGADO, lineHeight: 1.5 }}>
+                  Opción disponible solo hasta antes del despacho del pedido. Si el pedido ya salió, no se puede cancelar.
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setErrorCancelacion(null); setConfirmarCancelacion(true) }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '9px 14px', borderRadius: 10,
+                      border: '1px solid rgba(255,90,90,.45)', background: 'rgba(140,18,18,.18)',
+                      color: '#FF9B9B', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    Cancelar pedido
+                  </button>
+                </div>
+
+                {errorCancelacion && (
+                  <p style={{ margin: '10px 0 0', fontSize: 12, color: '#FF9B9B' }}>{errorCancelacion}</p>
+                )}
+              </div>
+            )}
+
+            {/* Anulación en Tuu */}
+            {estado === 'cancelado' && (
+              <div style={{
+                background: 'rgba(22,189,16,.10)', border: '1px solid rgba(22,189,16,.30)',
+                borderRadius: 12, padding: 14, marginBottom: 18,
+              }}>
+                <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#7BE07A', textAlign: 'center' }}>
+                  Anulación en Tuu
+                </p>
+                <p style={{ margin: '0 0 12px', textAlign: 'center', fontSize: 12, color: COLOR_APAGADO, lineHeight: 1.5 }}>
+                  {avisoEnviado
+                    ? 'El cliente ya tiene el aviso en MisPedidos.'
+                    : 'Cuando Tuu acepte la anulación, avísale al cliente: le aparecerá un aviso en MisPedidos.'}
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={informarCliente}
+                    disabled={avisando || avisoEnviado}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '9px 14px', borderRadius: 10,
+                      border: '1px solid rgba(22,189,16,.45)', background: 'rgba(22,189,16,.18)',
+                      color: '#7BE07A', fontSize: 13, fontWeight: 600,
+                      cursor: avisando || avisoEnviado ? 'not-allowed' : 'pointer',
+                      opacity: avisando || avisoEnviado ? 0.6 : 1,
+                    }}
+                  >
+                    <Bell size={14} />
+                    {avisoEnviado ? 'Cliente avisado' : avisando ? 'Avisando…' : 'Informar al cliente'}
+                  </button>
+                </div>
+                {errorAviso && (
+                  <p style={{ margin: '10px 0 0', fontSize: 12, color: '#FF9B9B' }}>{errorAviso}</p>
+                )}
+              </div>
+            )}
+
+          </div>
         </div>
 
         {/* Footer fijo con acción de cierre */}
@@ -869,9 +874,9 @@ export default function Pedidos() {
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-        <ClipboardList size={22} style={{ color: 'var(--surface)' }} />
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, margin: 0, color: 'var(--surface)' }}>Pedidos</h1>
-      </div>
+          <ClipboardList size={22} style={{ color: 'var(--surface)' }} />
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 22, margin: 0, color: 'var(--surface)' }}>Pedidos</h1>
+        </div>
         <div style={{ position: 'relative', width: 280, maxWidth: '100%' }}>
           <Search
             size={15}
