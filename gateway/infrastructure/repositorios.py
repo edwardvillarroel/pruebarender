@@ -14,7 +14,7 @@ from gateway.infrastructure.pg_pool import adquirir_conexion
 
 _CAMPOS_USUARIO = (
     "id, email, password_hash, nombre, apellido, rol, activo, "
-    "auth_provider, google_sub, mfa_secret, mfa_activo"
+    "auth_provider, google_sub, mfa_secret, mfa_activo, password_configurada"
 )
 
 
@@ -33,6 +33,7 @@ def _fila_a_usuario(fila, descripcion):
     usuario = dict(zip(columnas, fila))
     usuario["id"] = _uuid_a_texto(usuario["id"])
     usuario["mfa_activo"] = bool(usuario.get("mfa_activo"))
+    usuario["password_configurada"] = bool(usuario.get("password_configurada", True))
     return usuario
 
 
@@ -86,7 +87,7 @@ def actualizar_password(user_id, password_hash):
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:
             cursor.execute(
-                "UPDATE usuarios SET password_hash = %s WHERE id = %s",
+                "UPDATE usuarios SET password_hash = %s, password_configurada = true WHERE id = %s",
                 (password_hash, uuid.UUID(user_id)),
             )
 
@@ -326,13 +327,13 @@ def buscar_usuario_por_google_sub(google_sub):
 
 
 def vincular_google(user_id, google_sub):
-    """Asocia una cuenta Google a un usuario existente y actualiza auth_provider."""
+    """Asocia Google a un usuario existente sin cambiar su origen ni su contraseña."""
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:
             cursor.execute(
                 """
                 UPDATE usuarios
-                SET google_sub = %s, auth_provider = 'google'
+                SET google_sub = %s
                 WHERE id = %s
                 """,
                 (google_sub, uuid.UUID(user_id)),
@@ -348,10 +349,10 @@ def crear_usuario_google(email, google_sub, nombre, apellido, password_hash):
                 """
                 INSERT INTO usuarios
                     (id, email, password_hash, nombre, apellido, rol, activo,
-                     auth_provider, google_sub, creado_en)
+                     auth_provider, google_sub, creado_en, password_configurada)
                 VALUES
                     (%s, %s, %s, %s, %s, 'cliente', true,
-                     'google', %s, now())
+                     'google', %s, now(), false)
                 """,
                 (nuevo_id, email, password_hash, nombre, apellido, google_sub),
             )

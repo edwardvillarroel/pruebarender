@@ -80,6 +80,7 @@ CREATE TABLE USUARIOS
 	MFA_SECRET varchar(64) , 
 	MFA_ACTIVO boolean DEFAULT false NOT NULL , 
 	ELIMINADO_EN timestamptz , 
+	PASSWORD_CONFIGURADA boolean DEFAULT true NOT NULL , 
 	 CHECK (rol IN ('admin', 'cliente')) , 
 	 CONSTRAINT CK_USUARIOS_APELLIDO CHECK (rol <> 'cliente' OR apellido IS NOT NULL) , 
 	 PRIMARY KEY (ID), 

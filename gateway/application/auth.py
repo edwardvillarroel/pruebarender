@@ -72,6 +72,16 @@ class DatosInvalidos(Exception):
     pass
 
 
+class CuentaSoloGoogle(Exception):
+    """La cuenta se creó con Google y no tiene contraseña local."""
+
+    def __init__(
+        self,
+        mensaje="Esta cuenta usa Google. La seguridad se gestiona desde tu cuenta de Google.",
+    ):
+        super().__init__(mensaje)
+
+
 class CodigoIncorrecto(Exception):
     pass
 
@@ -136,7 +146,12 @@ def _usuario_a_publico(usuario: dict) -> dict:
         "foto": usuario.get("foto"),
         "mfa_activo": bool(usuario.get("mfa_activo")),
         "auth_provider": usuario.get("auth_provider", "local"),
+        "tiene_password": bool(usuario.get("password_configurada", True)),
     }
+
+
+def _tiene_password(usuario: dict) -> bool:
+    return bool(usuario.get("password_configurada", True))
 
 
 def _validar_password(password):
@@ -337,8 +352,11 @@ def despachar_codigo_recuperacion(email, ip):
     email = (email or "").strip().lower()
     if not email or "@" not in email or "." not in email.split("@")[-1]:
         raise DatosInvalidos("El correo electrónico no es válido")
-    if repositorios.buscar_usuario_por_email(email) is None:
+    usuario = repositorios.buscar_usuario_por_email(email)
+    if usuario is None:
         raise DatosInvalidos("No existe una cuenta con ese correo electrónico")
+    if not _tiene_password(usuario):
+        raise CuentaSoloGoogle()
 
     codigo = generar_codigo()
     expira_en = calcular_expiracion(DURACION_CODIGO_RECUPERACION_MINUTOS)
@@ -395,6 +413,8 @@ def restablecer_contrasena(email, codigo, nueva_password, ip):
     usuario = repositorios.buscar_usuario_por_email(email)
     if usuario is None or not usuario["activo"]:
         raise DatosInvalidos("No existe una cuenta con ese correo electrónico")
+    if not _tiene_password(usuario):
+        raise CuentaSoloGoogle()
 
     pendiente = repositorios.buscar_codigo(email)
     if pendiente is None or not verificar_password((codigo or "").strip(), pendiente["codigo_hash"]):
@@ -419,6 +439,8 @@ def cambiar_contrasena(user_id, password_actual, nueva_password, ip):
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None or not usuario["activo"]:
         raise CredencialesInvalidas()
+    if not _tiene_password(usuario):
+        raise CuentaSoloGoogle()
 
     if not verificar_password(password_actual or "", usuario["password_hash"]):
         repositorios.registrar_log("cambio_pass_fallo", user_id, ip, "password actual incorrecta")
@@ -557,6 +579,8 @@ def configurar_mfa(user_id):
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None:
         raise CredencialesInvalidas()
+    if not _tiene_password(usuario):
+        raise CuentaSoloGoogle()
 
     secreto = generar_secreto_totp()
     repositorios.actualizar_mfa(user_id, secreto, False)
@@ -576,6 +600,8 @@ def activar_mfa(user_id, codigo):
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None:
         raise CredencialesInvalidas()
+    if not _tiene_password(usuario):
+        raise CuentaSoloGoogle()
 
     secreto = usuario.get("mfa_secret")
     if not secreto:
@@ -596,12 +622,15 @@ def activar_mfa(user_id, codigo):
 
 
 def desactivar_mfa(user_id, password, codigo, ip):
-    """Desactiva MFA pidiendo password actual + TOTP; revoca TODAS las sesiones."""
+    """Desactiva MFA pidiendo password actual + TOTP; revoca TODAS las sesiones.
+
+    Las cuentas Google-only no tienen password local: el TOTP es la prueba.
+    """
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None or not usuario["activo"]:
         raise CredencialesInvalidas()
 
-    if not verificar_password(password or "", usuario["password_hash"]):
+    if _tiene_password(usuario) and not verificar_password(password or "", usuario["password_hash"]):
         repositorios.registrar_log("mfa_desactivacion_fallo", user_id, ip, "password incorrecta")
         raise ContrasenaIncorrecta()
 
