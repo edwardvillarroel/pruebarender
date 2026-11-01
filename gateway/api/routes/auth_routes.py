@@ -53,6 +53,16 @@ def _frontend():
     return url.rstrip("/")
 
 
+def _redirigir_al_front(**parametros):
+    """Redirige al frontend con los parámetros bien codificados en la query.
+
+    Antes se armaba `"...?login=google&error=" + urlencode({"e": mensaje})`, que
+    producía `error=e=Estado+de+OAuth...`: el frontend recibía un valor con el
+    prefijo `e=` y nunca mostraba el motivo real (siempre el texto genérico).
+    """
+    return redirect(f"{_frontend()}?{urlencode(parametros)}")
+
+
 def _ip_cliente():
     # Detras del proxy de Render, request.remote_addr es la IP del proxy: sin
     # esto todas las sesiones y los logs de seguridad quedan con la misma IP.
@@ -486,9 +496,9 @@ def google_callback():
     try:
         perfil = google_oauth.intercambiar_codigo(code, state)
     except google_oauth.GoogleOAuthError as error:
-        return redirect(_frontend() + "?login=google&error=" + urlencode({"e": str(error)}))
+        return _redirigir_al_front(login="google", error=str(error))
     except CredencialesInvalidas:
-        return redirect(_frontend() + "?login=google&error=" + urlencode({"e": "cuenta_inactiva"}))
+        return _redirigir_al_front(login="google", error="cuenta_inactiva")
 
     try:
         sesion = iniciar_sesion_google(
@@ -502,12 +512,12 @@ def google_callback():
         )
     except MfaRequerido as e:
         # MFA pendiente: el ticket viaja en cookie httpOnly para el segundo factor.
-        respuesta = redirect(_frontend() + "?login=google&mfa=1")
+        respuesta = _redirigir_al_front(login="google", mfa=1)
         return _sete_cookie_mfa(respuesta, e.mfa_ticket)
     except (DatosInvalidos, CredencialesInvalidas) as e:
         detalle = getattr(e, "espera_seg", None)
         mensaje = "cuenta_inactiva" if isinstance(e, CredencialesInvalidas) else str(e)
-        return redirect(_frontend() + "?login=google&error=" + urlencode({"e": mensaje}))
+        return _redirigir_al_front(login="google", error=mensaje)
 
-    respuesta = redirect(_frontend() + "?login=google")
+    respuesta = _redirigir_al_front(login="google")
     return _aplicar_cookie_refresh(respuesta, sesion["refresh_token"])

@@ -71,7 +71,12 @@ def crear_cotizacion():
 
 
 @diseno_bp.get("/cotizaciones")
+@requiere_sesion()
+@rol_requerido("admin")
 def listar_cotizaciones():
+    # Solo el panel de administracion lista todas las cotizaciones: la respuesta
+    # incluye nombre, email y telefono de los clientes. Antes estaba abierta y
+    # cualquiera podia leerla con un GET anonimo.
     try:
         from app.infrastructure.repositories.pedido_repository import PedidoRepository
         from app.infrastructure.repositories.solicitud_diseno_repository import SolicitudDisenoRepository

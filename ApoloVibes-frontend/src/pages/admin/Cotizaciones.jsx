@@ -601,12 +601,11 @@ export default function Cotizaciones() {
     setCargando(true)
     setError(null)
     try {
-      const res = await fetch('/api/cotizaciones')
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || data.mensaje || 'No se pudieron cargar las cotizaciones')
-      }
-      const data = await res.json()
+      // Con el cliente HTTP de la app, no `fetch('/api/cotizaciones')`: en
+      // produccion el front (V2NET) y la API (Render) son origenes distintos, y
+      // una ruta relativa se pide al hosting estatico, que responde 403. Ademas
+      // el cliente agrega el token y renueva la sesion si expiro.
+      const data = await api.get('/cotizaciones')
       const lista = Array.isArray(data) ? data : []
       setItems(lista)
       const iniciales = {}
