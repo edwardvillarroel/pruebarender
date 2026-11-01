@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: free
     region: ohio
-    buildCommand: pip install -r requirements.txt && cd ApoloVibes-frontend && npm install && npm run build
+    buildCommand: pip install -r requirements.txt
     startCommand: bash scripts/iniciar_render.sh
     healthCheckPath: /health
     envVars:
@@ -14,8 +14,6 @@ services:
       - { key: SECRET_KEY, generateValue: true }
       - { key: GATEWAY_COOKIE_SECURE, value: "true" }
       - { key: BACKEND_INTERNAL_URL, value: "http://127.0.0.1:8000" }
-      - { key: FRONTEND_DIST, value: ApoloVibes-frontend/dist }
-      - { key: FRONTEND_BASE_URL, value: /ApoloVibes3D-Frontend/ }
       - { key: FRONTEND_URL, sync: false }
       - { key: CORS_ORIGINS, sync: false }
       - { key: DATABASE_URL, sync: false }
@@ -24,7 +22,6 @@ services:
       - { key: GOOGLE_REDIRECT_URI, sync: false }
       - { key: RECAPTCHA_SITE_KEY, sync: false }
       - { key: RECAPTCHA_SECRET_KEY, sync: false }
-      - { key: VITE_RECAPTCHA_SITE_KEY, sync: false }
       - { key: EMAILJS_PUBLIC_KEY, sync: false }
       - { key: EMAILJS_PRIVATE_KEY, sync: false }
       - { key: EMAILJS_SERVICE_ID, sync: false }
@@ -35,3 +32,5 @@ services:
       - { key: TUU_URL_COMPLETE, sync: false }
       - { key: TUU_URL_CANCEL, sync: false }
       - { key: STARKEN_API_KEY, sync: false }
+      - { key: LLM_API_KEY, sync: false }
+      - { key: COTIZADOR_IA_URL, sync: false }
