@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
-import { api, apiCotizador } from '../services/api.js'
+import { api } from '../services/api.js'
+import { firmaEspecificaciones, estimarPieza } from '../services/cotizador.js'
 import { generarModelo3DMock } from '../services/ai-model.js'
 import ModelViewer from '../components/ModelViewer.jsx'
 import GenerationProgress from '../components/GenerationProgress.jsx'
@@ -75,12 +76,14 @@ export default function Cotizacion() {
   const [error, setError] = useState(null)
   const [tocado, setTocado] = useState({})
   const fileInputRef = useRef(null)
+  const timerReestimacion = useRef(null)
   const [visorFallo, setVisorFallo] = useState(false)
   const [mostrarModalImagenInvalida, setMostrarModalImagenInvalida] = useState(false)
   const [mensajeImagenInvalida, setMensajeImagenInvalida] = useState('La imagen seleccionada no es válida o contiene contenido no permitido. Por favor sube una imagen JPG, PNG o WebP.')
   const [validandoImagen, setValidandoImagen] = useState(false)
   const [progresoValidacion, setProgresoValidacion] = useState({ status: 'idle', percent: 0, message: '' })
   const [cotizacionIA, setCotizacionIA] = useState(null)
+  const [calculandoEstimacion, setCalculandoEstimacion] = useState(false)
 
   const email = form.email.trim()
   const telefono = form.telefono.trim()
@@ -112,8 +115,16 @@ export default function Cotizacion() {
     setProgreso({ status: 'failed', percent: 0, message: 'No se pudo cargar el modelo 3D' })
   }
 
+  const camposQueReestiman = ['alto', 'ancho', 'largo', 'cantidad', 'uso', 'material', 'color', 'unidad']
+
   function actualizar(campo, valor) {
     setForm(prev => ({ ...prev, [campo]: valor }))
+    if (camposQueReestiman.includes(campo)) {
+      window.clearTimeout(timerReestimacion.current)
+      timerReestimacion.current = setTimeout(() => {
+        if (archivo && paso1Completo) estimar()
+      }, 700)
+    }
   }
 
   function soloNumero(campo, valor) {
@@ -143,85 +154,26 @@ export default function Cotizacion() {
       setModeloUrl(resultado.modelUrl)
     } catch { setError('No pudimos generar el modelo 3D.') }
     finally { setGenerando(false) }
+
+    if (file) estimar()
   }
 
-  async function enviarSolicitud(e) {
-    e.preventDefault()
-    if (!paso3Completo || enviando) return
-    setEnviando(true)
-    setError(null)
-
-    let cotizacion = form._cotizacionInstantanea
-    if (!cotizacion && archivo) {
-      try {
-        const fdCotizar = new FormData()
-        fdCotizar.append('file', archivo)
-        fdCotizar.append('alto', form.alto)
-        fdCotizar.append('ancho', form.ancho)
-        fdCotizar.append('largo', form.largo)
-        fdCotizar.append('unidad', form.unidad)
-        fdCotizar.append('cantidad', form.cantidad)
-        fdCotizar.append('uso', form.uso)
-        fdCotizar.append('material_usuario', form.material)
-        fdCotizar.append('color', form.color === 'Otro' ? form.colorOtro : form.color)
-        cotizacion = await apiCotizador.cotizar(fdCotizar)
-        setCotizacionIA(cotizacion)
-      } catch (err) {
-        console.warn('Fallo cotizacion IA, se envia sin precio', err)
-      }
-    }
-
-    const colorFinal = form.color === 'Otro' ? form.colorOtro.trim() : form.color
-    const resumen = [
-      `Tamaño: ${form.alto} x ${form.ancho} x ${form.largo} ${form.unidad}`,
-      `Cantidad: ${form.cantidad}`,
-      `Uso: ${form.uso}`,
-      `Color: ${colorFinal}`,
-      form.descripcion.trim() ? `Detalles: ${form.descripcion.trim()}` : '',
-    ].filter(Boolean).join('\n')
-
-    const data = new FormData()
-    data.append('nombre', form.nombre.trim())
-    data.append('email', form.email.trim())
-    data.append('telefono', '+56' + form.telefono.trim())
-    data.append('material', form.material)
-    data.append('alto', form.alto)
-    data.append('ancho', form.ancho)
-    data.append('largo', form.largo)
-    data.append('unidad', form.unidad)
-    data.append('cantidad', form.cantidad)
-    data.append('uso', form.uso)
-    data.append('color', colorFinal)
-    data.append('descripcion', resumen)
-    
-    if (cotizacion) {
-      data.append('precio_estimado_ia', cotizacion.precio_clp)
-      data.append('precio_unitario_ia', cotizacion.precio_unitario_clp)
-      data.append('gramos_estimados', cotizacion.gramos_estimados)
-      data.append('tiempo_estimado_horas', cotizacion.tiempo_estimado_horas)
-      data.append('gramos_1_pieza', cotizacion.gramos_1_pieza)
-      data.append('material_detectado', cotizacion.material_detectado)
-      data.append('complejidad_detectada', cotizacion.complejidad)
-      data.append('confianza_material', cotizacion.confianza_material)
-      data.append('confianza_complejidad', cotizacion.confianza_complejidad)
-      data.append('detalle_costos', JSON.stringify(cotizacion.detalle))
-    }
-
-    data.append('imagen', archivo)
-    if (modeloValido && modeloUrl) data.append('modeloUrl', modeloUrl)
-
+  async function estimar() {
+    if (!archivo) return
+    setCalculandoEstimacion(true)
     try {
-      await api.post('/cotizaciones', data)
-      setEnviado(true)
+      const resultado = await estimarPieza(archivo, form)
+      setCotizacionIA(resultado)
     } catch (err) {
-      setError(err?.datos?.mensaje || 'No pudimos enviar tu solicitud.')
+      console.warn('Fallo la estimacion IA en el upload', err)
     } finally {
-      setEnviando(false)
+      setCalculandoEstimacion(false)
     }
   }
 
   function quitarImagen() {
     if (procesando) return
+    setCotizacionIA(null)
     setArchivo(null)
     setPrevisualizacion(null)
     setModeloUrl(null)
@@ -241,16 +193,18 @@ export default function Cotizacion() {
     setError(null)
 
     const colorFinal = form.color === 'Otro' ? form.colorOtro.trim() : form.color
-    const cotizacion = form._cotizacionInstantanea 
+    const cotizacion = cotizacionIA
+    const firma = cotizacion ? (cotizacion.firma || firmaEspecificaciones(form)) : firmaEspecificaciones(form)
 
     const resumen = [
       `Tamaño: ${form.alto} x ${form.ancho} x ${form.largo} ${form.unidad}`,
       `Cantidad: ${form.cantidad}`,
       `Uso: ${form.uso}`,
       `Color: ${colorFinal}`,
-      cotizacion ? `Precio estimado IA: $${cotizacion.precio_unitario_clp?.toLocaleString('es-CL')} x unidad (${cotizacion.gramos_1_pieza}g / ${cotizacion.tiempo_unitario_horas}h)` : '',
-      cotizacion ? `Material IA: ${cotizacion.material_detectado} (${cotizacion.confianza_material}) - Complejidad: ${cotizacion.complejidad}` : '',
       form.descripcion.trim() ? `Detalles: ${form.descripcion.trim()}` : '',
+      cotizacion ? `Precio estimado IA: $${Number(cotizacion.precio_estimado_ia ?? cotizacion.precio_clp ?? 0).toLocaleString('es-CL')}` : '',
+      cotizacion ? `Material IA: ${cotizacion.material_sugerido_ia || cotizacion.material_detectado || ''}` : '',
+      cotizacion ? `Complejidad IA: ${cotizacion.complejidad_ia || cotizacion.complejidad || ''}` : '',
     ].filter(Boolean).join('\n')
 
     const data = new FormData()
@@ -266,16 +220,17 @@ export default function Cotizacion() {
     data.append('uso', form.uso)
     data.append('color', colorFinal)
     data.append('descripcion', resumen)
-    
+
     if (cotizacion) {
-      data.append('precio_estimado_ia', cotizacion.precio_clp)
-      data.append('precio_unitario_ia', cotizacion.precio_unitario_clp)
-      data.append('gramos_estimados', cotizacion.gramos_estimados)
-      data.append('tiempo_estimado_horas', cotizacion.tiempo_estimado_horas)
-      data.append('material_detectado', cotizacion.material_detectado)
-      data.append('complejidad_detectada', cotizacion.complejidad)
-      data.append('confianza_material', cotizacion.confianza_material)
-      data.append('confianza_complejidad', cotizacion.confianza_complejidad)
+      data.append('estimacion_firma', firma)
+      data.append('precio_estimado_ia', cotizacion.precio_estimado_ia ?? cotizacion.precio_clp)
+      data.append('precio_unitario_ia', cotizacion.precio_unitario_ia ?? cotizacion.precio_unitario_clp)
+      data.append('gramos_estimados_ia', cotizacion.gramos_estimados_ia ?? cotizacion.gramos_estimados)
+      data.append('tiempo_estimado_horas_ia', cotizacion.tiempo_estimado_horas_ia ?? cotizacion.tiempo_estimado_horas)
+      data.append('material_sugerido_ia', cotizacion.material_sugerido_ia ?? cotizacion.material_detectado)
+      data.append('complejidad_ia', cotizacion.complejidad_ia ?? cotizacion.complejidad)
+      data.append('confianza_material_ia', cotizacion.confianza_material_ia ?? cotizacion.confianza_material)
+      data.append('confianza_complejidad_ia', cotizacion.confianza_complejidad_ia ?? cotizacion.confianza_complejidad)
       data.append('detalle_costos', JSON.stringify(cotizacion.detalle))
     }
 
@@ -627,6 +582,12 @@ export default function Cotizacion() {
         {error && (
           <p role="alert" style={{ color: 'var(--accent)', fontSize: 13, marginBottom: 16, padding: '10px 14px', background: 'var(--accent-soft)', borderRadius: 8 }}>
             {error}
+          </p>
+        )}
+
+        {calculandoEstimacion && (
+          <p role="status" style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 12 }}>
+            Calculando estimación con IA, espera unos segundos...
           </p>
         )}
 

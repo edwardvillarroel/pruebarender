@@ -350,32 +350,62 @@ def evaluar_cotizacion(solicitud_id):
 
 @diseno_bp.post("/cotizaciones/estimar-ia")
 def estimar_cotizacion_ia():
+    """Estima el precio con el cotizador IA (Gemini) a partir de la foto + specs."""
     try:
-        if "imagen" not in request.files:
+        archivo = None
+        imagen = None
+        if "imagen" in request.files:
+            imagen = request.files["imagen"]
+            archivo = imagen
+        elif "file" in request.files:
+            archivo = request.files["file"]
+        imagen = imagen or archivo
+        if imagen is None or imagen.filename == "":
             return jsonify({"error": "Falta la imagen de referencia."}), 400
-        imagen = request.files["imagen"]
-        if imagen.filename == "":
-            return jsonify({"error": "Debes seleccionar una imagen."}), 400
-        altura_raw = request.form.get("altura") or request.form.get("alto")
-        if not altura_raw:
-            return jsonify({"error": "Falta la altura en cm."}), 400
 
+        def _numero(nombre, default):
+            valor = request.form.get(nombre)
+            if valor is None or str(valor).strip() == "":
+                return default
+            try:
+                numero = float(str(valor).replace(",", "."))
+            except (TypeError, ValueError):
+                return default
+            return numero if numero > 0 else default
+
+        alto = _numero("alto", _numero("altura", 10))
+        ancho = _numero("ancho", 10)
+        largo = _numero("largo", 10)
+        unidad = request.form.get("unidad") or "cm"
+        cantidad = request.form.get("cantidad") or 1
         try:
-            altura_cm = int(float(str(altura_raw).replace(",", ".")))
+            cantidad_int = max(1, int(float(str(cantidad).replace(",", "."))))
         except (TypeError, ValueError):
-            return jsonify({"error": "La altura debe be a número en cm."}), 400
-
-        if altura_cm <= 0:
-            return jsonify({"error": "La altura debe be a mayor a 0."}), 400
-
+            cantidad_int = 1
+        uso = request.form.get("uso") or "Decorativo"
         material_usuario = request.form.get("material_usuario") or request.form.get("material")
+        color = request.form.get("color") or "Negro"
 
         from app.infrastructure.imagenes.validador_imagen_segura import validar_imagen_segura
 
         contenido, extension = validar_imagen_segura(imagen)
 
-        cliente = ClienteCotizadorIA(base_url=current_app.config.get("COTIZADOR_IA_URL"))
-        resultado = cliente.estimar(contenido, imagen.filename or f"imagen.{extension}", altura_cm, material_usuario)
+        cliente = ClienteCotizadorIA(
+            base_url=current_app.config.get("COTIZADOR_IA_URL"),
+            timeout=int(current_app.config.get("COTIZADOR_IA_TIMEOUT") or 60),
+        )
+        resultado = cliente.estimar(
+            imagen_bytes=contenido,
+            filename=imagen.filename or f"imagen.{extension}",
+            alto=alto,
+            ancho=ancho,
+            largo=largo,
+            unidad=unidad,
+            cantidad=cantidad_int,
+            uso=uso,
+            material_usuario=material_usuario,
+            color=color,
+        )
 
         return jsonify(resultado), 200
     except requests.exceptions.RequestException:

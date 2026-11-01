@@ -210,18 +210,17 @@ export const api = {
 const COTIZADOR_URL = BASE_URL  // en prod: origina a la API del gateway en Render; el cotizador viaja por <API>/api/cotizar
 
 export const apiCotizador = {
-  cotizar: (formData) => conErrorAmigable(
+  estimar: (formData) => conErrorAmigable(
     fetchConTimeout(
-      `${COTIZADOR_URL}/cotizar`,
+      `${COTIZADOR_URL}/cotizaciones/estimar-ia`,
       {
         method: 'POST',
         body: formData
       },
       TIMEOUT_SUBIDA_MS
     ).then(async res => {
-      if (!res.ok) throw await errorDeRespuesta(res, '/cotizar')
-        return res.json()
+      if (!res.ok) throw await errorDeRespuesta(res, '/cotizaciones/estimar-ia')
+      return res.json()
     })
   )
 } 
- 
