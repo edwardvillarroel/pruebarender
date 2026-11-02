@@ -28,10 +28,6 @@ from gateway.infrastructure.correo import (
 
 _log = logging.getLogger("gateway")
 
-# En modo simulación (sin credenciales EMAILJS_*) el código se imprime en la
-# consola del servidor para poder probar el flujo, pero NUNCA sale por la API
-# ni llega al frontend.
-
 
 class FabricaTokens(Protocol):
     def crear_par(self, *, user_id, rol, email, refresh_jti, refresh_expira) -> dict:
@@ -122,7 +118,6 @@ class BloqueoMfa(Exception):
 DURACION_ACCESS_MINUTOS = 15
 DURACION_REFRESH_MINUTOS = 7 * 24 * 60
 DURACION_CODIGO_MINUTOS = 10
-# Más corto que el de registro por seguridad: cambia credenciales de una cuenta existente.
 DURACION_CODIGO_RECUPERACION_MINUTOS = 5
 
 # --- Anti fuerza bruta ---
@@ -215,10 +210,6 @@ def _registrar_fallo(clave, tipo, umbral, escalable=True):
         bloqueo_hasta = calcular_expiracion(duraciones[indice])
         espera_seg = duraciones[indice] * 60
     else:
-        # Fallo que no es múltiplo del umbral: NO se anula un bloqueo vigente
-        # (si se pisara con None, el bloqueo del 5º fallo duraría un solo
-        # intento y quedarían 4 intentos sin restricción hasta el siguiente).
-        # Solo se limpia si el bloqueo previo ya expiró.
         previo = (registro or {}).get("bloqueo_hasta")
         bloqueo_hasta = previo if previo and not esta_expirado(previo) else None
 
@@ -575,12 +566,15 @@ def _mfa_exitoso(email):
 # --------------------------------- MFA (gestion) ---------------------------------
 
 def configurar_mfa(user_id):
-    """Genera un secreto TOTP nuevo (aún NO activo) y lo guarda. Devuelve datos QR."""
+    """Genera un secreto TOTP nuevo (aún NO activo) y lo guarda. Devuelve datos QR.
+
+    Disponible para cuentas locales y Google-only: el TOTP de ApoloVibes es un
+    segundo factor propio y no reemplaza la contraseña, que en Google-only se
+    gestiona desde Google.
+    """
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None:
         raise CredencialesInvalidas()
-    if not _tiene_password(usuario):
-        raise CuentaSoloGoogle()
 
     secreto = generar_secreto_totp()
     repositorios.actualizar_mfa(user_id, secreto, False)
@@ -596,12 +590,12 @@ def activar_mfa(user_id, codigo):
     """Verifica el primer código TOTP, activa MFA y revoca TODAS las sesiones.
 
     Genera los 8 códigos de respaldo (hasheados) y los devuelve UNA sola vez.
+    Las cuentas Google-only también pueden activarlo: no tienen contraseña local,
+    pero el TOTP sigue siendo un segundo factor válido.
     """
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None:
         raise CredencialesInvalidas()
-    if not _tiene_password(usuario):
-        raise CuentaSoloGoogle()
 
     secreto = usuario.get("mfa_secret")
     if not secreto:
@@ -698,9 +692,6 @@ def iniciar_sesion_google(email, google_sub, nombre, apellido, ip, user_agent, f
             usuario = repositorios.buscar_usuario_por_id(creado["id"])
             repositorios.registrar_log("registro_google", creado["id"], ip, email)
 
-    # Cuenta bloqueada o eliminada desde el panel: Google no debe saltarse el
-    # bloqueo. Va unificado despues de resolver el usuario porque las tres
-    # ramas (por google_sub, vinculacion y alta) terminan aca.
     if not usuario.get("activo"):
         repositorios.registrar_log(
             "login_cuenta_inactiva", usuario["id"], ip, "google"
@@ -742,9 +733,6 @@ def rotar_refresh(jti, ip, fabrica_tokens):
 
     usuario = repositorios.buscar_usuario_por_id(registro["user_id"])
     if usuario is None or not usuario["activo"]:
-        # Cuenta bloqueada o eliminada desde el panel: el refresh deja de valer
-        # aunque el refresh token siga vigente. El access token actual expira
-        # solo (15 min).
         repositorios.registrar_log(
             "refresh_cuenta_inactiva", registro["user_id"], ip, ""
         )
