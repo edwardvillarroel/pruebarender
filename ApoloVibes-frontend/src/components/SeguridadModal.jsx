@@ -2,7 +2,7 @@ import { useState, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { api } from '../services/api.js'
-import { Eye, EyeOff, ExternalLink, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react'
+import { Eye, EyeOff, KeyRound, RefreshCw, ShieldCheck } from 'lucide-react'
 import { mediaPath } from '../utils/media.js'
 
 const overlayStyle = {
@@ -167,7 +167,7 @@ export default function SeguridadModal({ onClose }) {
     }
 
     const desactivarMfa = async () => {
-        if (!passwordDesactivar) return setMensajeMfa({ ok: '', error: 'Ingresa tu contraseña' })
+        if (tienePassword && !passwordDesactivar) return setMensajeMfa({ ok: '', error: 'Ingresa tu contraseña' })
         if (!codigoMfa.trim()) return setMensajeMfa({ ok: '', error: 'Ingresa tu código de autenticación' })
         setCargandoMfa(true)
         setMensajeMfa({ ok: '', error: '' })
@@ -238,7 +238,7 @@ export default function SeguridadModal({ onClose }) {
                     .modal-scroll { scrollbar-gutter: stable; }
                 `}</style>
 
-                {/* Header fijo (fuera del scroll) */}
+                {/* Header fijo */}
                 <div style={{
                     flexShrink: 0,
                     display: 'flex', flexDirection: 'column',
@@ -252,38 +252,27 @@ export default function SeguridadModal({ onClose }) {
                     </h2>
                 </div>
 
-                {/* Cuerpo scrolleable (solo el contenido, entre header y footer) */}
+                {/* Cuerpo scrolleable */}
                 <div className="modal-scroll" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
                     <div style={{ padding: '20px 32px 28px' }}>
-                        {!tienePassword ? (
+                        {!tienePassword && (
                             <div style={seccionStyle}>
                                 <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 8px' }}>
-                                    <ShieldCheck size={16} /> Seguridad gestionada por Google
+                                    <ShieldCheck size={16} /> Cuenta conectada con Google
                                 </h3>
                                 <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 10px', lineHeight: 1.6 }}>
-                                    Tu cuenta inicia sesión con Google{user?.email ? ` (${user.email})` : ''}. No tiene una
-                                    contraseña local de ApoloVibes.
+                                    Tu cuenta inicia sesión con Google{user?.email ? ` (${user.email})` : ''}. La contraseña se
+                                    administra desde tu cuenta de Google, por eso no se cambia desde ApoloVibes.
                                 </p>
-                                <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 14px', lineHeight: 1.6 }}>
-                                    La contraseña y la verificación en dos pasos se administran desde tu cuenta de Google.
+                                <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, lineHeight: 1.6 }}>
+                                    Puedes activar aquí la verificación en dos pasos de ApoloVibes como una capa
+                                    adicional de seguridad.
                                 </p>
-                                <a
-                                    href="https://myaccount.google.com/security"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                        ...botonAccion,
-                                        marginBottom: 0,
-                                        textDecoration: 'none',
-                                        boxSizing: 'border-box',
-                                    }}
-                                >
-                                    Gestionar seguridad en Google <ExternalLink size={14} />
-                                </a>
                             </div>
-                        ) : (
-                            <>
-                        {/* --- Cambio de contraseña --- */}
+                        )}
+
+                        {/* --- Cambio de contraseña (solo cuentas con contraseña local) --- */}
+                        {tienePassword && (
                         <div style={seccionStyle}>
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 12px' }}>
                                 <KeyRound size={16} /> Cambiar contraseña
@@ -331,6 +320,7 @@ export default function SeguridadModal({ onClose }) {
                                 </button>
                             </form>
                         </div>
+                        )}
 
                         {/* --- MFA --- */}
                         <div style={seccionStyle}>
@@ -437,6 +427,7 @@ export default function SeguridadModal({ onClose }) {
                                             <RefreshCw size={14} /> Nuevos códigos
                                         </button>
                                     </div>
+                                    {tienePassword && (
                                     <div style={{ position: 'relative', marginBottom: 6 }}>
                                         <span style={{
                                             position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
@@ -464,6 +455,7 @@ export default function SeguridadModal({ onClose }) {
                                             {mostrarPasswordDesactivar ? <Eye size={16} /> : <EyeOff size={16} />}
                                         </button>
                                     </div>
+                                    )}
                                     <input
                                         type="text"
                                         inputMode="numeric"
@@ -489,13 +481,11 @@ export default function SeguridadModal({ onClose }) {
                                 </>
                             )}
                         </div>
-                            </>
-                        )}
                     </div>
                     <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', marginTop: -30, marginBottom: 10 }}>
                         {tienePassword
                             ? 'Protege tu cuenta con autenticación de dos factores y gestiona tu contraseña.'
-                            : 'Tu cuenta y su verificación en dos pasos se gestionan desde Google.'}
+                            : 'Tu contraseña se gestiona desde Google. Aquí administras la verificación en dos pasos de ApoloVibes.'}
                     </p>
                 </div>
                 <div style={{ padding: '20px 32px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }} />
