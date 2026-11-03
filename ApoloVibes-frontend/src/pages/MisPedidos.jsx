@@ -755,7 +755,7 @@ export default function MisPedidos() {
             style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
           />
           <p style={{ margin: '0 0 12px', color: 'var(--text-dim)' }}>Para realizar pedidos haz click en el enlace de aca abajo</p>
-          <Link to="/categorias" style={{ color: '#009D4E' }}>Ir a la tienda</Link>
+          <Link to="/categorias" style={{ color: 'var(--accent)' }}>Ir a catálogo</Link>
         </div>
       ) : (
         <>

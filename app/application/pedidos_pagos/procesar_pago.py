@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import json
@@ -82,7 +81,7 @@ class ProcesarPago:
         pedido, detalles = self._construir_pedido(dto)
         if getattr(dto, "cupon_codigo", None) and self._cupones:
             cupon = self._cupones.get_by_codigo(dto.cupon_codigo)
-            if cupon and cupon.activo and not cupon.usado:
+            if cupon and cupon.puede_usarse():
                 total = int(pedido.total)
                 if cupon.tipo == "porcentaje":
                     descuento = int(round(total * float(cupon.valor) / 100.0))
@@ -100,14 +99,6 @@ class ProcesarPago:
 
         self._validar_total_esperado(pedido.total, dto.total_esperado)
         self._pedidos.crear_con_detalles(pedido, detalles)
-
-        if getattr(dto, "cupon_codigo", None) and self._cupones:
-            cupon = self._cupones.get_by_codigo(dto.cupon_codigo)
-            if cupon and cupon.activo and not cupon.usado:
-                try:
-                    self._cupones.marcar_usado(cupon, dto.usuario_id)
-                except Exception:
-                    logger.exception("No se pudo marcar cupón como usado")
 
         pago = Pago(
             pedido_id=pedido.id,
@@ -182,6 +173,28 @@ class ProcesarPago:
 
         return ResultadoIntentoPago(url=pago.url_intento, token=pago.token)
 
+    def _canjear_cupon(self, pedido: Pedido) -> None:
+        """Marca como canjeado el cupón de uso único del pedido pagado.
+
+        Se llama solo cuando el pago quedó completado, así un pago fallido o
+        abandonado no "quema" el cupón. Los cupones ilimitados no se marcan.
+        Es best-effort: el pago ya está confirmado y no debe romperse.
+        """
+        codigo = getattr(pedido, "cupon_codigo", None)
+        if not codigo or self._cupones is None:
+            return
+        try:
+            cupon = self._cupones.get_by_codigo(codigo)
+            if cupon is None or not cupon.uso_unico or cupon.usado:
+                return
+            self._cupones.marcar_usado(cupon, pedido.usuario_id)
+        except Exception:  # noqa: BLE001 - el cupón no puede romper el pago
+            logger.exception(
+                "No se pudo marcar el cupón %s como usado (pedido %s)",
+                codigo,
+                pedido.id,
+            )
+
     def _descartar_pedido(self, pedido: Pedido) -> None:
         """Borra el pedido que perdio la carrera de idempotencia.
 
@@ -243,17 +256,27 @@ class ProcesarPago:
                     cotizacion_id=self._cotizacion_id(pedido),
                 )
             try:
-                self._descontar_stock(pedido)
+                productos_avisar = self._descontar_stock(pedido)
             except ValueError as exc:
                 return self._rechazar(pedido, pago, str(exc))
             if pago is not None:
                 pago.estado = EstadoPago.COMPLETADO
                 self._pagos.update(pago)
+            # Despues de marcar el pago: un envio lento no puede dejar la
+            # ventana abierta a que un reintento de TUU descuente stock dos veces.
+            self._avisar_admin_stock(productos_avisar)
+            self._canjear_cupon(pedido)
             if pedido.cotizacion_id is None:
                 self._carritos.eliminar(str(pedido.usuario_id))
             self._emitir_documento(pedido)
-            correo_enviado = self._enviar_comprobante(
-                pedido, pago.estado.value if pago is not None else "completado"
+            estado_pago = (
+                pago.estado.value if pago is not None else "completado"
+            )
+            correo_enviado = self._enviar_comprobante(pedido, estado_pago)
+            self._avisar_admin_pedido(
+                pedido,
+                _email_del_cliente(pedido.direccion_envio) or "",
+                estado_pago,
             )
             return ResultadoConfirmacionPago(
                 estado="completado", pedido_id=str(pedido.id),
@@ -446,19 +469,54 @@ class ProcesarPago:
         pedido.detalles = detalles
         return pedido, detalles
 
-    def _descontar_stock(self, pedido: Pedido) -> None:
+    def _descontar_stock(self, pedido: Pedido) -> list[Any]:
         items = [
             (d.producto_id, d.cantidad)
             for d in pedido.detalles
             if d.producto_id is not None
         ]
         if not items:
-            return
+            return []
         if not self._productos.descontar_stock(items):
             producto = pedido.detalles[0].producto_id if pedido.detalles else "-"
             raise ValueError(
                 f"No hay stock suficiente para completar el pedido "
                 f"(producto {producto})"
+            )
+        return [producto_id for producto_id, _ in items]
+
+    def _avisar_admin_pedido(
+        self, pedido: Pedido, cliente_email: str, estado_pago: str
+    ) -> None:
+        """Aviso interno del pago. Es best-effort: no puede romper el pago."""
+        if self._correo is None:
+            return
+        try:
+            self._correo.avisar_admin_pedido_pagado(
+                pedido, cliente_email, estado_pago
+            )
+        except Exception:  # noqa: BLE001 - el aviso interno no rompe el pago
+            logger.exception(
+                "No se pudo avisar al admin del pedido pagado %s", pedido.id
+            )
+
+    def _avisar_admin_stock(self, producto_ids: list[Any]) -> None:
+        """Notifica stock bajo solo si el producto aún no fue avisado."""
+        if self._correo is None or not producto_ids:
+            return
+        try:
+            pendientes = self._productos.listar_avisos_stock_pendientes(
+                producto_ids
+            )
+            if not pendientes:
+                return
+            self._correo.avisar_admin_stock_bajo(pendientes)
+            self._productos.marcar_aviso_stock_notificado(
+                [producto.id for producto in pendientes]
+            )
+        except Exception:  # noqa: BLE001 - el aviso interno no rompe el pago
+            logger.exception(
+                "No se pudo avisar al admin del stock bajo de %s", producto_ids
             )
 
     def _marcar_fallido(self, pedido: Pedido, pago: Pago) -> None:

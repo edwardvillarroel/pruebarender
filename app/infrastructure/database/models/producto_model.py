@@ -45,6 +45,7 @@ class ProductoModel(db.Model):
     # limpia al reponer por encima del umbral.
     stock_minimo = db.Column(db.Integer)
     aviso_stock_enviado = db.Column(db.Boolean, nullable=False, default=False)
+    aviso_stock_notificado_en = db.Column(db.DateTime(timezone=True))
 
     @property
     def specs(self) -> list[str] | None:

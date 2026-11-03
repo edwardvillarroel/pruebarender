@@ -45,9 +45,21 @@ refresh (`SameSite=Strict`, `Path=/api/auth`) viaja sin problema: es same-site.
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Credenciales del cliente OAuth. |
 | `GOOGLE_REDIRECT_URI` | `https://api.apolovibes3d.cl/api/auth/google/callback` |
 | `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` | reCAPTCHA v2. |
-| `EMAILJS_*` | Credenciales/plantillas EmailJS. |
+| `RESEND_API_KEY` / `EMAIL_FROM` / `ADMIN_EMAIL` | Correo transaccional por Resend. `FRONTEND_URL` se usa en los enlaces de los correos. |
 | `TUU_*`, `STARKEN_*`, `OPENFACTURA_*`, `EMISOR_*` | Integraciones pago/facturación/LLM. |
 | `LLM_API_KEY` / `COTIZADOR_IA_URL` | LLM para cotizador. |
+
+### Correo transaccional (Resend)
+
+1. Verificar el subdominio de envío `mail.apolovibes3d.cl` en Resend y publicar sus
+   registros DNS. No mezclar el SPF de Resend con el SPF del hosting: cada dominio o
+   subdominio tiene su propia política.
+2. Configurar en Render `RESEND_API_KEY`, `EMAIL_FROM` (por ejemplo
+   `ApoloVibes <pedidos@mail.apolovibes3d.cl>`) y `ADMIN_EMAIL`.
+3. `FRONTEND_URL` debe apuntar al front público (`https://apolovibes3d.cl`): los correos
+   de cotizaciones enlazan a `/mis-cotizaciones`.
+4. Sin `RESEND_API_KEY` o `EMAIL_FROM` el sistema simula el envío: imprime el comprobante
+   o el código en la consola del servidor y no llama a la API.
 
 ## 2. Google OAuth (Google Cloud Console)
 

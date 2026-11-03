@@ -109,7 +109,7 @@ def validar_cupon():
         return jsonify({"error": "Ingresa un código"}), 400
 
     cupon = _repo.get_by_codigo(codigo)
-    if not cupon or not cupon.activo or cupon.usado:
+    if not cupon or not cupon.puede_usarse():
         return jsonify({"error": "Cupón inválido o ya utilizado"}), 400
 
     return jsonify({

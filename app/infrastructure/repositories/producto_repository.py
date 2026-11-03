@@ -20,7 +20,7 @@ from app.domain.enums import EstadoPago
 from app.domain.interfaces.repositories import (
     ProductoRepository as ProductoRepositoryInterface,
 )
-from app.infrastructure.database.connection import db
+from app.infrastructure.database.connection import db, utcnow
 from app.infrastructure.database.models.detalle_pedido_model import DetallePedidoModel
 from app.infrastructure.database.models.pago_model import PagoModel
 from app.infrastructure.database.models.producto_color_model import ProductoColorModel
@@ -234,6 +234,7 @@ class ProductoRepository(ProductoRepositoryInterface):
         )
         if entidad.stock > umbral:
             modelo.aviso_stock_enviado = False
+            modelo.aviso_stock_notificado_en = None
         db.session.commit()
         return entidad
 
@@ -266,6 +267,35 @@ class ProductoRepository(ProductoRepositoryInterface):
         except Exception:
             db.session.rollback()
             raise
+
+    def listar_avisos_stock_pendientes(
+        self, producto_ids: Sequence[UUID]
+    ) -> list[Producto]:
+        if not producto_ids:
+            return []
+        umbral = func.coalesce(self.model.stock_minimo, STOCK_BAJO)
+        modelos = db.session.execute(
+            select(self.model)
+            .where(
+                self.model.id.in_(list(producto_ids)),
+                self.model.stock <= umbral,
+                self.model.aviso_stock_notificado_en.is_(None),
+            )
+            .order_by(self.model.nombre)
+        ).scalars().all()
+        return [_a_entidad(modelo) for modelo in modelos]
+
+    def marcar_aviso_stock_notificado(
+        self, producto_ids: Sequence[UUID]
+    ) -> None:
+        if not producto_ids:
+            return
+        db.session.execute(
+            update(self.model)
+            .where(self.model.id.in_(list(producto_ids)))
+            .values(aviso_stock_notificado_en=utcnow())
+        )
+        db.session.commit()
 
     def delete(self, entidad: Producto) -> None:
         modelo = db.session.get(self.model, entidad.id)
@@ -544,6 +574,7 @@ def _a_entidad(
         ),
         stock_minimo=modelo.stock_minimo,
         aviso_stock_enviado=bool(modelo.aviso_stock_enviado),
+        aviso_stock_notificado_en=modelo.aviso_stock_notificado_en,
     )
 
 
@@ -570,4 +601,5 @@ def _a_modelo(entidad: Producto) -> ProductoModel:
         nuevo_lanzamiento=entidad.nuevo_lanzamiento,
         stock_minimo=entidad.stock_minimo,
         aviso_stock_enviado=entidad.aviso_stock_enviado,
+        aviso_stock_notificado_en=entidad.aviso_stock_notificado_en,
     )

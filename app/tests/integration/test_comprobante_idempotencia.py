@@ -17,7 +17,7 @@ antes del guard, el cliente recibe dos correos del mismo pedido y la pregunta
 que le llega por soporte es si le cobraron dos veces.
 
 Esta prueba casi no vale por si sola: vale porque el `correo` es un doble que
-registra. Con un EmailJS real, un doble envio seria invisible en los tests.
+registra. Con un Resend real, un doble envio seria invisible en los tests.
 """
 
 from __future__ import annotations
@@ -52,20 +52,40 @@ class _CorreoContador:
     """Doble que cuenta a quien se le mando el comprobante.
 
     `falla=True` simula al proveedor caido. Hace falta porque `.env` trae las
-    credenciales reales de EmailJS: sin este doble, un test que paga de verdad
+    credenciales reales de Resend: sin este doble, un test que paga de verdad
     sale a la red y le manda un comprobante a `ana@caracterizacion.test`.
     """
 
     def __init__(self, falla: bool = False):
         self.enviados: list[tuple[str, str, str]] = []
+        self.admin_pedidos: list[tuple[str, str, str]] = []
+        self.admin_stock: list[list] = []
         self._falla = falla
 
     def enviar_comprobante_pedido(
         self, pedido, cliente_email: str, estado_pago: str
     ) -> None:
         if self._falla:
-            raise RuntimeError("EmailJS devolvio 500")
+            raise RuntimeError("Resend devolvio 500")
         self.enviados.append((str(pedido.id), cliente_email, estado_pago))
+
+    def avisar_admin_pedido_pagado(
+        self, pedido, cliente_email: str, estado_pago: str
+    ) -> None:
+        if self._falla:
+            raise RuntimeError("Resend devolvio 500")
+        self.admin_pedidos.append((str(pedido.id), cliente_email, estado_pago))
+
+    def avisar_admin_stock_bajo(self, productos) -> None:
+        if self._falla:
+            raise RuntimeError("Resend devolvio 500")
+        self.admin_stock.append(list(productos))
+
+    def avisar_admin_nueva_cotizacion(self, solicitud) -> None:  # pragma: no cover
+        raise AssertionError("no se usa en estos tests")
+
+    def enviar_estado_cotizacion(self, solicitud, estado, precio=None):  # pragma: no cover
+        raise AssertionError("no se usa en estos tests")
 
 
 def _pago_service(correo) -> ProcesarPago:

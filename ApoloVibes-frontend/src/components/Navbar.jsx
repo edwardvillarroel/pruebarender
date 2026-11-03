@@ -537,15 +537,15 @@ export default function Navbar() {
                               window.location.pathname.includes('/checkout')
                             )
                             if (estaEnCheckout) {
-                              window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/carrito' } }))
+                              window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/categorias' } }))
                               setCartOpen(false)
                               return
                             }
-                            setCartOpen(false); navigate('/carrito')
+                            setCartOpen(false); navigate('/categorias')
                           }}
                           style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: 'var(--text)', background: 'var(--surface)' }}
                         >
-                          Continuar con la compra
+                          Ver catálogo
                         </button>
                       </div>
                     ) : (

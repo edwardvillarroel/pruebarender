@@ -22,12 +22,9 @@ services:
       - { key: GOOGLE_REDIRECT_URI, sync: false }
       - { key: RECAPTCHA_SITE_KEY, sync: false }
       - { key: RECAPTCHA_SECRET_KEY, sync: false }
-      - { key: EMAILJS_PUBLIC_KEY, sync: false }
-      - { key: EMAILJS_PRIVATE_KEY, sync: false }
-      - { key: EMAILJS_SERVICE_ID, sync: false }
-      - { key: EMAILJS_TEMPLATE_ID, sync: false }
-      - { key: EMAILJS_TEMPLATE_ALERTA, sync: false }
-      - { key: EMAILJS_TEMPLATE_COMPROBANTE, sync: false }
+      - { key: RESEND_API_KEY, sync: false }
+      - { key: EMAIL_FROM, sync: false }
+      - { key: ADMIN_EMAIL, sync: false }
       - { key: TUU_URL_CALLBACK, sync: false }
       - { key: TUU_URL_COMPLETE, sync: false }
       - { key: TUU_URL_CANCEL, sync: false }

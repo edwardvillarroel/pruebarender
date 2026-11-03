@@ -167,6 +167,18 @@ class ProductoRepository(RepositoryBase[Producto], ABC):
 
         raise NotImplementedError
 
+    @abstractmethod
+    def listar_avisos_stock_pendientes(
+        self, producto_ids: Sequence[UUID]
+    ) -> list[Producto]:
+        """Productos de `producto_ids` bajo el umbral y sin aviso notificado."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def marcar_aviso_stock_notificado(self, producto_ids: Sequence[UUID]) -> None:
+        """Marca el aviso de stock bajo como notificado."""
+        raise NotImplementedError
+
 
 class CategoriaRepository(RepositoryBase[Categoria], ABC):
     pass
