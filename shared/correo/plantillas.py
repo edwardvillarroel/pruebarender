@@ -9,14 +9,25 @@ from __future__ import annotations
 from dataclasses import replace
 
 from shared.correo.formato import (
+    COLOR_ACCENT,
+    COLOR_GREEN,
+    COLOR_MUTED,
+    COLOR_RED,
+    COLOR_TEXT,
+    FilaDetalle,
+    base_url,
+    boton,
+    caja_codigo,
     descuentos_texto,
     envolver,
     escapar,
     formatear_fecha,
     formatear_pesos,
+    icono_html,
     items_texto,
-    tabla_descuentos,
+    tabla_detalle,
     tabla_items,
+    tabla_totales,
 )
 from shared.correo.modelos import (
     Correo,
@@ -25,33 +36,26 @@ from shared.correo.modelos import (
     ProductoCorreo,
 )
 
-FRONTEND_URL_POR_DEFECTO = "https://apolovibes3d.cl"
-
 
 def _base(frontend_url: str | None) -> str:
-    return (frontend_url or FRONTEND_URL_POR_DEFECTO).rstrip("/")
+    return base_url(frontend_url)
 
 
 def _enlace_cotizaciones(frontend_url: str | None) -> str:
     return f"{_base(frontend_url)}/mis-cotizaciones"
 
 
-def _fila_html(etiqueta: str, valor: object) -> str:
-    if valor is None or valor == "":
-        return ""
+def _parrafo(
+    contenido_html: str,
+    *,
+    color: str = COLOR_TEXT,
+    tamano: int = 15,
+    margen: str = "0 0 14px",
+) -> str:
     return (
-        "<tr>"
-        f'<td style="padding:4px 8px 4px 0;color:#6b7280;vertical-align:top">'
-        f"{escapar(etiqueta)}</td>"
-        f'<td style="padding:4px 0">{escapar(valor)}</td>'
-        "</tr>"
-    )
-
-
-def _tabla_html(filas: str) -> str:
-    return (
-        '<table style="width:100%;border-collapse:collapse;margin:12px 0">'
-        f"<tbody>{filas}</tbody></table>"
+        f'<p style="margin:{margen};font-family:Arial,Helvetica,sans-serif;'
+        f'font-size:{tamano}px;line-height:1.6;color:{color};">'
+        f"{contenido_html}</p>"
     )
 
 
@@ -76,32 +80,44 @@ def _medidas(cotizacion: CotizacionCorreo) -> str:
     return " x ".join(f"{medida:g}" for medida in medidas) + f" {cotizacion.unidad}"
 
 
+def _estado_pago_html(estado: str | None) -> str:
+    texto = "" if estado is None else str(estado)
+    afirmativos = {"Pagado", "Completado", "Aprobado", "Confirmado"}
+    if texto in afirmativos:
+        return (
+            f'<span style="color:{COLOR_GREEN};font-weight:bold;">✓</span> '
+            f"{escapar(texto)}"
+        )
+    return escapar(texto)
+
+
 def _detalle_cotizacion_html(
     cotizacion: CotizacionCorreo,
     *,
     incluir_contacto: bool = False,
     incluir_estado: bool = False,
+    etiqueta_precio: str = "Precio",
 ) -> str:
-    filas = "".join(
-        [
-            _fila_html("Material", cotizacion.material),
-            _fila_html("Medidas", _medidas(cotizacion)),
-            _fila_html("Cantidad", cotizacion.cantidad),
-            _fila_html("Uso", cotizacion.uso),
-            _fila_html("Color", cotizacion.color),
-            _fila_html("Descripción", cotizacion.descripcion),
-            _fila_html(
-                "Precio",
-                formatear_pesos(cotizacion.precio)
-                if cotizacion.precio is not None
-                else "",
-            ),
-            _fila_html("Email", cotizacion.email if incluir_contacto else ""),
-            _fila_html("Teléfono", cotizacion.telefono if incluir_contacto else ""),
-            _fila_html("Estado", cotizacion.estado if incluir_estado else ""),
-        ]
-    )
-    return _tabla_html(filas)
+    filas = [
+        FilaDetalle("Material", cotizacion.material),
+        FilaDetalle("Medidas", _medidas(cotizacion)),
+        FilaDetalle("Cantidad", cotizacion.cantidad),
+        FilaDetalle("Uso", cotizacion.uso),
+        FilaDetalle("Color", cotizacion.color),
+        FilaDetalle("Descripción", cotizacion.descripcion),
+        FilaDetalle(
+            etiqueta_precio,
+            formatear_pesos(cotizacion.precio)
+            if cotizacion.precio is not None
+            else "",
+        ),
+    ]
+    if incluir_contacto:
+        filas.append(FilaDetalle("Email", cotizacion.email))
+        filas.append(FilaDetalle("Teléfono", cotizacion.telefono))
+    if incluir_estado:
+        filas.append(FilaDetalle("Estado", cotizacion.estado))
+    return tabla_detalle(filas)
 
 
 def _detalle_cotizacion_texto(
@@ -129,30 +145,6 @@ def _detalle_cotizacion_texto(
     )
 
 
-def _totales_html(pedido: PedidoCorreo) -> str:
-    filas = [
-        _fila_html("Subtotal", formatear_pesos(pedido.subtotal)),
-        _fila_html(
-            "Descuentos",
-            formatear_pesos(abs(pedido.descuento_total))
-            if pedido.descuento_total
-            else "",
-        ),
-    ]
-    if pedido.costo_envio > 0:
-        filas.append(_fila_html("Envío", formatear_pesos(pedido.costo_envio)))
-    elif pedido.tipo_entrega == "Envío a domicilio":
-        filas.append(_fila_html("Envío", "Gratis"))
-    filas.append(
-        "<tr>"
-        '<td style="padding:8px 8px 8px 0;font-weight:bold">Total</td>'
-        f'<td style="padding:8px 0;font-weight:bold;text-align:right">'
-        f"{formatear_pesos(pedido.total)}</td>"
-        "</tr>"
-    )
-    return _tabla_html("".join(filas))
-
-
 def _totales_texto(pedido: PedidoCorreo) -> str:
     envio = ""
     if pedido.costo_envio > 0:
@@ -177,21 +169,32 @@ def comprobante_pedido(pedido: PedidoCorreo, frontend_url: str | None = None) ->
     asunto = f"Comprobante de tu pedido #{pedido.numero} — ApoloVibes"
 
     cuerpo_html = (
-        "<p>Gracias por tu compra en ApoloVibes. "
-        f"Este es el comprobante del pedido <strong>#{escapar(pedido.numero)}</strong>."
-        "</p>"
-        + _tabla_html(
-            _fila_html("Fecha", formatear_fecha(pedido.fecha))
-            + _fila_html("Estado del pago", pedido.estado_pago)
-            + _fila_html("Tipo de entrega", pedido.tipo_entrega)
-            + _fila_html("Dirección", pedido.direccion)
-            + _fila_html("Notas", pedido.notas)
+        tabla_detalle(
+            [
+                FilaDetalle("Fecha", formatear_fecha(pedido.fecha)),
+                FilaDetalle(
+                    "Estado del pago",
+                    _estado_pago_html(pedido.estado_pago),
+                    html=True,
+                ),
+                FilaDetalle("Tipo de entrega", pedido.tipo_entrega),
+                FilaDetalle("Dirección", pedido.direccion),
+                FilaDetalle("Notas", pedido.notas),
+            ]
         )
-        + tabla_items(pedido.items)
-        + tabla_descuentos(pedido.descuentos)
-        + _totales_html(pedido)
+        + tabla_items(pedido.items, frontend_url)
+        + tabla_totales(pedido)
     )
-    html = envolver(f"Pedido #{pedido.numero}", cuerpo_html)
+    html = envolver(
+        f"Pedido #{pedido.numero}",
+        cuerpo_html,
+        frontend_url=frontend_url,
+        icono=icono_html("✓", COLOR_GREEN),
+        subtitulo=(
+            "Gracias por tu compra en ApoloVibes. "
+            f"Este es el comprobante del pedido #{pedido.numero}."
+        ),
+    )
 
     texto = _lineas(
         "Gracias por tu compra en ApoloVibes.",
@@ -222,19 +225,30 @@ def admin_pedido_pagado(
     enlace = f"{_base(frontend_url)}/admin/pedidos"
 
     cuerpo_html = (
-        f"<p>Se confirmó el pago del pedido <strong>#{escapar(pedido.numero)}</strong>."
-        "</p>"
-        + _tabla_html(
-            _fila_html("Cliente", pedido.email_cliente)
-            + _fila_html("Total", formatear_pesos(pedido.total))
-            + _fila_html("Estado del pago", pedido.estado_pago)
-            + _fila_html("Tipo de entrega", pedido.tipo_entrega)
-            + _fila_html("Dirección", pedido.direccion)
+        tabla_detalle(
+            [
+                FilaDetalle("Cliente", pedido.email_cliente),
+                FilaDetalle("Total", formatear_pesos(pedido.total)),
+                FilaDetalle(
+                    "Estado del pago",
+                    _estado_pago_html(pedido.estado_pago),
+                    html=True,
+                ),
+                FilaDetalle("Tipo de entrega", pedido.tipo_entrega),
+                FilaDetalle("Dirección", pedido.direccion),
+            ]
         )
-        + tabla_items(pedido.items)
-        + f'<p><a href="{escapar(enlace)}">Ver pedido en el panel</a></p>'
+        + tabla_items(pedido.items, frontend_url)
+        + boton("Ver pedido en el panel", enlace)
     )
-    html = envolver(f"Pedido pagado #{pedido.numero}", cuerpo_html)
+    html = envolver(
+        f"Pedido pagado #{pedido.numero}",
+        cuerpo_html,
+        frontend_url=frontend_url,
+        icono=icono_html("✓", COLOR_GREEN),
+        subtitulo=f"Se ha confirmado el pago del pedido #{pedido.numero}.",
+        pie="",
+    )
 
     texto = _lineas(
         f"Se confirmó el pago del pedido #{pedido.numero}.",
@@ -258,17 +272,26 @@ def admin_nueva_cotizacion(
     asunto = f"Nueva cotización #{cotizacion.numero} — {cotizacion.nombre}"
     enlace = f"{_base(frontend_url)}/admin/cotizaciones"
 
-    cuerpo_html = (
-        "<p>Ingresó una nueva solicitud de cotización.</p>"
-        + _detalle_cotizacion_html(
-            cotizacion, incluir_contacto=True, incluir_estado=True
-        )
-        + f'<p><a href="{escapar(enlace)}">Ver cotización en el panel</a></p>'
+    cuerpo_html = _detalle_cotizacion_html(
+        cotizacion,
+        incluir_contacto=True,
+        incluir_estado=True,
+        etiqueta_precio="Precio estimado",
+    ) + boton("Ver cotización en el panel", enlace)
+    html = envolver(
+        "Nueva cotización",
+        cuerpo_html,
+        frontend_url=frontend_url,
+        icono=icono_html("✦", COLOR_ACCENT),
+        subtitulo=(
+            "Ingresó una nueva solicitud de cotización "
+            f"#{cotizacion.numero}."
+        ),
+        pie="",
     )
-    html = envolver(f"Nueva cotización #{cotizacion.numero}", cuerpo_html)
 
     texto = _lineas(
-        "Ingresó una nueva solicitud de cotización.",
+        f"Ingresó una nueva solicitud de cotización #{cotizacion.numero}.",
         "",
         _detalle_cotizacion_texto(
             cotizacion, incluir_contacto=True, incluir_estado=True
@@ -279,12 +302,11 @@ def admin_nueva_cotizacion(
     return Correo(asunto=asunto, html=html, texto=texto)
 
 
-def _detalle_producto_html(producto: ProductoCorreo) -> str:
+def _estado_stock_html(producto: ProductoCorreo) -> str:
     if producto.stock <= 0:
-        return f"{escapar(producto.nombre)}: Agotado"
-    return (
-        f"{escapar(producto.nombre)}: stock {producto.stock} "
-        f"(mínimo {producto.stock_minimo})"
+        return f'<span style="color:{COLOR_RED};font-weight:bold;">Agotado</span>'
+    return escapar(
+        f"stock {producto.stock} (mínimo {producto.stock_minimo})"
     )
 
 
@@ -306,15 +328,24 @@ def admin_stock_bajo(
     asunto = f"Stock bajo en ApoloVibes ({cantidad} {sustantivo})"
     enlace = f"{_base(frontend_url)}/admin/inventario"
 
-    lista_html = "".join(
-        f"<li>{_detalle_producto_html(producto)}</li>" for producto in productos
+    cuerpo_html = tabla_detalle(
+        [
+            FilaDetalle(
+                producto.nombre,
+                _estado_stock_html(producto),
+                html=True,
+            )
+            for producto in productos
+        ]
+    ) + boton("Revisar inventario", enlace)
+    html = envolver(
+        "Stock bajo",
+        cuerpo_html,
+        frontend_url=frontend_url,
+        icono=icono_html("!", COLOR_ACCENT),
+        subtitulo="Estos productos quedaron en stock bajo o agotado:",
+        pie="",
     )
-    cuerpo_html = (
-        "<p>Estos productos quedaron en stock bajo o agotado:</p>"
-        f"<ul>{lista_html}</ul>"
-        f'<p><a href="{escapar(enlace)}">Revisar inventario</a></p>'
-    )
-    html = envolver("Stock bajo", cuerpo_html)
 
     lista_texto = "\n".join(
         f"- {_detalle_producto_texto(producto)}" for producto in productos
@@ -339,15 +370,19 @@ def cotizacion_aprobada(
     cotizacion = replace(cotizacion, precio=monto)
 
     cuerpo_html = (
-        f"<p>Hola {escapar(cotizacion.nombre)},</p>"
-        f"<p>Tu cotización <strong>#{escapar(cotizacion.numero)}</strong> "
-        "fue aprobada.</p>"
+        _parrafo(f"Hola {escapar(cotizacion.nombre)},")
         + _detalle_cotizacion_html(cotizacion)
-        + "<p>Para pagar, revisa los detalles en nuestra página:</p>"
-        f'<p><a href="{escapar(enlace)}">{escapar(enlace)}</a></p>'
-        "<p>Si tienes dudas, responde este correo.</p>"
+        + _parrafo("Para pagar, revisa los detalles en nuestra página:")
+        + boton("Mis Cotizaciones", enlace)
+        + _parrafo("Si tienes dudas, responde este correo.", margen="0")
     )
-    html = envolver("Cotización aprobada", cuerpo_html)
+    html = envolver(
+        "Cotización aprobada",
+        cuerpo_html,
+        frontend_url=frontend_url,
+        icono=icono_html("✓", COLOR_GREEN),
+        subtitulo=f"Tu cotización #{cotizacion.numero} fue aprobada.",
+    )
 
     detalle = _detalle_cotizacion_texto(cotizacion)
     texto = _lineas(
@@ -371,13 +406,16 @@ def cotizacion_rechazada(
     """Correo al cliente cuando su cotización pasa a rechazada."""
     asunto = f"Tu cotización #{cotizacion.numero} fue rechazada"
 
-    cuerpo_html = (
-        f"<p>Hola {escapar(cotizacion.nombre)},</p>"
-        f"<p>Tu cotización <strong>#{escapar(cotizacion.numero)}</strong> "
-        "fue rechazada.</p>"
-        "<p>Puedes enviarnos una nueva solicitud cuando quieras.</p>"
+    cuerpo_html = _parrafo(
+        "Puedes enviarnos una nueva solicitud cuando quieras.", margen="0"
     )
-    html = envolver("Cotización rechazada", cuerpo_html)
+    html = envolver(
+        "Cotización rechazada",
+        cuerpo_html,
+        frontend_url=frontend_url,
+        icono=icono_html("✕", COLOR_RED),
+        subtitulo=f"Tu cotización #{cotizacion.numero} fue rechazada.",
+    )
 
     texto = _lineas(
         f"Hola {cotizacion.nombre},",
@@ -395,11 +433,22 @@ def codigo_verificacion(codigo: str) -> Correo:
     asunto = "Tu código de verificación — ApoloVibes"
 
     cuerpo_html = (
-        f"<p>Tu código de verificación es <strong>{escapar(codigo)}</strong>.</p>"
-        "<p>Este código tiene una vigencia limitada.</p>"
-        "<p>Si no solicitaste este código, ignora este mensaje.</p>"
+        caja_codigo(codigo)
+        + _parrafo("Este código tiene una vigencia limitada.", margen="0 0 8px")
+        + _parrafo(
+            "Si no solicitaste este código, ignora este mensaje.",
+            color=COLOR_MUTED,
+            tamano=13,
+            margen="0",
+        )
     )
-    html = envolver("Código de verificación", cuerpo_html)
+    html = envolver(
+        "Código de verificación",
+        cuerpo_html,
+        icono=icono_html("#", COLOR_ACCENT),
+        subtitulo="Tu código de verificación es:",
+        pie="Equipo de seguridad",
+    )
 
     texto = _lineas(
         f"Tu código de verificación es {codigo}.",
@@ -415,12 +464,22 @@ def alerta_seguridad(detalle: str) -> Correo:
     """Aviso de inicio de sesión para el gateway."""
     asunto = "Alerta de seguridad — ApoloVibes"
 
+    # El frontend abre la recuperación de contraseña desde el modal de inicio
+    # de sesión; por eso el botón apunta a la raíz y no a una ruta dedicada.
+    enlace = f"{base_url()}/"
+
     cuerpo_html = (
-        "<p>Detectamos actividad de seguridad en tu cuenta.</p>"
-        f"<p>{escapar(detalle)}</p>"
-        "<p>Si no fuiste tú, cambia tu contraseña de inmediato.</p>"
+        _parrafo(escapar(detalle))
+        + _parrafo("Si no fuiste tú, cambia tu contraseña de inmediato.")
+        + boton("Cambiar contraseña", enlace)
     )
-    html = envolver("Alerta de seguridad", cuerpo_html)
+    html = envolver(
+        "Alerta de seguridad",
+        cuerpo_html,
+        icono=icono_html("!", COLOR_ACCENT),
+        subtitulo="Detectamos actividad de seguridad en tu cuenta.",
+        pie="Equipo de seguridad",
+    )
 
     texto = _lineas(
         "Detectamos actividad de seguridad en tu cuenta.",
