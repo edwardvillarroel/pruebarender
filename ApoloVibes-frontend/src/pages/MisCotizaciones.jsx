@@ -492,7 +492,7 @@ export default function MisCotizaciones() {
                         style={{ display: 'block', height: 100, width: 'auto', margin: '0 auto 0' }}
                     />
                     <p style={{ margin: '12px 0', color: 'var(--text-dim)' }}>Aún no has enviado ninguna cotización.</p>
-                    <Link to="/cotizar" style={{ color: '#009D4E' }}>Ir a cotizar</Link>
+                    <Link to="/cotizar" style={{ color: 'var(--accent)' }}>Ir a Cotiza tu producto</Link>
                 </div>
             ) : (
                 <>

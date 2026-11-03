@@ -17,6 +17,10 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config_class)
 
+    @app.get("/health")
+    def health():
+        return jsonify(status="ok"), 200
+
     # Los origenes se comparan de forma exacta: un espacio despues de la coma
     # ("https://a.cl, https://b.cl") hacia que el segundo origen nunca matcheara.
     origenes = [

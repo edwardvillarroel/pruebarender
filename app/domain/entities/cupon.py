@@ -19,3 +19,10 @@ class Cupon:
     descripcion: str | None = None
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=utcnow)
+    
+    def puede_usarse(self) -> bool:
+        if not self.activo:
+            return False
+        if self.uso_unico and self.usado:
+            return False
+        return True

@@ -17,7 +17,7 @@ correo y no de que se mande:
    es "no hay a quien mandarle el comprobante", no un error.
 
 Lo que NO se prueba aca es que el correo llegue: eso depende de la cuenta de
-EmailJS y de la PYME. Lo que se congela es la decision y el contrato.
+Resend y de la PYME. Lo que se congela es la decision y el contrato.
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ from app.application.pedidos_pagos.procesar_pago import (
     _email_del_cliente,
 )
 from app.domain.entities.pedido import Pedido
+from app.domain.entities.producto import Producto
 from app.domain.interfaces.pasarela_pago import PasarelaPago
 
 
@@ -48,14 +49,34 @@ class _CorreoFalso:
 
     def __init__(self, falla: bool = False):
         self.enviados: list[tuple[Pedido, str, str]] = []
+        self.admin_pedidos: list[tuple[Pedido, str, str]] = []
+        self.admin_stock: list[list[Producto]] = []
         self._falla = falla
 
     def enviar_comprobante_pedido(
         self, pedido: Pedido, cliente_email: str, estado_pago: str
     ) -> None:
         if self._falla:
-            raise RuntimeError("EmailJS devolvio 500")
+            raise RuntimeError("Resend devolvio 500")
         self.enviados.append((pedido, cliente_email, estado_pago))
+
+    def avisar_admin_pedido_pagado(
+        self, pedido: Pedido, cliente_email: str, estado_pago: str
+    ) -> None:
+        if self._falla:
+            raise RuntimeError("Resend devolvio 500")
+        self.admin_pedidos.append((pedido, cliente_email, estado_pago))
+
+    def avisar_admin_stock_bajo(self, productos: list[Producto]) -> None:
+        if self._falla:
+            raise RuntimeError("Resend devolvio 500")
+        self.admin_stock.append(list(productos))
+
+    def avisar_admin_nueva_cotizacion(self, solicitud) -> None:  # pragma: no cover
+        raise AssertionError("no se usa en estos tests")
+
+    def enviar_estado_cotizacion(self, solicitud, estado, precio=None):  # pragma: no cover
+        raise AssertionError("no se usa en estos tests")
 
 
 @pytest.fixture
@@ -232,5 +253,124 @@ def test_devuelve_false_sin_correo_configurado():
     assert servicio._enviar_comprobante(
         _pedido("ana@caracterizacion.test"), "completado"
     ) is False
+
+
+# --- Avisos al admin y deduplicacion de stock --------------------------------
+
+
+def _producto(stock: int = 0) -> Producto:
+    return Producto(
+        nombre="Llavero",
+        categoria_id=uuid.uuid4(),
+        precio=1000,
+        stock=stock,
+        stock_minimo=3,
+    )
+
+
+class _ProductosFalsos:
+    def __init__(self, pendientes=None, falla: bool = False):
+        self.pendientes = pendientes or []
+        self.falla = falla
+        self.consultados: list = []
+        self.marcados: list = []
+
+    def listar_avisos_stock_pendientes(self, ids):
+        if self.falla:
+            raise RuntimeError("la base se cayo")
+        self.consultados = list(ids)
+        return self.pendientes
+
+    def marcar_aviso_stock_notificado(self, ids):
+        self.marcados = list(ids)
+
+
+def test_avisa_al_admin_del_pedido_pagado(correo):
+    _servicio(correo)._avisar_admin_pedido(
+        _pedido("ana@caracterizacion.test"),
+        "ana@caracterizacion.test",
+        "completado",
+    )
+
+    assert len(correo.admin_pedidos) == 1
+    _, email, estado_pago = correo.admin_pedidos[0]
+    assert email == "ana@caracterizacion.test"
+    assert estado_pago == "completado"
+
+
+def test_el_aviso_al_admin_no_rompe_el_pago_si_falla():
+    servicio = _servicio(_CorreoFalso(falla=True))
+
+    servicio._avisar_admin_pedido(
+        _pedido("ana@caracterizacion.test"),
+        "ana@caracterizacion.test",
+        "completado",
+    )
+
+
+def test_avisa_al_admin_del_stock_y_marca_los_productos(correo):
+    producto = _producto()
+    productos = _ProductosFalsos(pendientes=[producto])
+    servicio = ProcesarPago(
+        pedidos=None,
+        pagos=None,
+        productos=productos,
+        pasarela=_PasarelaFalsa(),
+        carritos=None,
+        correo=correo,
+    )
+
+    servicio._avisar_admin_stock([producto.id])
+
+    assert correo.admin_stock == [[producto]]
+    assert productos.marcados == [producto.id]
+
+
+def test_si_falla_el_aviso_de_stock_no_se_marca_como_notificado():
+    producto = _producto()
+    productos = _ProductosFalsos(pendientes=[producto])
+    servicio = ProcesarPago(
+        pedidos=None,
+        pagos=None,
+        productos=productos,
+        pasarela=_PasarelaFalsa(),
+        carritos=None,
+        correo=_CorreoFalso(falla=True),
+    )
+
+    servicio._avisar_admin_stock([producto.id])
+
+    assert productos.marcados == [], "un aviso fallido no puede darse por enviado"
+
+
+def test_si_la_consulta_de_stock_falla_el_pago_sigue():
+    producto = _producto()
+    productos = _ProductosFalsos(falla=True)
+    servicio = ProcesarPago(
+        pedidos=None,
+        pagos=None,
+        productos=productos,
+        pasarela=_PasarelaFalsa(),
+        carritos=None,
+        correo=_CorreoFalso(),
+    )
+
+    servicio._avisar_admin_stock([producto.id])
+
+
+def test_sin_correo_no_consulta_stock():
+    class _ProductosQueNoSeTocan:
+        def listar_avisos_stock_pendientes(self, ids):  # pragma: no cover
+            raise AssertionError("sin correo no hay aviso que preparar")
+
+    servicio = ProcesarPago(
+        pedidos=None,
+        pagos=None,
+        productos=_ProductosQueNoSeTocan(),
+        pasarela=_PasarelaFalsa(),
+        carritos=None,
+    )
+
+    servicio._avisar_admin_stock([uuid.uuid4()])
 
 

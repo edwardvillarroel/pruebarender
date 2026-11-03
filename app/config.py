@@ -88,10 +88,12 @@ class Config:
 
     STARKEN_MODO_SIMULACION = os.getenv("STARKEN_MODO_SIMULACION", "")
 
-    EMAILJS_PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY", "")
-    EMAILJS_PRIVATE_KEY = os.getenv("EMAILJS_PRIVATE_KEY", "")
-    EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID", "")
-    EMAILJS_TEMPLATE_COMPROBANTE = os.getenv("EMAILJS_TEMPLATE_COMPROBANTE", "")
+    # Correo transaccional (Resend). Sin RESEND_API_KEY o EMAIL_FROM el
+    # sistema simula el envío (no llama a la API y no lanza).
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+    EMAIL_FROM = os.getenv("EMAIL_FROM", "")
+    ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "https://apolovibes3d.cl")
 
     # Facturación electrónica (DTE) vía OpenFactura (Haulmer).
     # La API key se genera en https://openfactura.haulmer.com -> Configuración

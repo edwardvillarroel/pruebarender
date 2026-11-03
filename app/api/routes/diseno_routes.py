@@ -15,6 +15,32 @@ from decimal import Decimal
 diseno_bp = Blueprint("disenos", __name__)
 
 
+def _notificar_nueva_cotizacion(solicitud) -> None:
+    correo = current_app.config.get("CORREO_SERVICE")
+    if correo is None:
+        return
+    try:
+        correo.avisar_admin_nueva_cotizacion(solicitud)
+    except Exception:  # noqa: BLE001 - el correo no rompe la solicitud
+        current_app.logger.exception(
+            "No se pudo avisar al admin de la cotización %s", solicitud.id
+        )
+
+
+def _notificar_estado_cotizacion(solicitud, estado: str, precio=None) -> None:
+    correo = current_app.config.get("CORREO_SERVICE")
+    if correo is None:
+        return
+    try:
+        correo.enviar_estado_cotizacion(solicitud, estado, precio)
+    except Exception:  # noqa: BLE001 - el correo no rompe la evaluación
+        current_app.logger.exception(
+            "No se pudo enviar el correo de cotización %s (%s)",
+            solicitud.id,
+            estado,
+        )
+
+
 @diseno_bp.post("/cotizaciones/validar-imagen")
 def validar_imagen_cotizacion():
     try:
@@ -60,6 +86,7 @@ def crear_cotizacion():
             return jsonify({"error": "No pudimos procesar the solicitud."}), 500
 
         solicitud = servicio.ejecutar(usuario_id, datos, imagen)
+        _notificar_nueva_cotizacion(solicitud)
         return jsonify({"id": str(solicitud.id), "estado": solicitud.estado.value, "creado_en": solicitud.creado_en.isoformat()}), 201
     except ImagenInvalida as e:
         return jsonify({"error": str(e)}), 400
@@ -315,6 +342,9 @@ def evaluar_cotizacion(solicitud_id):
         if s is None:
             return jsonify({"error": "Cotización no encontrada"}), 404
 
+        estado_previo = s.estado
+        precio_previo = s.precio
+
         if estado == "aprobada":
             if precio_raw is None or str(precio_raw).strip() == "":
                 return jsonify({"error": "Debes ingresar el precio asignado para aprobar la cotización."}), 400
@@ -333,6 +363,12 @@ def evaluar_cotizacion(solicitud_id):
             s.aviso_estado_en = utcnow()
             s.aviso_estado_visto = False
             repo.actualizar(s)
+            if estado_previo != s.estado or precio_previo != s.precio:
+                _notificar_estado_cotizacion(
+                    s,
+                    "aprobada",
+                    int(s.precio) if s.precio is not None else None,
+                )
             return jsonify({"ok": True, "id": str(s.id), "estado": s.estado.value, "precio": float(s.precio) if s.precio is not None else None}), 200
 
         if estado == "rechazada":
@@ -340,6 +376,8 @@ def evaluar_cotizacion(solicitud_id):
             s.aviso_estado_en = utcnow()
             s.aviso_estado_visto = False
             repo.actualizar(s)
+            if estado_previo != s.estado:
+                _notificar_estado_cotizacion(s, "rechazada", s.precio)
             return jsonify({"ok": True, "id": str(s.id), "estado": s.estado.value}), 200
 
         return jsonify({"error": "Estado inválido. Usa 'aprobada' o 'rechazada'."}), 400

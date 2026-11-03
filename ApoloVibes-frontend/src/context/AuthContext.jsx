@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { api } from '../services/api.js'
+import { api, intentarRefresh, EVENTO_SESION_EXPIRADA } from '../services/api.js'
 import { olvidarAvisoMfa } from '../utils/avisoMfa.js'
 
 const AUTH_KEY = 'apolovibes_auth'
@@ -17,6 +17,9 @@ const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(loadAuth)
+  const [cargando, setCargando] = useState(
+    () => new URLSearchParams(window.location.search).get('login') === 'google'
+  )
 
   useEffect(() => {
     if (auth) {
@@ -27,6 +30,12 @@ export function AuthProvider({ children }) {
   }, [auth])
 
   const user = auth?.user ?? null
+
+  useEffect(() => {
+    const cerrarSesion = () => setAuth(null)
+    window.addEventListener(EVENTO_SESION_EXPIRADA, cerrarSesion)
+    return () => window.removeEventListener(EVENTO_SESION_EXPIRADA, cerrarSesion)
+  }, [])
 
   const login = useCallback((sesion) => {
     olvidarAvisoMfa(sesion?.user?.id)
@@ -54,26 +63,31 @@ export function AuthProvider({ children }) {
         error === 'cuenta_inactiva'
           ? 'Tu cuenta está desactivada'
           : 'No se pudo iniciar sesión con Google'
+      setCargando(false)
       alert(mensaje)
       return
     }
     if (params.get('mfa')) {
+      setCargando(false)
       sessionStorage.setItem('apolovibes_mfa_pendiente', '1')
       window.dispatchEvent(new CustomEvent('apolovibes:google-mfa'))
       return
     }
     ;(async () => {
       try {
-        const data = await api.post('/auth/refresh', {})
-        login({ token: data.access_token, user: data.user })
+        const { ok, body } = await intentarRefresh()
+        if (!ok || !body?.access_token) throw new Error('refresh fallido')
+        login({ token: body.access_token, user: body.user })
       } catch {
         alert('No se pudo iniciar sesión con Google')
+      } finally {
+        setCargando(false)
       }
     })()
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, token: auth?.token ?? null, isLoggedIn: !!user, isAdmin: user?.rol === 'admin', login, logout, actualizarUsuario }}>
+    <AuthContext.Provider value={{ user, token: auth?.token ?? null, isLoggedIn: !!user, isAdmin: user?.rol === 'admin', cargando, login, logout, actualizarUsuario }}>
       {children}
     </AuthContext.Provider>
   )

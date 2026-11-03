@@ -48,6 +48,10 @@ class Producto:
     # notificacion al dueño: sin el aviso el admin no sabe si el cruce ya se
     # disparo una vez.
     aviso_stock_enviado: bool = False
+    # Marca temporal del aviso de stock bajo efectivamente notificado al admin.
+    # None = pendiente de aviso. Evita repetir el correo en cada venta mientras
+    # el producto siga bajo el umbral.
+    aviso_stock_notificado_en: datetime | None = None
 
 
 @dataclass

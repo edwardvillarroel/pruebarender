@@ -31,13 +31,9 @@ class Config:
     COOKIE_SAMESITE = (
         os.getenv("GATEWAY_COOKIE_SAMESITE", "").strip().capitalize() or "Strict"
     )
-    # --- EmailJS (envío real de correos del gateway) ---
-    EMAILJS_PUBLIC_KEY = os.getenv("EMAILJS_PUBLIC_KEY", "")
-    EMAILJS_PRIVATE_KEY = os.getenv("EMAILJS_PRIVATE_KEY", "")
-    EMAILJS_SERVICE_ID = os.getenv("EMAILJS_SERVICE_ID", "")
-    EMAILJS_TEMPLATE_ID = os.getenv("EMAILJS_TEMPLATE_ID", "")
-    # Plantilla dedicada para alertas de seguridad (5º fallo de login, etc.)
-    EMAILJS_TEMPLATE_ALERTA = os.getenv("EMAILJS_TEMPLATE_ALERTA", "")
+    # --- Correo transaccional (Resend) ---
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+    EMAIL_FROM = os.getenv("EMAIL_FROM", "")
 
     # --- Google OAuth ---
     GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")

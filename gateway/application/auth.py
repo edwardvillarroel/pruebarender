@@ -20,7 +20,7 @@ from gateway.domain.seguridad import (
 from gateway.infrastructure import repositorios
 from gateway.infrastructure.correo import (
     ErrorEnvioCorreo,
-    configurado_emailjs,
+    configurado_correo,
     enviar_correo_codigo,
     configurado_alerta_login,
     enviar_correo_alerta_login,
@@ -246,7 +246,7 @@ def _notificar_alerta_si_corresponde(email, resultado, ip):
     if not configurado_alerta_login():
         repositorios.registrar_log(
             "login_fail_alerta_pendiente", None, ip,
-            "alerta no enviada: plantilla EMAILJS_TEMPLATE_ALERTA sin configurar",
+            "alerta no enviada: correo sin configurar (RESEND_API_KEY/EMAIL_FROM)",
         )
         return
     try:
@@ -268,7 +268,7 @@ def _notificar_alerta_si_corresponde(email, resultado, ip):
 def despachar_codigo_verificacion(email, ip):
     """Genera y envía el código de confirmación de registro por correo.
 
-    Con credenciales de EmailJS configuradas (`.env`) el envío es REAL y la
+    Con credenciales de Resend configuradas (`.env`) el envío es REAL y la
     función siempre devuelve None: el código nunca se expone en la respuesta.
     Sin credenciales queda en modo simulación: el código se imprime en la
     consola del gateway (solo servidor) para poder probar el flujo.
@@ -286,7 +286,7 @@ def despachar_codigo_verificacion(email, ip):
         expira_en=calcular_expiracion(DURACION_CODIGO_MINUTOS),
     )
 
-    if configurado_emailjs():
+    if configurado_correo():
         try:
             enviar_correo_codigo(email, codigo)
         except ErrorEnvioCorreo:
@@ -294,7 +294,7 @@ def despachar_codigo_verificacion(email, ip):
             raise CodigoNoEnviado()
     else:
         _log.warning(
-            "MODO SIMULACIÓN: correo no configurado (EMAILJS_*). "
+            "MODO SIMULACIÓN: correo no configurado (RESEND_API_KEY/EMAIL_FROM). "
             "Código de verificación de registro para %s: %s",
             email,
             codigo,
@@ -335,7 +335,7 @@ def confirmar_registro(email, codigo, password, nombre, apellido, telefono, ip, 
 def despachar_codigo_recuperacion(email, ip):
     """Genera y envía el código para restablecer la contraseña de una cuenta EXISTENTE.
 
-    Mismo contrato que el código de registro: con EmailJS el envío es real y el
+    Mismo contrato que el código de registro: con Resend el envío es real y el
     código no sale del servidor; sin credenciales se imprime en la consola del
     gateway (solo servidor). Devuelve (None, expira_en): la expiración viaja al
     frontend para el countdown (el código nunca).
@@ -357,7 +357,7 @@ def despachar_codigo_recuperacion(email, ip):
         expira_en=expira_en,
     )
 
-    if configurado_emailjs():
+    if configurado_correo():
         try:
             enviar_correo_codigo(email, codigo)
         except ErrorEnvioCorreo:
@@ -365,7 +365,7 @@ def despachar_codigo_recuperacion(email, ip):
             raise CodigoNoEnviado()
     else:
         _log.warning(
-            "MODO SIMULACIÓN: correo no configurado (EMAILJS_*). "
+            "MODO SIMULACIÓN: correo no configurado (RESEND_API_KEY/EMAIL_FROM). "
             "Código de recuperación para %s: %s",
             email,
             codigo,

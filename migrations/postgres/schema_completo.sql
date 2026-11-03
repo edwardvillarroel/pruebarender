@@ -186,6 +186,7 @@ CREATE TABLE PRODUCTOS
 	NUEVO_LANZAMIENTO boolean DEFAULT false NOT NULL , 
 	STOCK_MINIMO numeric, 
 	AVISO_STOCK_ENVIADO boolean DEFAULT false NOT NULL , 
+	AVISO_STOCK_NOTIFICADO_EN timestamptz , 
 	 CHECK (precio >= 0) , 
 	 CHECK (stock >= 0) , 
 	 PRIMARY KEY (ID)

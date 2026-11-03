@@ -90,7 +90,7 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     from app.application.facturacion.emitir_documento_tributario import (
         EmitirDocumentoTributario,
     )
-    from app.infrastructure.correo.emailjs import EmailJsCorreo
+    from app.infrastructure.correo.resend import ResendCorreo
     from app.infrastructure.facturacion.openfactura_cliente import OpenFacturaCliente
     from app.infrastructure.pagos.tuu_client import TuuCliente
     from app.infrastructure.starken.starken_cliente import StarkenCliente
@@ -121,6 +121,8 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     cupones = CuponRepository()
     pasarela = TuuCliente(app.config)
     emisor = OpenFacturaCliente(app.config)
+    correo = ResendCorreo(app.config)
+    app.config["CORREO_SERVICE"] = correo
     if emisor.configurado:
         documentacion = EmitirDocumentoTributario(pedidos, documentos, emisor)
     else:
@@ -136,7 +138,7 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
         productos,
         pasarela,
         CarritoRepositoryBd(),
-        EmailJsCorreo(app.config),
+        correo,
         usuarios=UsuarioRepository(),
         cupones=cupones,
         documentacion=documentacion,
