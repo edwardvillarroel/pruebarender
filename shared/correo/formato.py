@@ -88,7 +88,7 @@ def logo_html(frontend_url: str | None = None) -> str:
         '<td align="left" style="padding-top:8px;text-align:left;'
         f'font-family:{FUENTE};font-size:11px;line-height:1.4;'
         'color:#d4d4d4;letter-spacing:0.03em;">'
-        "Impresión 3D • Personaliza • Crea"
+        "Impulsando la creatividad con cada impresión."
         "</td>"
         "</tr>"
         "</table>"
@@ -104,24 +104,14 @@ def icono_html(nombre: str, frontend_url: str | None = None) -> str:
         'border="0" align="center" '
         'style="border-collapse:separate;margin:24px auto 0;">'
         "<tr>"
-        '<td width="64" height="64" align="center" valign="middle" '
-        'style="width:64px;height:64px;text-align:center;'
-        'vertical-align:middle;padding:0;">'
-        '<table role="presentation" width="64" height="64" cellpadding="0" '
-        'cellspacing="0" border="0" align="center" '
+        '<td width="56" height="56" align="center" valign="middle" '
         f'bgcolor="{COLOR_WHITE}" '
-        'style="width:64px;height:64px;border-collapse:separate;'
+        'style="width:56px;height:56px;text-align:center;'
+        'vertical-align:middle;padding:0;'
         f'background-color:{COLOR_WHITE};border:4px solid {color};'
         'border-radius:50%;">'
-        "<tr>"
-        '<td align="center" valign="middle" '
-        'style="width:64px;height:64px;text-align:center;'
-        'vertical-align:middle;padding:0;">'
         f'<img src="{escapar(imagen)}" width="32" height="32" alt="" '
-        'style="display:block;border:0;">'
-        "</td>"
-        "</tr>"
-        "</table>"
+        'style="display:block;border:0;margin:0 auto;">'
         "</td>"
         "</tr>"
         "</table>"
