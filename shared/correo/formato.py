@@ -1,5 +1,3 @@
-"""Formato y utilidades de presentación para los correos."""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,28 +6,39 @@ from zoneinfo import ZoneInfo
 
 try:
     ZONA_CHILE = ZoneInfo("America/Santiago")
-except Exception:  # pragma: no cover - depende del sistema operativo
+except Exception:  
     ZONA_CHILE = timezone(timedelta(hours=-4))
 
 FRONTEND_URL_POR_DEFECTO = "https://apolovibes3d.cl"
 
-# Reflejo de --surface y --accent del frontend (ApoloVibes-frontend/src/styles/global.css)
-COLOR_SURFACE = "#002A5E"
+
+COLOR_SURFACE = "#121212"
 COLOR_ACCENT = "#E8863E"
 COLOR_WHITE = "#ffffff"
-COLOR_PAGE = "#f3f4f6"
+COLOR_PAGE = "#f6f7f9"
 COLOR_PANEL = "#f6f7f9"
-COLOR_TEXT = "#1f2937"
+COLOR_TEXT = "#121212"
 COLOR_MUTED = "#6b7280"
 COLOR_BORDER = "#e5e7eb"
 COLOR_GREEN = "#1fa855"
 COLOR_RED = "#df1a0c"
 
+# Color del borde del círculo por ícono: siempre coincide con el glifo.
+ICONO_COLORES = {
+    "check": COLOR_GREEN,
+    "campana": COLOR_ACCENT,
+    "lapiz": COLOR_ACCENT,
+    "alerta": COLOR_ACCENT,
+    "equis": COLOR_RED,
+    "escudo": COLOR_ACCENT,
+    "escudo-alerta": COLOR_ACCENT,
+    "cubo": "#9ca3af",
+}
+
 FUENTE = "Arial,Helvetica,sans-serif"
 
 
 def formatear_pesos(monto: int | float | None) -> str:
-    """Devuelve un monto en pesos chilenos, por ejemplo ``$3.500``."""
     if monto is None:
         return ""
     try:
@@ -41,7 +50,6 @@ def formatear_pesos(monto: int | float | None) -> str:
 
 
 def formatear_fecha(fecha: datetime | None) -> str:
-    """Formatea una fecha en horario de Chile con formato ``dd-mm-AAAA HH:MM``."""
     if fecha is None:
         return ""
     if fecha.tzinfo is None:
@@ -50,7 +58,6 @@ def formatear_fecha(fecha: datetime | None) -> str:
 
 
 def escapar(valor: object) -> str:
-    """Escapa texto para insertarlo en HTML."""
     texto = "" if valor is None else str(valor)
     return (
         texto.replace("&", "&amp;")
@@ -62,51 +69,59 @@ def escapar(valor: object) -> str:
 
 
 def base_url(frontend_url: str | None = None) -> str:
-    """Devuelve la URL base del frontend, sin barra final."""
     return (frontend_url or FRONTEND_URL_POR_DEFECTO).rstrip("/")
 
 
 def logo_html(frontend_url: str | None = None) -> str:
-    """Logo dentro de un círculo blanco con anillo accent.
-
-    Usa el PNG como ``src`` para Outlook y el WebP como ``srcset`` para los
-    clientes modernos.
-    """
-    base = base_url(frontend_url)
-    webp = f"{base}/media/apolo-vibes-logo.webp"
-    png = f"{base}/media/apolo-vibes-logo.png"
+    """Bloque de marca del encabezado: wordmark y tagline."""
     return (
-        '<table role="presentation" width="96" cellpadding="0" cellspacing="0" '
-        'border="0" align="center" style="border-collapse:collapse;">'
+        '<table role="presentation" cellpadding="0" cellspacing="0" '
+        'border="0" style="border-collapse:collapse;">'
         "<tr>"
-        '<td width="96" height="96" align="center" valign="middle" '
-        f'bgcolor="{COLOR_WHITE}" '
-        f'style="width:96px;height:96px;background-color:{COLOR_WHITE};'
-        f'border:3px solid {COLOR_ACCENT};border-radius:48px;'
-        'text-align:center;vertical-align:middle;">'
-        f'<img src="{escapar(png)}" srcset="{escapar(webp)}" '
-        'alt="ApoloVibes" width="64" height="72" '
-        'style="display:block;width:64px;height:72px;border:0;'
-        'outline:none;text-decoration:none;" />'
+        '<td align="left" style="text-align:left;'
+        f'font-family:{FUENTE};font-size:27px;line-height:1.1;'
+        'font-weight:800;color:#ffffff;letter-spacing:-0.02em;">'
+        'ApoloVibes <span style="color:#E8863E;">3D</span>'
+        "</td>"
+        "</tr>"
+        "<tr>"
+        '<td align="left" style="padding-top:8px;text-align:left;'
+        f'font-family:{FUENTE};font-size:11px;line-height:1.4;'
+        'color:#d4d4d4;letter-spacing:0.03em;">'
+        "Impresión 3D • Personaliza • Crea"
         "</td>"
         "</tr>"
         "</table>"
     )
 
 
-def icono_html(simbolo: str, color: str, borde: str = COLOR_ACCENT) -> str:
-    """Círculo blanco con un glifo de texto centrado."""
+def icono_html(nombre: str, frontend_url: str | None = None) -> str:
+    """Círculo blanco con el ícono del correo; el borde usa el color del glifo."""
+    color = ICONO_COLORES.get(nombre, COLOR_ACCENT)
+    imagen = f"{base_url(frontend_url)}/media/correo-icono-{nombre}.png"
     return (
-        '<table role="presentation" width="56" cellpadding="0" cellspacing="0" '
-        'border="0" align="center" style="border-collapse:collapse;">'
+        '<table role="presentation" cellpadding="0" cellspacing="0" '
+        'border="0" align="center" '
+        'style="border-collapse:separate;margin:24px auto 0;">'
         "<tr>"
-        '<td width="56" height="56" align="center" valign="middle" '
+        '<td width="64" height="64" align="center" valign="middle" '
+        'style="width:64px;height:64px;text-align:center;'
+        'vertical-align:middle;padding:0;">'
+        '<table role="presentation" width="64" height="64" cellpadding="0" '
+        'cellspacing="0" border="0" align="center" '
         f'bgcolor="{COLOR_WHITE}" '
-        f'style="width:56px;height:56px;background-color:{COLOR_WHITE};'
-        f'border:2px solid {borde};border-radius:28px;'
-        f'text-align:center;vertical-align:middle;font-family:{FUENTE};'
-        f'font-size:26px;font-weight:bold;line-height:52px;color:{color};">'
-        f"{escapar(simbolo)}"
+        'style="width:64px;height:64px;border-collapse:separate;'
+        f'background-color:{COLOR_WHITE};border:4px solid {color};'
+        'border-radius:50%;">'
+        "<tr>"
+        '<td align="center" valign="middle" '
+        'style="width:64px;height:64px;text-align:center;'
+        'vertical-align:middle;padding:0;">'
+        f'<img src="{escapar(imagen)}" width="32" height="32" alt="" '
+        'style="display:block;border:0;">'
+        "</td>"
+        "</tr>"
+        "</table>"
         "</td>"
         "</tr>"
         "</table>"
@@ -115,15 +130,12 @@ def icono_html(simbolo: str, color: str, borde: str = COLOR_ACCENT) -> str:
 
 @dataclass
 class FilaDetalle:
-    """Una fila de la tabla de detalles."""
-
     etiqueta: str
     valor: object
     html: bool = False
 
 
 def tabla_detalle(filas) -> str:
-    """Tabla de filas grises redondeadas con etiqueta a la izquierda."""
     visibles = [
         fila
         for fila in filas
@@ -180,7 +192,6 @@ def _url_imagen(valor: object, frontend_url: str | None) -> str:
 
 
 def tabla_items(items, frontend_url: str | None = None) -> str:
-    """Tabla de productos con miniatura opcional y subtotal alineado a la derecha."""
     items = list(items)
     if not items:
         return ""
@@ -197,7 +208,7 @@ def tabla_items(items, frontend_url: str | None = None) -> str:
         if hay_imagenes:
             if imagen:
                 celdas.append(
-                    '<td width="48" valign="top" '
+                    '<td width="48" valign="middle" '
                     f'style="width:48px;padding:12px 12px 12px 0;{separacion}">'
                     f'<img src="{escapar(imagen)}" alt="{escapar(item.nombre)}" '
                     'width="48" height="48" '
@@ -207,25 +218,30 @@ def tabla_items(items, frontend_url: str | None = None) -> str:
                 )
             else:
                 celdas.append(
-                    '<td width="48" valign="top" '
+                    '<td width="48" valign="middle" '
                     f'style="width:48px;padding:12px 12px 12px 0;{separacion}">'
                     "&nbsp;</td>"
                 )
         celdas.append(
-            '<td valign="top" '
-            f'style="padding:12px 0;{separacion}'
-            'font-family:Arial,Helvetica,sans-serif;">'
-            f'<div style="font-size:14px;line-height:1.5;font-weight:bold;'
+            '<td valign="middle" '
+            f'style="padding:12px 0;{separacion}font-family:{FUENTE};">'
+            f'<div style="font-size:14px;line-height:1.4;font-weight:bold;'
             f'color:{COLOR_TEXT};">{escapar(item.nombre)}</div>'
-            f'<div style="font-size:12px;line-height:1.5;color:{COLOR_MUTED};">'
-            f"Cantidad: {escapar(item.cantidad)}</div>"
             "</td>"
         )
         celdas.append(
-            '<td align="right" valign="top" '
+            '<td valign="middle" '
+            f'style="padding:12px 8px;{separacion}font-family:{FUENTE};'
+            f'font-size:13px;line-height:1.4;color:{COLOR_MUTED};'
+            'white-space:nowrap;">'
+            f"x{escapar(item.cantidad)}"
+            "</td>"
+        )
+        celdas.append(
+            '<td align="right" valign="middle" '
             f'style="padding:12px 0;text-align:right;{separacion}'
-            'font-family:Arial,Helvetica,sans-serif;font-size:14px;'
-            f'line-height:1.5;font-weight:bold;color:{COLOR_TEXT};">'
+            f'font-family:{FUENTE};font-size:14px;line-height:1.4;'
+            f'font-weight:bold;color:{COLOR_TEXT};">'
             f"{escapar(formatear_pesos(item.subtotal))}"
             "</td>"
         )
@@ -239,8 +255,77 @@ def tabla_items(items, frontend_url: str | None = None) -> str:
     )
 
 
+def seccion(titulo: str) -> str:
+    """Etiqueta en negrita que separa bloques dentro del cuerpo."""
+    return (
+        '<div style="margin:18px 0 8px;font-family:Arial,Helvetica,sans-serif;'
+        f'font-size:13px;line-height:1.4;font-weight:bold;color:{COLOR_TEXT};">'
+        f"{escapar(titulo)}</div>"
+    )
+
+
+def tabla_stock(productos, frontend_url: str | None = None) -> str:
+    """Lista de productos con su stock, con miniatura de cubo."""
+    productos = list(productos)
+    if not productos:
+        return ""
+
+    icono = f"{base_url(frontend_url)}/media/correo-icono-cubo.png"
+    filas = []
+    for indice, producto in enumerate(productos):
+        separacion = (
+            ""
+            if indice == len(productos) - 1
+            else f"border-bottom:1px solid {COLOR_BORDER};"
+        )
+        if producto.stock <= 0:
+            stock = (
+                '<div style="margin-top:2px;font-size:12px;line-height:1.4;'
+                f'font-weight:bold;color:{COLOR_RED};">Agotado</div>'
+            )
+        else:
+            stock = (
+                '<div style="margin-top:2px;font-size:12px;line-height:1.4;'
+                f'color:{COLOR_MUTED};">Stock: {escapar(producto.stock)} '
+                f"(mín. {escapar(producto.stock_minimo)})</div>"
+            )
+        filas.append(
+            "<tr>"
+            '<td width="40" valign="middle" '
+            f'style="width:40px;padding:10px 10px 10px 0;{separacion}">'
+            '<table role="presentation" width="40" height="40" cellpadding="0" '
+            'cellspacing="0" border="0" align="center" '
+            f'bgcolor="{COLOR_PANEL}" '
+            'style="width:40px;height:40px;border-collapse:separate;'
+            f'background-color:{COLOR_PANEL};border-radius:8px;">'
+            "<tr>"
+            '<td align="center" valign="middle" '
+            'style="width:40px;height:40px;text-align:center;'
+            'vertical-align:middle;padding:0;">'
+            f'<img src="{escapar(icono)}" width="22" height="22" alt="" '
+            'style="display:block;border:0;">'
+            "</td>"
+            "</tr>"
+            "</table>"
+            "</td>"
+            '<td valign="middle" '
+            f'style="padding:10px 0;{separacion}font-family:{FUENTE};">'
+            '<div style="font-size:14px;line-height:1.4;font-weight:bold;'
+            f'color:{COLOR_TEXT};">{escapar(producto.nombre)}</div>'
+            f"{stock}"
+            "</td>"
+            "</tr>"
+        )
+
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'border="0" style="width:100%;border-collapse:collapse;margin:4px 0 8px;">'
+        f"<tbody>{''.join(filas)}</tbody>"
+        "</table>"
+    )
+
+
 def tabla_totales(pedido) -> str:
-    """Caja gris redondeada con subtotal, descuentos, envío y total."""
     filas = [
         (
             "Subtotal",
@@ -320,7 +405,6 @@ def tabla_totales(pedido) -> str:
 
 
 def tabla_descuentos(descuentos) -> str:
-    """Tabla HTML con los descuentos aplicados, o vacío si no hay."""
     if not descuentos:
         return ""
     filas = "".join(
@@ -349,7 +433,6 @@ def tabla_descuentos(descuentos) -> str:
 
 
 def boton(texto: str, url: str) -> str:
-    """Botón redondeado accent con texto blanco y flecha."""
     return (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
         'border="0" style="width:100%;border-collapse:collapse;margin:8px 0 18px;">'
@@ -376,7 +459,6 @@ def boton(texto: str, url: str) -> str:
 
 
 def caja_codigo(codigo: str) -> str:
-    """Caja grande y centrada para mostrar un código."""
     return (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
         'border="0" '
@@ -407,7 +489,7 @@ def _pie_html(pie: str) -> str:
         )
         lineas.append(
             f'<div style="font-family:{FUENTE};font-size:11px;line-height:1.5;'
-            f'color:#dbe3ef;letter-spacing:.04em;">{marca}</div>'
+            f'color:#9ca3af;letter-spacing:.04em;">{marca}</div>'
         )
     else:
         lineas.append(
@@ -425,19 +507,20 @@ def envolver(
     frontend_url: str | None = None,
     icono: str | None = None,
     subtitulo: str = "",
-    pie: str = "Equipo ApoloVibes ♥",
+    pie: str = "Equipo ApoloVibes",
 ) -> str:
-    """Envuelve el cuerpo en la tarjeta de correo transaccional."""
+    base = base_url(frontend_url)
+    mascota = f"{base}/media/apolo-vibes-logo.png"
+    onda_header = f"{base}/media/correo-onda-header.png"
+    onda_footer = f"{base}/media/correo-onda-footer.png"
+
     titulo_html = escapar(titulo)
     subtitulo_html = escapar(subtitulo) if subtitulo else ""
-    bloque_icono = (
-        f'<tr><td align="center" style="padding:16px 24px 0;">{icono}</td></tr>'
-        if icono
-        else ""
-    )
+    bloque_icono = icono or ""
     bloque_subtitulo = (
-        f'<p style="margin:8px 0 0;font-family:{FUENTE};font-size:15px;'
-        f'line-height:1.6;color:{COLOR_MUTED};">{subtitulo_html}</p>'
+        f'<p style="margin:8px 0 0;text-align:center;font-family:{FUENTE};'
+        f'font-size:14px;line-height:1.5;color:{COLOR_MUTED};">'
+        f"{subtitulo_html}</p>"
         if subtitulo_html
         else ""
     )
@@ -462,52 +545,62 @@ def envolver(
         '<table role="presentation" width="600" cellpadding="0" cellspacing="0" '
         'border="0" align="center" '
         'style="width:100%;max-width:600px;border-collapse:separate;'
-        f'background-color:{COLOR_WHITE};border-radius:16px;">'
+        f'background-color:{COLOR_WHITE};border-radius:18px;overflow:hidden;">'
         "<tr>"
-        '<td align="center" '
+        '<td '
         f'bgcolor="{COLOR_SURFACE}" '
-        f'style="padding:30px 24px 22px;background-color:{COLOR_SURFACE};'
-        'border-radius:16px 16px 0 0;text-align:center;">'
+        f'style="padding:0;background-color:{COLOR_SURFACE};">'
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'border="0" style="width:100%;border-collapse:collapse;">'
+        "<tr>"
+        '<td align="left" valign="top" '
+        'style="padding:34px 0 16px 32px;text-align:left;vertical-align:top;">'
         f"{logo_html(frontend_url)}"
         "</td>"
+        '<td align="right" valign="bottom" '
+        'style="padding:16px 24px 0 0;text-align:right;vertical-align:bottom;">'
+        f'<img src="{escapar(mascota)}" width="96" height="110" '
+        'alt="ApoloVibes" '
+        'style="display:block;width:96px;height:110px;border:0;">'
+        "</td>"
         "</tr>"
-        "<tr>"
-        '<td height="14" '
-        f'bgcolor="{COLOR_ACCENT}" '
-        f'style="height:14px;line-height:14px;font-size:0;'
-        f'background-color:{COLOR_ACCENT};border-radius:0 0 14px 14px;">'
-        "&nbsp;</td>"
-        "</tr>"
-        '<tr><td height="8" style="height:8px;line-height:8px;font-size:0;">'
-        "&nbsp;</td></tr>"
-        f"{bloque_icono}"
-        "<tr>"
-        '<td align="center" style="padding:18px 40px 0;text-align:center;">'
-        f'<h1 style="margin:0;font-family:{FUENTE};font-size:24px;line-height:1.3;'
-        f'font-weight:bold;color:{COLOR_TEXT};">{titulo_html}</h1>'
-        f"{bloque_subtitulo}"
+        "</table>"
         "</td>"
         "</tr>"
         "<tr>"
-        '<td style="padding:20px 40px 32px;font-family:Arial,Helvetica,sans-serif;'
-        f'font-size:15px;line-height:1.6;color:{COLOR_TEXT};">'
+        '<td '
+        f'bgcolor="{COLOR_SURFACE}" '
+        'style="padding:0;font-size:0;line-height:0;'
+        f'background-color:{COLOR_SURFACE};">'
+        f'<img src="{escapar(onda_header)}" width="600" height="36" alt="" '
+        'style="display:block;width:100%;height:36px;border:0;">'
+        "</td>"
+        "</tr>"
+        "<tr>"
+        '<td style="padding:0 32px 30px;font-family:Arial,Helvetica,sans-serif;'
+        f'font-size:15px;line-height:1.5;color:{COLOR_TEXT};">'
+        f"{bloque_icono}"
+        '<h1 style="margin:18px 0 0;text-align:center;font-family:Arial,'
+        f'Helvetica,sans-serif;font-size:24px;line-height:1.25;'
+        f'font-weight:800;color:{COLOR_TEXT};">{titulo_html}</h1>'
+        f"{bloque_subtitulo}"
         f"{cuerpo_html}"
         "</td>"
         "</tr>"
-        '<tr><td height="28" style="height:28px;line-height:28px;font-size:0;">'
-        "&nbsp;</td></tr>"
         "<tr>"
-        '<td height="14" '
+        '<td '
         f'bgcolor="{COLOR_SURFACE}" '
-        f'style="height:14px;line-height:14px;font-size:0;'
-        f'background-color:{COLOR_SURFACE};border-radius:14px 14px 0 0;">'
-        "&nbsp;</td>"
+        'style="padding:0;font-size:0;line-height:0;'
+        f'background-color:{COLOR_SURFACE};">'
+        f'<img src="{escapar(onda_footer)}" width="600" height="36" alt="" '
+        'style="display:block;width:100%;height:36px;border:0;">'
+        "</td>"
         "</tr>"
         "<tr>"
         '<td align="center" '
         f'bgcolor="{COLOR_SURFACE}" '
-        f'style="padding:18px 24px 24px;background-color:{COLOR_SURFACE};'
-        'border-radius:0 0 16px 16px;text-align:center;">'
+        f'style="padding:20px 24px 26px;background-color:{COLOR_SURFACE};'
+        'text-align:center;">'
         f"{_pie_html(pie)}"
         "</td>"
         "</tr>"
@@ -521,7 +614,6 @@ def envolver(
 
 
 def items_texto(items) -> str:
-    """Lista de productos en texto plano."""
     return "\n".join(
         f"{item.cantidad}x {item.nombre}: {formatear_pesos(item.subtotal)}"
         for item in items
@@ -529,7 +621,6 @@ def items_texto(items) -> str:
 
 
 def descuentos_texto(descuentos) -> str:
-    """Lista de descuentos en texto plano."""
     return "\n".join(
         f"{descuento.etiqueta}: - {formatear_pesos(abs(descuento.monto))}"
         for descuento in descuentos

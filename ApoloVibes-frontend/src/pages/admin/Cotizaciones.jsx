@@ -68,12 +68,14 @@ function leerDescripcion(descripcion) {
     const m = texto.match(new RegExp(`^${clave}:\\s*(.+)$`, 'mi'))
     return m ? m[1].trim() : ''
   }
-  const tieneEstructura = /^(Tamaño|Cantidad|Uso|Color):/mi.test(texto)
+  const marcas = texto.match(/(?:^|\n|\/)\s*(?:Tamaño|Cantidad|Uso|Color|Detalles|Precio estimado IA|Material IA|Complejidad IA):/gi) || []
+  const heredado = /^Tamaño:\s*/i.test(texto) && marcas.length >= 2
+  const detallesHeredado = texto.match(/Detalles:\s*([^\n]*?)(?:\s*\/\s*(?:Tamaño|Cantidad|Uso|Color|Precio estimado IA|Material IA|Complejidad IA):|$)/i)
   return {
     tamano: tomar('Tamaño'),
     uso: tomar('Uso'),
     color: tomar('Color'),
-    detalles: tieneEstructura ? tomar('Detalles') : texto.trim(),
+    detalles: heredado ? (detallesHeredado ? detallesHeredado[1].trim() : '') : texto.trim(),
   }
 }
 

@@ -1,9 +1,3 @@
-"""Cliente mínimo para la API HTTP de Resend.
-
-El envío es best-effort desde el punto de vista del llamador: si no hay
-credenciales se simula sin lanzar, y los errores de red se reintentan una vez.
-"""
-
 from __future__ import annotations
 
 import json

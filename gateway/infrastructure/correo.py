@@ -1,11 +1,3 @@
-"""Envío de correos del gateway sobre el cliente compartido de Resend.
-
-Para pasar el envío de MOCK a real, completar en `.env`:
-    RESEND_API_KEY y EMAIL_FROM
-
-Sin esas variables el gateway queda en modo simulación: los códigos de
-verificación se imprimen en la consola del servidor y no se llama a la API.
-"""
 
 from gateway.config import Config
 from shared.correo import plantillas

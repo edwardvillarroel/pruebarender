@@ -435,7 +435,36 @@ def test_aviso_de_nueva_cotizacion_va_al_admin(monkeypatch):
     payload = http.llamadas[0]["json"]
     assert payload["to"] == ["admin@x.test"]
     assert "Nueva cotización" in payload["subject"]
-    assert "ana@x.test" in payload["html"]
+    assert "Ana Pérez" in payload["html"]
+
+
+def test_aviso_de_nueva_cotizacion_muestra_la_descripcion_del_usuario(monkeypatch):
+    http = _http(monkeypatch)
+    solicitud = _solicitud(
+        descripcion=(
+            "Tamaño: 10 x 5 x 2 cm\n"
+            "Cantidad: 2\n"
+            "Uso: Decorativo\n"
+            "Color: Negro\n"
+            "Detalles: prueba\n"
+            "Precio estimado IA: $4.500"
+        ),
+        precio_estimado_ia=Decimal("4500"),
+        material_sugerido_ia="PLA",
+        complejidad_ia="Baja",
+        gramos_estimados_ia=Decimal("28"),
+        tiempo_estimado_horas_ia=Decimal("2.5"),
+    )
+
+    ResendCorreo(CREDENCIALES).avisar_admin_nueva_cotizacion(solicitud)
+
+    html = http.llamadas[0]["json"]["html"]
+    assert "Estimación IA" not in html
+    assert "prueba" in html
+    assert "Tamaño:" not in html
+    assert "Precio estimado IA" not in html
+    assert "Precio estimado" in html
+    assert "$4.500" in html
 
 
 def test_cotizacion_aprobada_va_al_cliente(monkeypatch):

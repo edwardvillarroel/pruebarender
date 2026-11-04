@@ -46,8 +46,6 @@ class CrearSolicitudDiseno:
             raise ValueError("El material seleccionado no es válido.")
 
         descripcion = str(datos.get("descripcion") or "").strip()
-        if not descripcion:
-            raise ValueError("La descripción es obligatoria.")
 
         alto = self._parse_decimal_pos(datos.get("alto"), "alto")
         ancho = self._parse_decimal_pos(datos.get("ancho"), "ancho")

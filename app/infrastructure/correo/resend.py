@@ -40,6 +40,20 @@ def _texto(valor: Any) -> str:
     return "" if valor is None else str(valor).strip()
 
 
+def _numero(valor: Any) -> float | None:
+    if valor is None:
+        return None
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+def _entero(valor: Any) -> int | None:
+    numero = _numero(valor)
+    return int(numero) if numero is not None else None
+
+
 def _direccion_y_notas(pedido: Pedido) -> tuple[str | None, str | None]:
     if not pedido.direccion_envio:
         return None, None
@@ -175,6 +189,11 @@ def _cotizacion_correo(
         descripcion=_texto(solicitud.descripcion),
         precio=precio if precio is not None else precio_entidad,
         estado=_estado_texto(estado if estado is not None else solicitud.estado),
+        material_sugerido_ia=_texto(solicitud.material_sugerido_ia) or None,
+        complejidad_ia=_texto(solicitud.complejidad_ia) or None,
+        gramos_estimados_ia=_numero(solicitud.gramos_estimados_ia),
+        tiempo_estimado_horas_ia=_numero(solicitud.tiempo_estimado_horas_ia),
+        precio_estimado_ia=_entero(solicitud.precio_estimado_ia),
     )
 
 

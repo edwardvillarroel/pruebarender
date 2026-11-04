@@ -6,13 +6,13 @@ Los textos visibles están en español neutro.
 
 from __future__ import annotations
 
+import re
 from dataclasses import replace
 
 from shared.correo.formato import (
-    COLOR_ACCENT,
     COLOR_GREEN,
     COLOR_MUTED,
-    COLOR_RED,
+    COLOR_PANEL,
     COLOR_TEXT,
     FilaDetalle,
     base_url,
@@ -25,8 +25,10 @@ from shared.correo.formato import (
     formatear_pesos,
     icono_html,
     items_texto,
+    seccion,
     tabla_detalle,
     tabla_items,
+    tabla_stock,
     tabla_totales,
 )
 from shared.correo.modelos import (
@@ -51,11 +53,33 @@ def _parrafo(
     color: str = COLOR_TEXT,
     tamano: int = 15,
     margen: str = "0 0 14px",
+    centrado: bool = False,
 ) -> str:
+    alineacion = "text-align:center;" if centrado else ""
     return (
-        f'<p style="margin:{margen};font-family:Arial,Helvetica,sans-serif;'
-        f'font-size:{tamano}px;line-height:1.6;color:{color};">'
+        f'<p style="margin:{margen};{alineacion}'
+        f'font-family:Arial,Helvetica,sans-serif;'
+        f'font-size:{tamano}px;line-height:1.5;color:{color};">'
         f"{contenido_html}</p>"
+    )
+
+
+def _caja_panel(contenido_html: str) -> str:
+    """Bloque gris redondeado para mensajes destacados sin botón."""
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'border="0" '
+        f'bgcolor="{COLOR_PANEL}" '
+        f'style="width:100%;border-collapse:collapse;background-color:{COLOR_PANEL};'
+        'border-radius:12px;margin:18px 0 0;">'
+        "<tr>"
+        '<td align="center" style="padding:20px 18px;text-align:center;'
+        'font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;'
+        f'color:{COLOR_TEXT};">'
+        f"{contenido_html}"
+        "</td>"
+        "</tr>"
+        "</table>"
     )
 
 
@@ -80,6 +104,39 @@ def _medidas(cotizacion: CotizacionCorreo) -> str:
     return " x ".join(f"{medida:g}" for medida in medidas) + f" {cotizacion.unidad}"
 
 
+def _descripcion_usuario(descripcion: str | None) -> str:
+    """Devuelve solo el texto que escribió el usuario.
+
+    Las solicitudes antiguas guardaban el resumen completo dentro de
+    `descripcion` ("Tamaño: ...", "Cantidad: ...", "Detalles: ..."). Cuando
+    detectamos ese formato devolvemos únicamente la línea de "Detalles" para
+    no repetir datos que ya tienen su propia fila en el correo.
+    """
+    texto = "" if descripcion is None else str(descripcion).strip()
+    if not texto:
+        return ""
+    if not re.match(r"^Tamaño:\s*", texto, re.IGNORECASE):
+        return texto
+    etiquetas = re.findall(
+        r"(?:^|\n|/)\s*"
+        r"(Tamaño|Cantidad|Uso|Color|Detalles|Precio estimado IA|"
+        r"Material IA|Complejidad IA):",
+        texto,
+        re.IGNORECASE,
+    )
+    if len({etiqueta.lower() for etiqueta in etiquetas}) < 2:
+        return texto
+    partes = re.split(r"Detalles:\s*", texto, maxsplit=1, flags=re.IGNORECASE)
+    if len(partes) < 2:
+        return ""
+    return re.split(
+        r"\n|/\s*(?:Tamaño|Cantidad|Uso|Color|Precio estimado IA|"
+        r"Material IA|Complejidad IA):",
+        partes[1],
+        maxsplit=1,
+    )[0].strip()
+
+
 def _estado_pago_html(estado: str | None) -> str:
     texto = "" if estado is None else str(estado)
     afirmativos = {"Pagado", "Completado", "Aprobado", "Confirmado"}
@@ -91,57 +148,12 @@ def _estado_pago_html(estado: str | None) -> str:
     return escapar(texto)
 
 
-def _detalle_cotizacion_html(
-    cotizacion: CotizacionCorreo,
-    *,
-    incluir_contacto: bool = False,
-    incluir_estado: bool = False,
-    etiqueta_precio: str = "Precio",
-) -> str:
-    filas = [
-        FilaDetalle("Material", cotizacion.material),
-        FilaDetalle("Medidas", _medidas(cotizacion)),
-        FilaDetalle("Cantidad", cotizacion.cantidad),
-        FilaDetalle("Uso", cotizacion.uso),
-        FilaDetalle("Color", cotizacion.color),
-        FilaDetalle("Descripción", cotizacion.descripcion),
-        FilaDetalle(
-            etiqueta_precio,
-            formatear_pesos(cotizacion.precio)
-            if cotizacion.precio is not None
-            else "",
-        ),
-    ]
-    if incluir_contacto:
-        filas.append(FilaDetalle("Email", cotizacion.email))
-        filas.append(FilaDetalle("Teléfono", cotizacion.telefono))
-    if incluir_estado:
-        filas.append(FilaDetalle("Estado", cotizacion.estado))
-    return tabla_detalle(filas)
-
-
-def _detalle_cotizacion_texto(
-    cotizacion: CotizacionCorreo,
-    *,
-    incluir_contacto: bool = False,
-    incluir_estado: bool = False,
-) -> str:
-    return _lineas(
-        _fila_texto("Material", cotizacion.material),
-        _fila_texto("Medidas", _medidas(cotizacion)),
-        _fila_texto("Cantidad", cotizacion.cantidad),
-        _fila_texto("Uso", cotizacion.uso),
-        _fila_texto("Color", cotizacion.color),
-        _fila_texto("Descripción", cotizacion.descripcion),
-        _fila_texto(
-            "Precio",
-            formatear_pesos(cotizacion.precio)
-            if cotizacion.precio is not None
-            else "",
-        ),
-        _fila_texto("Email", cotizacion.email if incluir_contacto else ""),
-        _fila_texto("Teléfono", cotizacion.telefono if incluir_contacto else ""),
-        _fila_texto("Estado", cotizacion.estado if incluir_estado else ""),
+def _detalle_producto_texto(producto: ProductoCorreo) -> str:
+    if producto.stock <= 0:
+        return f"{producto.nombre}: Agotado"
+    return (
+        f"{producto.nombre}: Stock {producto.stock} "
+        f"(mín. {producto.stock_minimo})"
     )
 
 
@@ -182,23 +194,23 @@ def comprobante_pedido(pedido: PedidoCorreo, frontend_url: str | None = None) ->
                 FilaDetalle("Notas", pedido.notas),
             ]
         )
+        + seccion("Tus productos")
         + tabla_items(pedido.items, frontend_url)
         + tabla_totales(pedido)
+        + _parrafo("¡Seguimos creando contigo!", margen="18px 0 0", centrado=True)
     )
     html = envolver(
-        f"Pedido #{pedido.numero}",
+        "¡Gracias por tu compra!",
         cuerpo_html,
         frontend_url=frontend_url,
-        icono=icono_html("✓", COLOR_GREEN),
-        subtitulo=(
-            "Gracias por tu compra en ApoloVibes. "
-            f"Este es el comprobante del pedido #{pedido.numero}."
-        ),
+        icono=icono_html("check", frontend_url),
+        subtitulo=f"Este es el comprobante de tu pedido #{pedido.numero}.",
+        pie="Equipo ApoloVibes",
     )
 
     texto = _lineas(
-        "Gracias por tu compra en ApoloVibes.",
-        f"Comprobante del pedido #{pedido.numero}",
+        "¡Gracias por tu compra!",
+        f"Este es el comprobante de tu pedido #{pedido.numero}.",
         "",
         _fila_texto("Fecha", formatear_fecha(pedido.fecha)),
         _fila_texto("Estado del pago", pedido.estado_pago),
@@ -206,11 +218,16 @@ def comprobante_pedido(pedido: PedidoCorreo, frontend_url: str | None = None) ->
         _fila_texto("Dirección", pedido.direccion),
         _fila_texto("Notas", pedido.notas),
         "",
+        "Tus productos",
         items_texto(pedido.items),
         "",
         descuentos_texto(pedido.descuentos),
         "",
         _totales_texto(pedido),
+        "",
+        "¡Seguimos creando contigo!",
+        "",
+        "Equipo ApoloVibes",
     )
     return Correo(asunto=asunto, html=html, texto=texto)
 
@@ -238,29 +255,35 @@ def admin_pedido_pagado(
                 FilaDetalle("Dirección", pedido.direccion),
             ]
         )
+        + seccion("Productos")
         + tabla_items(pedido.items, frontend_url)
         + boton("Ver pedido en el panel", enlace)
     )
     html = envolver(
-        f"Pedido pagado #{pedido.numero}",
+        "Nuevo pedido pagado",
         cuerpo_html,
         frontend_url=frontend_url,
-        icono=icono_html("✓", COLOR_GREEN),
+        icono=icono_html("campana", frontend_url),
         subtitulo=f"Se ha confirmado el pago del pedido #{pedido.numero}.",
-        pie="",
+        pie="Equipo de administración",
     )
 
     texto = _lineas(
-        f"Se confirmó el pago del pedido #{pedido.numero}.",
+        "Nuevo pedido pagado",
+        f"Se ha confirmado el pago del pedido #{pedido.numero}.",
+        "",
         _fila_texto("Cliente", pedido.email_cliente),
         _fila_texto("Total", formatear_pesos(pedido.total)),
         _fila_texto("Estado del pago", pedido.estado_pago),
         _fila_texto("Tipo de entrega", pedido.tipo_entrega),
         _fila_texto("Dirección", pedido.direccion),
         "",
+        "Productos",
         items_texto(pedido.items),
         "",
         f"Ver pedido en el panel: {enlace}",
+        "",
+        "Equipo de administración",
     )
     return Correo(asunto=asunto, html=html, texto=texto)
 
@@ -271,52 +294,62 @@ def admin_nueva_cotizacion(
     """Aviso interno cuando ingresa una solicitud de diseño."""
     asunto = f"Nueva cotización #{cotizacion.numero} — {cotizacion.nombre}"
     enlace = f"{_base(frontend_url)}/admin/cotizaciones"
+    precio = (
+        cotizacion.precio
+        if cotizacion.precio is not None
+        else cotizacion.precio_estimado_ia
+    )
 
-    cuerpo_html = _detalle_cotizacion_html(
-        cotizacion,
-        incluir_contacto=True,
-        incluir_estado=True,
-        etiqueta_precio="Precio estimado",
-    ) + boton("Ver cotización en el panel", enlace)
+    cuerpo_html = (
+        tabla_detalle(
+            [
+                FilaDetalle("Cliente", cotizacion.nombre),
+                FilaDetalle("Teléfono", cotizacion.telefono),
+                FilaDetalle("Material", cotizacion.material),
+                FilaDetalle("Medidas", _medidas(cotizacion)),
+                FilaDetalle("Cantidad", cotizacion.cantidad),
+                FilaDetalle("Uso", cotizacion.uso),
+                FilaDetalle("Color", cotizacion.color),
+                FilaDetalle(
+                    "Descripción", _descripcion_usuario(cotizacion.descripcion)
+                ),
+                FilaDetalle("Precio estimado", formatear_pesos(precio)),
+                FilaDetalle("Estado", cotizacion.estado),
+            ]
+        )
+        + boton("Ver cotización en el panel", enlace)
+    )
     html = envolver(
-        "Nueva cotización",
+        f"Nueva cotización #{cotizacion.numero}",
         cuerpo_html,
         frontend_url=frontend_url,
-        icono=icono_html("✦", COLOR_ACCENT),
-        subtitulo=(
-            "Ingresó una nueva solicitud de cotización "
-            f"#{cotizacion.numero}."
-        ),
-        pie="",
+        icono=icono_html("lapiz", frontend_url),
+        subtitulo="Ingresó una nueva solicitud de cotización.",
+        pie="Equipo de administración",
     )
 
     texto = _lineas(
-        f"Ingresó una nueva solicitud de cotización #{cotizacion.numero}.",
+        f"Nueva cotización #{cotizacion.numero}",
+        "Ingresó una nueva solicitud de cotización.",
         "",
-        _detalle_cotizacion_texto(
-            cotizacion, incluir_contacto=True, incluir_estado=True
+        _fila_texto("Cliente", cotizacion.nombre),
+        _fila_texto("Teléfono", cotizacion.telefono),
+        _fila_texto("Material", cotizacion.material),
+        _fila_texto("Medidas", _medidas(cotizacion)),
+        _fila_texto("Cantidad", cotizacion.cantidad),
+        _fila_texto("Uso", cotizacion.uso),
+        _fila_texto("Color", cotizacion.color),
+        _fila_texto(
+            "Descripción", _descripcion_usuario(cotizacion.descripcion)
         ),
+        _fila_texto("Precio estimado", formatear_pesos(precio)),
+        _fila_texto("Estado", cotizacion.estado),
         "",
         f"Ver cotización en el panel: {enlace}",
+        "",
+        "Equipo de administración",
     )
     return Correo(asunto=asunto, html=html, texto=texto)
-
-
-def _estado_stock_html(producto: ProductoCorreo) -> str:
-    if producto.stock <= 0:
-        return f'<span style="color:{COLOR_RED};font-weight:bold;">Agotado</span>'
-    return escapar(
-        f"stock {producto.stock} (mínimo {producto.stock_minimo})"
-    )
-
-
-def _detalle_producto_texto(producto: ProductoCorreo) -> str:
-    if producto.stock <= 0:
-        return f"{producto.nombre}: Agotado"
-    return (
-        f"{producto.nombre}: stock {producto.stock} "
-        f"(mínimo {producto.stock_minimo})"
-    )
 
 
 def admin_stock_bajo(
@@ -328,34 +361,30 @@ def admin_stock_bajo(
     asunto = f"Stock bajo en ApoloVibes ({cantidad} {sustantivo})"
     enlace = f"{_base(frontend_url)}/admin/inventario"
 
-    cuerpo_html = tabla_detalle(
-        [
-            FilaDetalle(
-                producto.nombre,
-                _estado_stock_html(producto),
-                html=True,
-            )
-            for producto in productos
-        ]
-    ) + boton("Revisar inventario", enlace)
+    cuerpo_html = tabla_stock(productos, frontend_url) + boton(
+        "Revisar inventario", enlace
+    )
     html = envolver(
-        "Stock bajo",
+        "Stock bajo en ApoloVibes",
         cuerpo_html,
         frontend_url=frontend_url,
-        icono=icono_html("!", COLOR_ACCENT),
+        icono=icono_html("alerta", frontend_url),
         subtitulo="Estos productos quedaron en stock bajo o agotado:",
-        pie="",
+        pie="Equipo de administración",
     )
 
     lista_texto = "\n".join(
         f"- {_detalle_producto_texto(producto)}" for producto in productos
     )
     texto = _lineas(
+        "Stock bajo en ApoloVibes",
         "Estos productos quedaron en stock bajo o agotado:",
         "",
         lista_texto,
         "",
         f"Revisar inventario: {enlace}",
+        "",
+        "Equipo de administración",
     )
     return Correo(asunto=asunto, html=html, texto=texto)
 
@@ -371,31 +400,64 @@ def cotizacion_aprobada(
 
     cuerpo_html = (
         _parrafo(f"Hola {escapar(cotizacion.nombre)},")
-        + _detalle_cotizacion_html(cotizacion)
-        + _parrafo("Para pagar, revisa los detalles en nuestra página:")
+        + _parrafo(
+            f"Tu cotización #{escapar(cotizacion.numero)} fue aprobada."
+        )
+        + tabla_detalle(
+            [
+                FilaDetalle("Material", cotizacion.material),
+                FilaDetalle("Medidas", _medidas(cotizacion)),
+                FilaDetalle("Uso", cotizacion.uso),
+                FilaDetalle("Color", cotizacion.color),
+                FilaDetalle(
+                    "Precio",
+                    formatear_pesos(cotizacion.precio)
+                    if cotizacion.precio is not None
+                    else "",
+                ),
+            ]
+        )
+        + _parrafo(
+            "Para pagar, revisa los detalles en nuestra página:",
+            centrado=True,
+        )
         + boton("Mis Cotizaciones", enlace)
-        + _parrafo("Si tienes dudas, responde este correo.", margen="0")
+        + _parrafo(
+            "Si tienes dudas, responde este correo.",
+            margen="0",
+            centrado=True,
+        )
     )
     html = envolver(
-        "Cotización aprobada",
+        "¡Tu cotización fue aprobada!",
         cuerpo_html,
         frontend_url=frontend_url,
-        icono=icono_html("✓", COLOR_GREEN),
-        subtitulo=f"Tu cotización #{cotizacion.numero} fue aprobada.",
+        icono=icono_html("check", frontend_url),
+        pie="Equipo ApoloVibes",
     )
 
-    detalle = _detalle_cotizacion_texto(cotizacion)
     texto = _lineas(
         f"Hola {cotizacion.nombre},",
         "",
         f"Tu cotización #{cotizacion.numero} fue aprobada.",
         "",
-        detalle,
+        _fila_texto("Material", cotizacion.material),
+        _fila_texto("Medidas", _medidas(cotizacion)),
+        _fila_texto("Uso", cotizacion.uso),
+        _fila_texto("Color", cotizacion.color),
+        _fila_texto(
+            "Precio",
+            formatear_pesos(cotizacion.precio)
+            if cotizacion.precio is not None
+            else "",
+        ),
         "",
         "Para pagar, revisa los detalles en nuestra página:",
         enlace,
         "",
         "Si tienes dudas, responde este correo.",
+        "",
+        "Equipo ApoloVibes",
     )
     return Correo(asunto=asunto, html=html, texto=texto)
 
@@ -406,24 +468,31 @@ def cotizacion_rechazada(
     """Correo al cliente cuando su cotización pasa a rechazada."""
     asunto = f"Tu cotización #{cotizacion.numero} fue rechazada"
 
-    cuerpo_html = _parrafo(
-        "Puedes enviarnos una nueva solicitud cuando quieras.", margen="0"
+    cuerpo_html = (
+        _parrafo(f"Hola {escapar(cotizacion.nombre)},")
+        + _parrafo(
+            f"Tu cotización #{escapar(cotizacion.numero)} fue rechazada."
+        )
+        + _caja_panel(
+            escapar("Puedes enviarnos una nueva solicitud cuando quieras.")
+        )
     )
     html = envolver(
-        "Cotización rechazada",
+        "Tu cotización fue rechazada",
         cuerpo_html,
         frontend_url=frontend_url,
-        icono=icono_html("✕", COLOR_RED),
-        subtitulo=f"Tu cotización #{cotizacion.numero} fue rechazada.",
+        icono=icono_html("equis", frontend_url),
+        pie="Equipo ApoloVibes",
     )
 
     texto = _lineas(
         f"Hola {cotizacion.nombre},",
         "",
         f"Tu cotización #{cotizacion.numero} fue rechazada.",
+        "",
         "Puedes enviarnos una nueva solicitud cuando quieras.",
         "",
-        "— Equipo ApoloVibes",
+        "Equipo ApoloVibes",
     )
     return Correo(asunto=asunto, html=html, texto=texto)
 
@@ -434,28 +503,36 @@ def codigo_verificacion(codigo: str) -> Correo:
 
     cuerpo_html = (
         caja_codigo(codigo)
-        + _parrafo("Este código tiene una vigencia limitada.", margen="0 0 8px")
+        + _parrafo(
+            "Este código tiene una vigencia limitada.",
+            margen="0 0 8px",
+            centrado=True,
+        )
         + _parrafo(
             "Si no solicitaste este código, ignora este mensaje.",
             color=COLOR_MUTED,
-            tamano=13,
+            tamano=12,
             margen="0",
+            centrado=True,
         )
     )
     html = envolver(
-        "Código de verificación",
+        "Tu código de verificación",
         cuerpo_html,
-        icono=icono_html("#", COLOR_ACCENT),
+        icono=icono_html("escudo"),
         subtitulo="Tu código de verificación es:",
         pie="Equipo de seguridad",
     )
 
     texto = _lineas(
-        f"Tu código de verificación es {codigo}.",
+        "Tu código de verificación",
+        "Tu código de verificación es:",
+        codigo,
+        "",
         "Este código tiene una vigencia limitada.",
         "Si no solicitaste este código, ignora este mensaje.",
         "",
-        "— Equipo ApoloVibes",
+        "Equipo de seguridad",
     )
     return Correo(asunto=asunto, html=html, texto=texto)
 
@@ -464,28 +541,30 @@ def alerta_seguridad(detalle: str) -> Correo:
     """Aviso de inicio de sesión para el gateway."""
     asunto = "Alerta de seguridad — ApoloVibes"
 
-    # El frontend abre la recuperación de contraseña desde el modal de inicio
-    # de sesión; por eso el botón apunta a la raíz y no a una ruta dedicada.
     enlace = f"{base_url()}/"
 
     cuerpo_html = (
-        _parrafo(escapar(detalle))
-        + _parrafo("Si no fuiste tú, cambia tu contraseña de inmediato.")
+        _parrafo(escapar(detalle), centrado=True)
+        + _parrafo(
+            "Si no fuiste tú, cambia tu contraseña de inmediato.",
+            centrado=True,
+        )
         + boton("Cambiar contraseña", enlace)
     )
     html = envolver(
         "Alerta de seguridad",
         cuerpo_html,
-        icono=icono_html("!", COLOR_ACCENT),
+        icono=icono_html("escudo-alerta"),
         subtitulo="Detectamos actividad de seguridad en tu cuenta.",
         pie="Equipo de seguridad",
     )
 
     texto = _lineas(
+        "Alerta de seguridad",
         "Detectamos actividad de seguridad en tu cuenta.",
         detalle,
         "Si no fuiste tú, cambia tu contraseña de inmediato.",
         "",
-        "— Equipo ApoloVibes",
+        "Equipo de seguridad",
     )
     return Correo(asunto=asunto, html=html, texto=texto)

@@ -69,6 +69,11 @@ class CotizacionCorreo:
     descripcion: str
     precio: int | None
     estado: str
+    material_sugerido_ia: str | None = None
+    complejidad_ia: str | None = None
+    gramos_estimados_ia: float | None = None
+    tiempo_estimado_horas_ia: float | None = None
+    precio_estimado_ia: int | None = None
 
 
 @dataclass(frozen=True)

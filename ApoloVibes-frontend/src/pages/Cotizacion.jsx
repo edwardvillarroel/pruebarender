@@ -196,17 +196,6 @@ export default function Cotizacion() {
     const cotizacion = cotizacionIA
     const firma = cotizacion ? (cotizacion.firma || firmaEspecificaciones(form)) : firmaEspecificaciones(form)
 
-    const resumen = [
-      `Tamaño: ${form.alto} x ${form.ancho} x ${form.largo} ${form.unidad}`,
-      `Cantidad: ${form.cantidad}`,
-      `Uso: ${form.uso}`,
-      `Color: ${colorFinal}`,
-      form.descripcion.trim() ? `Detalles: ${form.descripcion.trim()}` : '',
-      cotizacion ? `Precio estimado IA: $${Number(cotizacion.precio_estimado_ia ?? cotizacion.precio_clp ?? 0).toLocaleString('es-CL')}` : '',
-      cotizacion ? `Material IA: ${cotizacion.material_sugerido_ia || cotizacion.material_detectado || ''}` : '',
-      cotizacion ? `Complejidad IA: ${cotizacion.complejidad_ia || cotizacion.complejidad || ''}` : '',
-    ].filter(Boolean).join('\n')
-
     const data = new FormData()
     data.append('nombre', form.nombre.trim())
     data.append('email', form.email.trim())
@@ -219,7 +208,7 @@ export default function Cotizacion() {
     data.append('cantidad', form.cantidad)
     data.append('uso', form.uso)
     data.append('color', colorFinal)
-    data.append('descripcion', resumen)
+    data.append('descripcion', form.descripcion.trim())
 
     if (cotizacion) {
       data.append('estimacion_firma', firma)
