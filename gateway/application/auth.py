@@ -288,7 +288,7 @@ def despachar_codigo_verificacion(email, ip):
 
     if configurado_correo():
         try:
-            enviar_correo_codigo(email, codigo)
+            enviar_correo_codigo(email, codigo, minutos=DURACION_CODIGO_MINUTOS)
         except ErrorEnvioCorreo:
             repositorios.registrar_log("codigo_correo_fallo", None, ip, email)
             raise CodigoNoEnviado()
@@ -359,7 +359,9 @@ def despachar_codigo_recuperacion(email, ip):
 
     if configurado_correo():
         try:
-            enviar_correo_codigo(email, codigo)
+            enviar_correo_codigo(
+                email, codigo, minutos=DURACION_CODIGO_RECUPERACION_MINUTOS
+            )
         except ErrorEnvioCorreo:
             repositorios.registrar_log("codigo_correo_fallo", None, ip, email)
             raise CodigoNoEnviado()
@@ -500,7 +502,6 @@ def iniciar_sesion(email, password, ip, user_agent, fabrica_tokens):
             raise CuentaBloqueada(resultado["espera_seg"])
         raise CredencialesInvalidas()
 
-    # Password correcto: limpiar contador de fallos.
     repositorios.limpiar_bloqueo(email, "password")
 
     if usuario.get("mfa_activo"):

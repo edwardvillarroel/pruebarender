@@ -95,7 +95,7 @@ def test_comprobante_incluye_numero_total_e_items():
     assert "x2" in correo.html
     assert "$2.000" in correo.html
     assert "$2.000" in correo.texto
-    assert "¡Seguimos creando contigo!" in correo.texto
+    assert "¡Impulsando la creatividad con cada impresión!" in correo.texto
     _assert_marco(correo.html)
     _assert_icono(correo.html, "check")
 
@@ -177,7 +177,7 @@ def test_codigo_y_alerta_de_seguridad():
     assert codigo.asunto == "Tu código de verificación — ApoloVibes"
     assert "Tu código de verificación es:" in codigo.texto
     assert "123456" in codigo.texto
-    assert "Este código tiene una vigencia limitada." in codigo.texto
+    assert "Este código tiene una vigencia de 5 minutos." in codigo.texto
     assert "Si no solicitaste este código, ignora este mensaje." in codigo.texto
     _assert_marco(codigo.html)
     _assert_icono(codigo.html, "escudo")
@@ -188,6 +188,14 @@ def test_codigo_y_alerta_de_seguridad():
     assert "Se detectaron intentos fallidos." in alerta.texto
     assert "Si no fuiste tú, cambia tu contraseña de inmediato." in alerta.texto
     _assert_icono(alerta.html, "escudo-alerta")
+
+
+def test_codigo_de_registro_declara_su_vigencia_real():
+    codigo = plantillas.codigo_verificacion("123456", minutos=10)
+
+    assert "Este código tiene una vigencia de 10 minutos." in codigo.html
+    assert "Este código tiene una vigencia de 10 minutos." in codigo.texto
+    assert "5 minutos" not in codigo.texto
 
 
 def test_icono_html_usa_el_color_del_glifo():

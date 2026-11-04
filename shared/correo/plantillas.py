@@ -1,8 +1,3 @@
-"""Plantillas de correo transaccional de ApoloVibes.
-
-Todas las funciones devuelven un `Correo` con asunto, HTML y texto plano.
-Los textos visibles están en español neutro.
-"""
 
 from __future__ import annotations
 
@@ -197,7 +192,7 @@ def comprobante_pedido(pedido: PedidoCorreo, frontend_url: str | None = None) ->
         + seccion("Tus productos")
         + tabla_items(pedido.items, frontend_url)
         + tabla_totales(pedido)
-        + _parrafo("¡Seguimos creando contigo!", margen="18px 0 0", centrado=True)
+        + _parrafo("¡Impulsando la creatividad con cada impresión!", margen="18px 0 0", centrado=True)
     )
     html = envolver(
         "¡Gracias por tu compra!",
@@ -225,7 +220,7 @@ def comprobante_pedido(pedido: PedidoCorreo, frontend_url: str | None = None) ->
         "",
         _totales_texto(pedido),
         "",
-        "¡Seguimos creando contigo!",
+        "¡Impulsando la creatividad con cada impresión!",
         "",
         "Equipo ApoloVibes",
     )
@@ -317,7 +312,7 @@ def admin_nueva_cotizacion(
                 FilaDetalle("Estado", cotizacion.estado),
             ]
         )
-        + boton("Ver cotización en el panel", enlace)
+        + boton("Ver cotización", enlace)
     )
     html = envolver(
         f"Nueva cotización #{cotizacion.numero}",
@@ -345,7 +340,7 @@ def admin_nueva_cotizacion(
         _fila_texto("Precio estimado", formatear_pesos(precio)),
         _fila_texto("Estado", cotizacion.estado),
         "",
-        f"Ver cotización en el panel: {enlace}",
+        f"Ver cotización: {enlace}",
         "",
         "Equipo de administración",
     )
@@ -422,11 +417,7 @@ def cotizacion_aprobada(
             centrado=True,
         )
         + boton("Mis Cotizaciones", enlace)
-        + _parrafo(
-            "Si tienes dudas, responde este correo.",
-            margen="0",
-            centrado=True,
-        )
+
     )
     html = envolver(
         "¡Tu cotización fue aprobada!",
@@ -454,8 +445,6 @@ def cotizacion_aprobada(
         "",
         "Para pagar, revisa los detalles en nuestra página:",
         enlace,
-        "",
-        "Si tienes dudas, responde este correo.",
         "",
         "Equipo ApoloVibes",
     )
@@ -497,14 +486,19 @@ def cotizacion_rechazada(
     return Correo(asunto=asunto, html=html, texto=texto)
 
 
-def codigo_verificacion(codigo: str) -> Correo:
-    """Código de un solo uso para el gateway."""
+def codigo_verificacion(codigo: str, minutos: int = 5) -> Correo:
+    """Código de un solo uso para el gateway.
+
+    `minutos` debe coincidir con el TTL real del código (registro 10 min,
+    recuperación 5 min) para que el correo no prometa otra vigencia.
+    """
     asunto = "Tu código de verificación — ApoloVibes"
+    vigencia = f"Este código tiene una vigencia de {minutos} minutos."
 
     cuerpo_html = (
         caja_codigo(codigo)
         + _parrafo(
-            "Este código tiene una vigencia limitada.",
+            vigencia,
             margen="0 0 8px",
             centrado=True,
         )
@@ -521,7 +515,7 @@ def codigo_verificacion(codigo: str) -> Correo:
         cuerpo_html,
         icono=icono_html("escudo"),
         subtitulo="Tu código de verificación es:",
-        pie="Equipo de seguridad",
+        pie="Equipo de seguridad ApoloVibes",
     )
 
     texto = _lineas(
@@ -529,10 +523,10 @@ def codigo_verificacion(codigo: str) -> Correo:
         "Tu código de verificación es:",
         codigo,
         "",
-        "Este código tiene una vigencia limitada.",
+        vigencia,
         "Si no solicitaste este código, ignora este mensaje.",
         "",
-        "Equipo de seguridad",
+        "Equipo de seguridad ApoloVibes",
     )
     return Correo(asunto=asunto, html=html, texto=texto)
 
@@ -556,7 +550,7 @@ def alerta_seguridad(detalle: str) -> Correo:
         cuerpo_html,
         icono=icono_html("escudo-alerta"),
         subtitulo="Detectamos actividad de seguridad en tu cuenta.",
-        pie="Equipo de seguridad",
+        pie="Equipo de seguridad ApoloVibes",
     )
 
     texto = _lineas(
@@ -565,6 +559,6 @@ def alerta_seguridad(detalle: str) -> Correo:
         detalle,
         "Si no fuiste tú, cambia tu contraseña de inmediato.",
         "",
-        "Equipo de seguridad",
+        "Equipo de seguridad ApoloVibes",
     )
     return Correo(asunto=asunto, html=html, texto=texto)
