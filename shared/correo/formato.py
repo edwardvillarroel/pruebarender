@@ -548,7 +548,7 @@ def envolver(
         f"{logo_html(frontend_url)}"
         "</td>"
         '<td align="right" valign="bottom" '
-        'style="padding:16px 24px 0 0;text-align:right;vertical-align:bottom;">'
+        'style="padding:16px 32px 0 0;text-align:right;vertical-align:bottom;">'
         f'<img src="{escapar(mascota)}" width="96" height="110" '
         'alt="ApoloVibes" '
         'style="display:block;width:96px;height:110px;border:0;">'
