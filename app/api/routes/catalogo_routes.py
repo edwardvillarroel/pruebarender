@@ -144,8 +144,11 @@ def mas_vendidos():
     - `7d`, `30d`, `todo`: ventana movil desde el pago completado.
     - `semana`: semana calendario (lunes a domingo, hora de Chile) con la regla
       de negocio: si la semana actual tiene mas de 4 productos distintos
-      vendidos se muestra esa; si no, la semana anterior. En ese caso la
-      respuesta agrega `semana: {tipo, desde, hasta, productos_distintos_actual}`.
+      vendidos se muestra esa; si no, la semana anterior (si esa tambien tiene
+      mas de 4, se pasa al historico completo). En ese caso la respuesta agrega
+      `semana: {tipo, desde, hasta, productos_distintos_actual}`. Con tipo
+      `"historico"` no hay semana: se muestran los mejores vendidos de toda la
+      historia y `desde`/`hasta` son null.
 
     El corte del top va en `limite`. Cada producto sale con los mismos campos
     que el catalogo mas `unidades_vendidas` e `ingresos`, asi la tarjeta se
@@ -159,10 +162,12 @@ def mas_vendidos():
         if periodo == PERIODO_SEMANA:
             ranking = servicio.listar_mas_vendidos_semana(limite)
             vendidos = ranking.productos
+            # Con `"historico"` no hay semana: `desde`/`hasta` son None y el
+            # frontend vuelve al titulo normal de los mas vendidos.
             metadatos["semana"] = {
                 "tipo": ranking.tipo,
-                "desde": ranking.desde.isoformat(),
-                "hasta": ranking.hasta.isoformat(),
+                "desde": ranking.desde.isoformat() if ranking.desde else None,
+                "hasta": ranking.hasta.isoformat() if ranking.hasta else None,
                 "productos_distintos_actual": ranking.productos_distintos_semana_actual,
             }
         else:

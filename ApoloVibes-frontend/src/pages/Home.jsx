@@ -32,7 +32,8 @@ function fondoDeCategoria(nombre) {
 export default function Home() {
   const { productos, categorias, cargando } = useProductos()
   // La semana la decide el backend: si la actual no tiene mas de 4 productos
-  // distintos vendidos, devuelve la anterior y lo informa en `semana.tipo`.
+  // distintos vendidos, devuelve la anterior (y si esa tampoco, el historico);
+  // en todos los casos lo informa en `semana.tipo`.
   const rankingSemanal = useMasVendidos('semana', 10)
   const lanzamientos = useMemo(
     () => productos
@@ -47,7 +48,17 @@ export default function Home() {
   )
 
   const hayRanking = !rankingSemanal.cargando && !rankingSemanal.error
-  const esSemanaAnterior = rankingSemanal.semana?.tipo === 'anterior'
+  const tipoSemana = rankingSemanal.semana?.tipo
+  // Con tipo "anterior" el ranking viene de la semana pasada; con "historico"
+  // (ni la actual ni la anterior alcanzaron el umbral de 4 productos distintos)
+  // viene del historico de mas vendidos, asi que el titulo vuelve a ser el de
+  // los mas vendidos de la semana.
+  const esSemanaAnterior = tipoSemana === 'anterior'
+  const tituloRanking = !hayRanking
+    ? 'Nuestros productos'
+    : esSemanaAnterior
+      ? 'Los más vendidos de la semana anterior'
+      : 'Los más vendidos de la semana'
 
   return (
     <>
@@ -55,9 +66,7 @@ export default function Home() {
       <section className="wrap section-py-mobile" style={{ paddingTop: '80px' }}>
         <hr className="separador" />
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 18, marginBottom: 30, textAlign: 'center', color: 'var(--surface)' }}>
-          {hayRanking
-            ? (esSemanaAnterior ? 'Los más vendidos de la semana anterior' : 'Los más vendidos de la semana')
-            : 'Nuestros productos'}
+          {tituloRanking}
         </h2>
         {rankingSemanal.cargando && (
           <p style={{ textAlign: 'center', color: 'var(--text-dim)' }}>Cargando productos…</p>

@@ -253,6 +253,35 @@ def test_el_periodo_semana_usa_el_servicio_con_fallback(app, client):
     }
 
 
+def test_el_periodo_semana_cae_al_historico_cuando_la_anterior_tambien_es_pobre(
+    app, client
+):
+    """Si ni la actual ni la anterior alcanzan el umbral de 4 productos, el
+    ranking pasa al historico: sin ventana y con tipo `"historico"`."""
+    servicio = Mock()
+    servicio.listar_mas_vendidos_semana.return_value = RankingSemana(
+        productos=[_vendido()],
+        tipo="historico",
+        desde=None,
+        hasta=None,
+        productos_distintos_semana_actual=2,
+    )
+    app.config["PRODUCTO_SERVICE"] = servicio
+
+    cuerpo = client.get("/api/productos/mas-vendidos?periodo=semana").get_json()
+
+    servicio.listar_mas_vendidos_semana.assert_called_once()
+    servicio.listar_mas_vendidos.assert_not_called()
+    assert cuerpo["periodo"] == "semana"
+    assert cuerpo["total"] == 1
+    assert cuerpo["semana"] == {
+        "tipo": "historico",
+        "desde": None,
+        "hasta": None,
+        "productos_distintos_actual": 2,
+    }
+
+
 def test_el_limite_semanal_viaja_crudo_al_servicio(app, client):
     app.config["PRODUCTO_SERVICE"] = _servicio_semana()
 

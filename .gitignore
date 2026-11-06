@@ -3,7 +3,7 @@
 env/
 .venv/
 venv/
-
+OWASP_TOP_10.txt
 # Oracle Autonomous — wallet mTLS y credenciales (NUNCA subir)
 Wallet_*/
 *.zip

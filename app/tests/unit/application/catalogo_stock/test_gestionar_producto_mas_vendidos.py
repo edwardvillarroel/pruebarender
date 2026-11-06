@@ -10,8 +10,10 @@ ruta ni del repositorio:
 2. El limite se acota. Sin tope, un `limite=100000` arrastra el catalogo
    entero a memoria.
 
-Ademas, la variante semanal aplica la regla de negocio: si la semana en curso
-tiene mas de 4 productos distintos vendidos se muestra esa; si no, la anterior.
+Ademas, la variante semanal aplica la regla de negocio en cascada: si la semana
+en curso tiene mas de 4 productos distintos vendidos se muestra esa; si no, se
+muestra la anterior; y si la anterior tampoco tiene mas de 4, se muestra el
+historico completo de productos mas vendidos.
 """
 
 from datetime import datetime, time, timedelta, timezone
@@ -203,10 +205,24 @@ def _semana_actual_y_anterior():
     return lunes_actual, actual, anterior
 
 
-def _servicio_semana(distintos: int, vendidos=None):
+def _servicio_semana(distintos: int, vendidos=None, anteriores: int = 0):
+    """Servicio con la regla semanal mockeada.
+
+    `distintos` es la cantidad de productos distintos vendidos en la semana
+    actual y `anteriores` en la anterior. La ventana se evalua por su tupla
+    exacta, asi el side effect distingue actual de anterior.
+    """
     servicio, repositorio = _servicio(vendidos)
-    repositorio.contar_productos_distintos.return_value = distintos
+    lunes_actual, (inicio_actual, fin_actual), (_, fin_anterior) = (
+        _semana_actual_y_anterior()
+    )
+    repositorio.contar_productos_distintos.side_effect = (
+        lambda desde, hasta: distintos
+        if (desde, hasta) == (inicio_actual, fin_actual)
+        else anteriores
+    )
     repositorio.listar_mas_vendidos_en_ventana.return_value = vendidos or []
+    repositorio.listar_mas_vendidos.return_value = vendidos or []
     return servicio, repositorio
 
 
@@ -225,9 +241,10 @@ def test_con_mas_de_cuatro_productos_distintos_usa_la_semana_actual():
 
 
 def test_con_exactamente_cuatro_productos_distintos_usa_la_semana_anterior():
-    """El umbral es "mas de 4": cuatro todavia no alcanza."""
+    """El umbral es "mas de 4": cuatro todavia no alcanza, asi que si la
+    anterior tiene suficientes productos se muestra esa."""
     _, _, (inicio_anterior, fin_anterior) = _semana_actual_y_anterior()
-    servicio, repositorio = _servicio_semana(UMBRAL_PRODUCTOS_SEMANA)
+    servicio, repositorio = _servicio_semana(UMBRAL_PRODUCTOS_SEMANA, anteriores=5)
 
     resultado = servicio.listar_mas_vendidos_semana(10)
 
@@ -237,16 +254,38 @@ def test_con_exactamente_cuatro_productos_distintos_usa_la_semana_anterior():
     assert resultado.productos_distintos_semana_actual == 4
 
 
-def test_sin_ventas_en_la_semana_actual_usa_la_semana_anterior():
-    _, _, (inicio_anterior, fin_anterior) = _semana_actual_y_anterior()
-    servicio, repositorio = _servicio_semana(0)
+def test_sin_ventas_en_todas_las_semanas_parece_el_historico():
+    """Sin ventas ni en la actual ni en la anterior no hay nada que elegir de
+    una semana: el ranking de historico viene vacio."""
+    servicio, repositorio = _servicio_semana(0, anteriores=0)
 
     resultado = servicio.listar_mas_vendidos_semana(10)
 
-    desde, hasta, _ = repositorio.listar_mas_vendidos_en_ventana.call_args[0]
-    assert (desde, hasta) == (inicio_anterior, fin_anterior)
-    assert resultado.tipo == "anterior"
+    repositorio.listar_mas_vendidos_en_ventana.assert_not_called()
+    repositorio.listar_mas_vendidos.assert_called_once_with(None, 10)
+    assert resultado.tipo == "historico"
     assert resultado.productos == []
+
+
+def test_con_semana_anterior_tambien_con_pocos_productos_usa_el_historico():
+    """Si la semana anterior no alcanza el umbral, se cae al historico: los
+    mejores productos vendidos de toda la historia."""
+    servicio, repositorio = _servicio_semana(2, anteriores=3)
+    vendidos = [
+        ProductoVendido(producto=_producto(nombre="Historico"), unidades=8, ingresos=8000)
+    ]
+    repositorio.listar_mas_vendidos.return_value = vendidos
+
+    resultado = servicio.listar_mas_vendidos_semana(10)
+
+    # El historico no tiene ventana: se lista el ranking completo ordenado.
+    repositorio.listar_mas_vendidos_en_ventana.assert_not_called()
+    repositorio.listar_mas_vendidos.assert_called_once_with(None, 10)
+    assert resultado.tipo == "historico"
+    assert resultado.desde is None
+    assert resultado.hasta is None
+    assert resultado.productos_distintos_semana_actual == 2
+    assert [v.producto.nombre for v in resultado.productos] == ["Historico"]
 
 
 def test_las_semanas_actual_y_anterior_no_se_solapan():

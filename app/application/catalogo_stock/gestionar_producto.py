@@ -24,8 +24,9 @@ PERIODOS_MAS_VENDIDOS = {"7d": 7, "30d": 30, "todo": None}
 LIMITE_MAS_VENDIDOS_MAX = 50
 
 # Ranking semanal con fallback: si la semana en curso no alcanza este numero de
-# productos distintos vendidos, se muestra la semana anterior. La semana es
-# calendario (lunes a domingo) en hora de Chile, igual que `hoy_chile()`.
+# productos distintos vendidos, se muestra la semana anterior; si la anterior
+# tampoco, se muestra el historico completo de productos mas vendidos. La semana
+# es calendario (lunes a domingo) en hora de Chile, igual que `hoy_chile()`.
 PERIODO_SEMANA = "semana"
 DIAS_SEMANA = 7
 UMBRAL_PRODUCTOS_SEMANA = 4
@@ -35,14 +36,18 @@ UMBRAL_PRODUCTOS_SEMANA = 4
 class RankingSemana:
     """Resultado del ranking semanal y de donde salio.
 
-    `tipo` es `"actual"` o `"anterior"`: el frontend lo usa para no mentir en
-    el titulo cuando la semana en curso no tiene suficientes productos.
+    `tipo` es `"actual"`, `"anterior"` o `"historico"`: el frontend lo usa para
+    no mentir en el titulo cuando la semana elegida no es la actual. Con
+    `"anterior"` el titulo pasa a ser el de la semana pasada; con `"historico"`
+    (ni la actual ni la anterior alcanzaron el umbral) se muestran los mejores
+    vendidos de toda la historia y el titulo vuelve a ser el de los mas
+    vendidos de la semana.
     """
 
     productos: list[ProductoVendido]
     tipo: str
-    desde: datetime
-    hasta: datetime
+    desde: datetime | None
+    hasta: datetime | None
     productos_distintos_semana_actual: int
 
 
@@ -256,17 +261,23 @@ class GestionarProducto:
         return vendidos
 
     def listar_mas_vendidos_semana(self, limite: int = 10) -> RankingSemana:
-        """Ranking de la semana actual, con fallback a la semana anterior.
+        """Ranking de la semana actual, con fallback a la anterior y al historico.
 
-        Regla de negocio: si la semana en curso tiene **mas de**
+        Regla de negocio en cascada: si la semana en curso tiene **mas de**
         `UMBRAL_PRODUCTOS_SEMANA` productos distintos vendidos, se muestra esa
-        semana; si tiene ese numero o menos, se muestra la semana anterior.
+        semana; si tiene ese numero o menos, se muestra la semana anterior, pero
+        solo si esa también alcanza el umbral; si la anterior tampoco alcanza,
+        se muestra el ranking historico de productos mas vendidos.
+
         Se cuentan productos distintos, no unidades: diez unidades del mismo
         producto cuentan como uno.
 
         La semana es calendario, de lunes a domingo en hora de Chile
         (`ZONA_CHILE`): un servidor en UTC no puede decidir el corte de semana
         con su propia fecha.
+
+        Con `"historico"` no hay ventana: `desde`/`hasta` son `None` y el
+        repositorio lista los mejores vendidos de todo el historico.
         """
         limite = _acotar_limite(limite)
         lunes_actual = _lunes_de(hoy_chile())
@@ -279,10 +290,25 @@ class GestionarProducto:
             tipo = "actual"
             desde, hasta = inicio_actual, fin_actual
         else:
-            tipo = "anterior"
-            desde, hasta = _ventana_semana(lunes_actual - timedelta(days=DIAS_SEMANA))
+            inicio_anterior, fin_anterior = _ventana_semana(
+                lunes_actual - timedelta(days=DIAS_SEMANA)
+            )
+            distintos_anterior = self._repositorio.contar_productos_distintos(
+                inicio_anterior, fin_anterior
+            )
+            if distintos_anterior > UMBRAL_PRODUCTOS_SEMANA:
+                tipo = "anterior"
+                desde, hasta = inicio_anterior, fin_anterior
+            else:
+                # Ni la actual ni la anterior alcanzaron el umbral: no hay una
+                # semana con productos suficientes, caemos al historico completo.
+                tipo = "historico"
+                desde = hasta = None
 
-        vendidos = self._repositorio.listar_mas_vendidos_en_ventana(desde, hasta, limite)
+        if tipo == "historico":
+            vendidos = self._repositorio.listar_mas_vendidos(None, limite)
+        else:
+            vendidos = self._repositorio.listar_mas_vendidos_en_ventana(desde, hasta, limite)
         self._completar_fotos([v.producto for v in vendidos])
         return RankingSemana(
             productos=vendidos,
