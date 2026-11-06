@@ -31,3 +31,4 @@ services:
       - { key: STARKEN_API_KEY, sync: false }
       - { key: LLM_API_KEY, sync: false }
       - { key: COTIZADOR_IA_URL, sync: false }
+      - { key: CRON_SECRET, sync: false }

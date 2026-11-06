@@ -32,6 +32,14 @@ const LINK_BUTTON_STYLE = {
   fontFamily: 'inherit',
 }
 
+const CLAVES_LEGALES = ['términos', 'privacidad', 'cookies', 'devoluciones']
+
+function esControlLegal(elemento) {
+  const texto = (elemento.textContent || '').toLowerCase()
+  const href = (elemento.getAttribute?.('href') || '').toLowerCase()
+  return CLAVES_LEGALES.some((clave) => texto.includes(clave) || href.includes(clave))
+}
+
 function SeccionFooter({ titulo, abierta, alAlternar, children }) {
   return (
     <div className="footer-seccion">
@@ -90,11 +98,11 @@ export default function Footer() {
       )
       if (!estaEnCheckout) return
 
-      // Bloquear links
+      // Bloquear links (salvo los que abren un modal legal)
       const enlace = target.closest('a')
       if (enlace) {
         const href = enlace.getAttribute('href')
-        if (href && !href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('tel:') && enlace.target !== '_blank' && !href.startsWith('#') && !href.startsWith('javascript:')) {
+        if (!esControlLegal(enlace) && href && !href.startsWith('http') && !href.startsWith('mailto:') && !href.startsWith('tel:') && enlace.target !== '_blank' && !href.startsWith('#') && !href.startsWith('javascript:')) {
           e.preventDefault()
           e.stopPropagation()
           e.stopImmediatePropagation()
@@ -109,8 +117,7 @@ export default function Footer() {
         const boton = target.closest('button')
         if (boton) {
           // Permitir abrir modales legales
-          const texto = boton.textContent?.toLowerCase() || ''
-          if (texto.includes('términos') || texto.includes('privacidad') || texto.includes('cookies') || texto.includes('despachos') || texto.includes('devoluciones')) {
+          if (esControlLegal(boton)) {
             return
           }
           e.preventDefault()

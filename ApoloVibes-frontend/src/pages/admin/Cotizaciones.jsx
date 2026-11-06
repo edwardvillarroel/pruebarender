@@ -7,7 +7,7 @@ import {
   Timer
 } from 'lucide-react'
 import { useBloqueoScroll } from '../../hooks/useBloqueoScroll.js'
-import { mediaPath } from '../../utils/media.js'
+import { mediaPath, urlMedia } from '../../utils/media.js'
 import { api } from '../../services/api.js'
 
 const estilosEstado = {
@@ -81,7 +81,7 @@ function leerDescripcion(descripcion) {
 
 function MiniaturaModal({ src, nombre }) {
   const [fallo, setFallo] = useState(false)
-  const url = src ? (src.startsWith('http') ? src : `/api/uploads/${src.replace(/\\/g, '/')}`) : ''
+  const url = src ? urlMedia(src) : ''
 
   return (
     <div style={{ width: 96, height: 96, borderRadius: 12, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--input-bg)', border: `1px solid ${LINEA}`, color: COLOR_APAGADO }}>

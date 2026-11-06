@@ -118,6 +118,13 @@ class Config:
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "glb", "stl"}
     UPLOAD_FOLDER = BASE_DIR / "uploads"
 
+    # URLs firmadas de /api/uploads (F1): sin UPLOAD_SIGN_SECRET explícito se
+    # firma con SECRET_KEY; TTL por defecto 24 h.
+    UPLOAD_SIGN_SECRET = os.getenv("UPLOAD_SIGN_SECRET", "") or SECRET_KEY
+    UPLOAD_SIGN_TTL_SECONDS = int(os.getenv("UPLOAD_SIGN_TTL_SECONDS", "86400"))
+    # Secreto del cron de purga de cotizaciones (F3). Vacío => endpoint 503.
+    CRON_SECRET = os.getenv("CRON_SECRET", "")
+
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
     FRONTEND_DIST = os.getenv(
         "FRONTEND_DIST", str(BASE_DIR.parent / "ApoloVibes-frontend" / "dist")

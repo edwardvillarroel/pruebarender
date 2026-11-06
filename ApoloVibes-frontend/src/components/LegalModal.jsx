@@ -30,7 +30,7 @@ Las cotizaciones generadas con nuestro cotizador automatizado son estimaciones y
 Aceptamos los medios de pago disponibles en el checkout, incluyendo tarjetas de crédito y débito a través de la plataforma Tuu. El procesamiento de pagos está sujeto a las políticas de ese proveedor. Apolo Vibes 3D no almacena los datos de su tarjeta.
 
 7. Envíos y Entregas
-Puede elegir envío a domicilio o retiro en Álvarez 1106, Viña del Mar, según las opciones disponibles durante la compra. Los plazos de entrega se informan en el checkout y pueden variar según la ubicación y la complejidad de los pedidos personalizados. Trabajamos con empresas de transporte externas, como Starken, pero somos responsables frente a usted por la entrega de su pedido. Si hay retrasos, se lo comunicaremos y podrá ejercer los derechos que le reconoce la ley.
+Puede elegir envío a domicilio o retiro en Álvarez 1106, Viña del Mar, según las opciones disponibles durante la compra. Los plazos de entrega se informan en el checkout y pueden variar según la ubicación y la complejidad de los pedidos personalizados. Trabajamos con empresas de transporte externas, como Starken y Bluexpress, pero somos responsables frente a usted por la entrega de su pedido. Si hay retrasos, se lo comunicaremos y podrá ejercer los derechos que le reconoce la ley.
 
 8. Derecho de Retracto
 De acuerdo con la Ley 19.496, en las compras realizadas a través del Sitio usted puede arrepentirse dentro de 10 días contados desde la recepción del producto, sin necesidad de expresar causa.
@@ -72,7 +72,7 @@ Para consultas sobre estos Términos: apolovibes3d@gmail.com`,
     actualizacion: fechaLegalLarga(),
     texto:
       `1. Responsable del Tratamiento
-El responsable de sus datos personales es Apolo Vibes SPA, con domicilio en calle Pasaje el Boldo Nro:33, Viña del Mar, Chile. Contacto: apolovibes3d@gmail.com.
+El responsable de sus datos personales es Apolo Vibes SPA, RUT 78.064.166-5, con domicilio en calle Pasaje el Boldo Nro: 33, Viña del Mar, Chile. Puede contactarnos en apolovibes3d@gmail.com.
 
 2. Datos que Recopilamos
 - Datos de identificación y contacto: nombre, apellidos, RUT, correo y teléfono.
@@ -80,7 +80,7 @@ El responsable de sus datos personales es Apolo Vibes SPA, con domicilio en call
 - Datos de pedidos y cotizaciones: productos, montos, tipo de documento tributario (boleta o factura) y comunicaciones con nosotros.
 - Datos de facturación, si solicita factura: RUT, razón social y giro.
 - Reseñas que publique: calificación, comentario y nombre de autor, que se muestran públicamente en la ficha del producto.
-- Contenido que ingresa en el cotizador: descripciones e imágenes del diseño.
+- Contenido que ingresa en el cotizador: descripciones e imágenes del diseño (JPG, PNG o WebP).
 - Datos de pago: se procesan directamente en Tuu; nosotros no almacenamos los datos de su tarjeta, solo el identificador de la transacción y su estado.
 - Datos de autenticación: contraseña almacenada con hash y, si activa la verificación en dos pasos, el secreto de la aplicación de autenticación y los códigos de respaldo.
 - Datos de su cuenta de Google, si inicia sesión con Google: nombre, apellido y correo.
@@ -88,6 +88,7 @@ El responsable de sus datos personales es Apolo Vibes SPA, con domicilio en call
 
 3. Para Qué los Usamos y Con Qué Fundamento
 - Procesar y entregar sus pedidos y cotizaciones (necesario para ejecutar el contrato).
+- Cotizar y fabricar pedidos personalizados a partir de las imágenes de referencia que usted envía. Las usamos solo para ese fin: no las compartimos, vendemos ni reutilizamos para otros fines.
 - Enviarle por correo el comprobante y los avisos sobre su pedido (ejecución del contrato).
 - Atender consultas, garantías y reclamos (ejecución del contrato y obligaciones legales).
 - Cumplir obligaciones tributarias y contables (obligación legal).
@@ -97,14 +98,19 @@ El responsable de sus datos personales es Apolo Vibes SPA, con domicilio en call
 Actualmente no enviamos boletines ni promociones por correo. Si lo hacemos en el futuro, será solo con su consentimiento previo, que podrá retirar cuando quiera.
 
 4. Uso de Herramientas Automatizadas
-Para estimar cotizaciones, las imágenes y descripciones que usted envía se procesan mediante un servicio de estimación automatizada que calcula materiales y precio. No lo use para enviar datos sensibles o de otras personas. Usamos ese contenido solo para prestarle el servicio solicitado. La generación de diseños 3D con inteligencia artificial no está habilitada actualmente.
+
+- Para estimar cotizaciones, las imágenes y descripciones que usted envía se procesan mediante un servicio automatizado que analiza las características del diseño y calcula una estimación de materiales, complejidad y precio.
+- El procesamiento se realiza en nuestro propio servicio de cotización, alojado en Render (https://cotizadorapoloai.onrender.com), mediante modelos de inteligencia artificial ejecutados dentro del propio servicio. De acuerdo con la arquitectura técnica revisada, el análisis de imágenes utiliza modelos locales TensorFlow Lite y no requiere enviar las imágenes a APIs externas de inteligencia artificial.
+- Las imágenes y descripciones se utilizan exclusivamente para prestar el servicio de cotización solicitado. No las utilizamos para entrenar modelos de terceros ni para fines distintos sin una autorización o fundamento válido.
+- No envíe mediante el cotizador datos sensibles ni imágenes de otras personas sin contar con la autorización correspondiente.
 
 5. Con Quién Compartimos sus Datos
 No vendemos sus datos personales. Los compartimos solo con proveedores que los necesitan para prestarnos el servicio (encargados del tratamiento):
 - Proveedores de pago (Tuu).
-- Empresas de transporte y envío (Starken).
-- Proveedores de alojamiento web y de correo transaccional.
-- Servicio de estimación automatizada de cotizaciones.
+- Empresas de transporte y envío (Starken y Bluexpress), únicamente con los datos necesarios para el despacho. Sus imágenes de referencia no se comparten con ellas.
+- Proveedores de alojamiento web y de correo transaccional (V2NET, Render y Resend).
+- Base de datos y almacenamiento (Supabase).
+- Servicio de estimación automatizada de cotizaciones (nuestro cotizador IA).
 - Proveedores de autenticación (Google), si inicia sesión con su cuenta.
 - Proveedores de verificación de seguridad (Google reCAPTCHA).
 También podemos comunicarlos cuando lo exija la ley o una autoridad competente.
@@ -119,24 +125,68 @@ Usamos solo cookies esenciales para el funcionamiento del Sitio y no utilizamos 
 - Datos de su cuenta: mientras la cuenta esté activa.
 - Datos de pedidos y documentos tributarios: 6 años, por obligaciones legales.
 - Cotizaciones que no se concretan: 12 meses.
+- Archivos e imágenes de cotización: mientras la relación comercial esté activa o hasta que usted solicite su eliminación.
 - Registros de seguridad: durante el tiempo necesario para prevenir fraudes y atender reclamos.
+Puede solicitar en cualquier momento la eliminación total de sus archivos y cotizaciones escribiendo a apolovibes3d@gmail.com. Ejecutaremos la eliminación en nuestros sistemas activos en un máximo de 48 horas desde que verifiquemos su identidad. Esta eliminación no alcanza a los datos y documentos que debamos conservar por obligaciones legales o tributarias (por ejemplo, boletas y facturas, que se conservan por 6 años).
 Una vez cumplidos esos plazos, eliminamos o anonimizamos los datos. No usamos sus datos para marketing, por lo que no mantenemos información con esa finalidad.
 
 9. Seguridad
-Aplicamos medidas técnicas y organizativas razonables para proteger sus datos contra acceso no autorizado, pérdida o alteración. Las contraseñas se almacenan con hash, ofrecemos verificación en dos pasos y usamos reCAPTCHA en el registro y el inicio de sesión. Si ocurre una brecha de seguridad que afecte sus datos, actuaremos y notificaremos según lo exige la ley.
+Aplicamos medidas técnicas y organizativas razonables para proteger sus datos contra acceso no autorizado, pérdida o alteración. Las contraseñas se almacenan con hash, ofrecemos verificación en dos pasos y usamos reCAPTCHA en el registro y el inicio de sesión. Usamos conexiones cifradas (TLS) para el sitio y la API. Nuestras prácticas se inspiran en la norma ISO/IEC 27001:2022, aunque no contamos con certificación en esa norma. Ningún sistema es completamente infalible. Si ocurre una brecha de seguridad que afecte sus datos, actuaremos y notificaremos según exige la ley.
 
 10. Sus Derechos
-Usted puede solicitar el acceso, la rectificación, la supresión, la oposición al tratamiento, la portabilidad de sus datos y el bloqueo temporal, además de retirar su consentimiento en cualquier momento. Para ejercer estos derechos, escríbanos a apolovibes3d@gmail.com indicando su nombre y qué solicita. Le responderemos dentro de los plazos legales. Si considera que no atendimos su solicitud, puede reclamar ante la autoridad de protección de datos competente.
+Usted puede solicitar el acceso, la rectificación, la supresión, la oposición al tratamiento, la portabilidad de sus datos y el bloqueo temporal, además de retirar su consentimiento en cualquier momento. Para ejercer estos derechos, escríbanos a apolovibes3d@gmail.com indicando su nombre y qué solicita. Le responderemos dentro de los plazos legales. Estas solicitudes se tramitan conforme a la normativa chilena de protección de datos personales, incluida la Ley N° 21.719 en las disposiciones que se encuentren vigentes. Si considera que no atendimos su solicitud, puede reclamar ante la autoridad de protección de datos competente.
 
 11. Menores de Edad
 El Sitio no está dirigido a menores de 18 años y no recopilamos intencionalmente sus datos personales.
 
 12. Cambios en esta Política
-Podemos actualizar esta Política. Publicaremos los cambios en esta página con la fecha de última actualización.
+Podemos actualizar esta Política. Publicaremos los cambios en esta página con la fecha de última actualización. Si el cambio es relevante, lo informaremos por los canales de contacto del Sitio.
 
 13. Contacto
 - Correo: apolovibes3d@gmail.com
-- Dirección: calle Pasaje el Boldo Nro:33, Viña del Mar, Chile.`,
+- Dirección: calle Pasaje el Boldo Nro: 33, Viña del Mar, Chile.
+
+14. Principios de Seguridad de la Información
+
+Apolo Vibes SPA orienta sus prácticas de seguridad de la información conforme a los siguientes principios:
+
+a) Confidencialidad: los archivos e imágenes que proporciona el cliente son utilizados exclusivamente para la cotización y fabricación del producto solicitado. No se venden, comparten ni reutilizan para otras finalidades.
+
+b) Integridad: aplicamos medidas para prevenir la alteración no autorizada de los datos, pedidos y cotizaciones.
+
+c) Disponibilidad: nos esforzamos por mantener nuestros servicios operativos. Algunos componentes tecnológicos pueden presentar demoras de arranque o interrupciones puntuales. Si ocurre un incidente que afecte de forma relevante el servicio o los datos personales, actuaremos conforme a los procedimientos establecidos y a la normativa aplicable.
+
+d) Privacidad: adecuamos nuestras prácticas al marco normativo chileno de protección de datos personales, incluida la Ley N.º 21.719, en las disposiciones que se encuentren vigentes.
+
+
+15. Compromiso de la Dirección
+
+La dirección de Apolo Vibes SPA se compromete a destinar los recursos necesarios para mantener y mejorar continuamente las medidas de seguridad de la información, procurando proteger la confidencialidad, integridad y disponibilidad de los datos tratados por la organización.
+
+
+16. Gestión de Incidentes de Seguridad
+
+Ante un incidente que pueda afectar la seguridad de la información o los datos personales, Apolo Vibes SPA adoptará las medidas que correspondan para:
+
+- Investigar el incidente y determinar su alcance.
+- Contener sus efectos y reducir los riesgos asociados.
+- Adoptar medidas correctivas y preventivas.
+- Notificar a las personas afectadas y a las autoridades competentes cuando corresponda, conforme a la normativa aplicable.
+
+Cuando sea necesario realizar una notificación, esta se efectuará por los medios más expeditos posibles y sin dilaciones indebidas, de acuerdo con las obligaciones legales aplicables.
+
+
+17. Revisión de la Política
+
+Esta Política será revisada cada 6 meses y cada vez que se produzcan cambios relevantes en la infraestructura tecnológica, los proveedores de servicios, las operaciones de ApoloVibes 3D o la normativa aplicable.
+
+Próxima revisión programada: mayo de 2027.
+
+
+Historial de versiones
+
+- v1.1 — Noviembre de 2026.
+- v1.2 — Noviembre de 2026.`,
   },
   cambios: {
     titulo: 'Cambios y Devoluciones',

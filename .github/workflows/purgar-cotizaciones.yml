@@ -1,0 +1,15 @@
+name: Purgar cotizaciones
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+jobs:
+  purgar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ejecutar purge de cotizaciones (F3 / A.8.10)
+        run: |
+          curl -fsS -X POST -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
+            "https://api.apolovibes3d.cl/api/admin/cotizaciones/purgar"

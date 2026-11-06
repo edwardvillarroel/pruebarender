@@ -1,4 +1,5 @@
 from uuid import UUID
+import hmac
 import os
 
 import requests
@@ -6,6 +7,7 @@ from flask import Blueprint, current_app, jsonify, request, send_from_directory
 
 from app.api.middleware.auth import requiere_sesion, usuario_actual, rol_requerido
 from app.config import Config
+from app.infrastructure.imagenes.firmas_upload import firmar, verificar
 from app.infrastructure.imagenes.validador_imagen_segura import ImagenInvalida
 from app.infrastructure.cotizador import ClienteCotizadorIA
 from app.infrastructure.database.connection import utcnow
@@ -130,7 +132,7 @@ def listar_cotizaciones():
                     "cantidad": s.cantidad,
                     "uso": s.uso,
                     "color": s.color,
-                    "imagen": s.imagen,
+                    "imagen": firmar(s.imagen),
                     "modelo_url": s.modelo_url,
                     "precio": float(s.precio) if s.precio is not None else None,
                     "estado": s.estado.value if s.estado else "pendiente",
@@ -221,7 +223,7 @@ def listar_mis_cotizaciones():
                     "cantidad": s.cantidad,
                     "uso": s.uso,
                     "color": s.color,
-                    "imagen": s.imagen,
+                    "imagen": firmar(s.imagen),
                     "modelo_url": s.modelo_url,
                     "precio": float(s.precio) if s.precio is not None else None,
                     "estado": s.estado.value if s.estado else "pendiente",
@@ -304,7 +306,7 @@ def obtener_cotizacion(solicitud_id):
                 "cantidad": s.cantidad,
                 "uso": s.uso,
                 "color": s.color,
-                "imagen": s.imagen,
+                "imagen": firmar(s.imagen),
                 "modelo_url": s.modelo_url,
                 "precio": float(s.precio) if s.precio is not None else None,
                 "estado": s.estado.value if s.estado else "pendiente",
@@ -457,7 +459,63 @@ def estimar_cotizacion_ia():
 @diseno_bp.get("/uploads/<path:filename>")
 def servir_uploads(filename):
     try:
-        carpeta = Config.UPLOAD_FOLDER
+        # F1: sin firma vigente no se sirve el archivo (antes era público).
+        if not verificar(filename, request.args.get("exp"), request.args.get("sig")):
+            return jsonify({"error": "Enlace inválido o expirado."}), 403
+        carpeta = current_app.config.get("UPLOAD_FOLDER") or Config.UPLOAD_FOLDER
         return send_from_directory(carpeta, filename)
     except Exception:
         return jsonify({"error": "Archivo no encontrado"}), 404
+
+
+@diseno_bp.post("/admin/cotizaciones/purgar")
+def purgar_cotizaciones_admin():
+    """Purga semanal de cotizaciones vencidas (F3 / A.8.10), vía cron."""
+    try:
+        secreto = str(current_app.config.get("CRON_SECRET") or "")
+        if not secreto:
+            return jsonify({"error": "Purga no configurada"}), 503
+        header = request.headers.get("X-Cron-Secret") or ""
+        if not hmac.compare_digest(secreto.encode("utf-8"), header.encode("utf-8")):
+            return jsonify({"error": "No autorizado"}), 401
+
+        from app.application.diseno.purgar_cotizaciones import PurgadorCotizaciones
+        from app.infrastructure.repositories.solicitud_diseno_repository import (
+            SolicitudDisenoRepository,
+        )
+
+        dry_run = (
+            (request.args.get("dry_run") or "").strip().lower()
+            in ("1", "true", "yes", "si")
+        )
+        resultado = PurgadorCotizaciones(SolicitudDisenoRepository()).ejecutar(
+            dry_run=dry_run
+        )
+        return jsonify(resultado), 200
+    except Exception:
+        current_app.logger.exception("Error purgando cotizaciones")
+        return jsonify({"error": "No pudimos purgar las cotizaciones."}), 500
+
+
+@diseno_bp.delete("/cotizaciones/<uuid:solicitud_id>")
+@rol_requerido("admin")
+def eliminar_cotizacion(solicitud_id):
+    """Borrado manual de una cotización sin pedido asociado (retención A.8.10)."""
+    try:
+        from app.application.diseno.purgar_cotizaciones import PurgadorCotizaciones
+        from app.infrastructure.repositories.pedido_repository import PedidoRepository
+        from app.infrastructure.repositories.solicitud_diseno_repository import (
+            SolicitudDisenoRepository,
+        )
+
+        repo = SolicitudDisenoRepository()
+        s = repo.obtener_por_id(solicitud_id)
+        if s is None:
+            return jsonify({"error": "Cotización no encontrada"}), 404
+        if PedidoRepository().pagos_por_cotizacion([s.id]):
+            return jsonify({"error": "La cotización tiene un pedido asociado."}), 409
+        PurgadorCotizaciones(repo).eliminar_solicitud(s)
+        return jsonify({"ok": True, "id": str(s.id)}), 200
+    except Exception:
+        current_app.logger.exception("Error eliminando cotización %s", solicitud_id)
+        return jsonify({"error": "No pudimos eliminar la cotización."}), 500

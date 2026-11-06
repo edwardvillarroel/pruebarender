@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { mediaPath } from '../utils/media.js'
+import { mediaPath, urlMedia } from '../utils/media.js'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { useCart } from '../context/CartContext.jsx'
@@ -302,11 +302,7 @@ export default function Checkout() {
   const esCotizacion = Boolean(cotizacionId)
   const precioCotizacion = Number(cotizacion?.precio) || 0
   const cantidadCotizacion = Math.max(1, Number(cotizacion?.cantidad) || 1)
-  const imagenCotizacion = cotizacion?.imagen
-    ? (String(cotizacion.imagen).startsWith('http')
-        ? cotizacion.imagen
-        : `/api/uploads/${String(cotizacion.imagen).replace(/\\/g, '/')}`)
-    : null
+  const imagenCotizacion = urlMedia(cotizacion?.imagen) || null
   const items = esCotizacion && cotizacion
     ? [{
         id: null,

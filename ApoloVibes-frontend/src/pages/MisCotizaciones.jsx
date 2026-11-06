@@ -3,7 +3,7 @@ import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { AlertTriangle, Eye, Info, X, User, Mail, Phone, Clock,
     Lock, CheckCircle2, ChevronLeft, ChevronRight, Ruler, Hash, Layers, Tag, Palette, ImageOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { mediaPath } from '../utils/media.js';
+import { mediaPath, urlMedia } from '../utils/media.js';
 import { useBloqueoScroll } from '../hooks/useBloqueoScroll.js';
 import { api } from '../services/api.js';
 
@@ -80,7 +80,7 @@ function leerDescripcion(descripcion) {
 
 function MiniaturaModal({ src, nombre }) {
     const [fallo, setFallo] = useState(false);
-    const url = src ? (src.startsWith('http') ? src : `/api/uploads/${src.replace(/\\/g, '/')}`) : '';
+    const url = src ? urlMedia(src) : '';
 
     return (
         <div style={{ width: 96, height: 96, borderRadius: 12, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--input-bg)', border: `1px solid ${LINEA}`, color: COLOR_APAGADO }}>
