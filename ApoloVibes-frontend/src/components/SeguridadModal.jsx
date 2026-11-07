@@ -264,62 +264,58 @@ export default function SeguridadModal({ onClose }) {
                                     Tu cuenta inicia sesión con Google{user?.email ? ` (${user.email})` : ''}. La contraseña se
                                     administra desde tu cuenta de Google, por eso no se cambia desde ApoloVibes.
                                 </p>
-                                <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0, lineHeight: 1.6 }}>
-                                    Puedes activar aquí la verificación en dos pasos de ApoloVibes como una capa
-                                    adicional de seguridad.
-                                </p>
                             </div>
                         )}
 
                         {/* --- Cambio de contraseña (solo cuentas con contraseña local) --- */}
                         {tienePassword && (
-                        <div style={seccionStyle}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 12px' }}>
-                                <KeyRound size={16} /> Cambiar contraseña
-                            </h3>
-                            <form onSubmit={cambiarPassword}>
-                                {inputPass('actual', 'Contraseña actual', <KeyRound size={16} />)}
-                                {inputPass('nueva', 'Nueva contraseña', <KeyRound size={16} />)}
-                                {/* Requisitos de contraseña segura + medidor en vivo */}
-                                <div style={{ marginTop: 2, background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px', marginBottom: 6 }}>
-                                    <div style={{ display: 'grid', gap: 3 }}>
-                                        {fortaleza.reqs.map(r => (
-                                            <div
-                                                key={r.id}
-                                                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: r.ok ? '#22c55e' : 'var(--text-dim)', transition: 'color .15s' }}
-                                            >
-                                                <span style={{ fontSize: 12 }}>{r.ok ? '✓' : '○'}</span>
-                                                {r.label}
-                                            </div>
-                                        ))}
+                            <div style={seccionStyle}>
+                                <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 12px' }}>
+                                    <KeyRound size={16} /> Cambiar contraseña
+                                </h3>
+                                <form onSubmit={cambiarPassword}>
+                                    {inputPass('actual', 'Contraseña actual', <KeyRound size={16} />)}
+                                    {inputPass('nueva', 'Nueva contraseña', <KeyRound size={16} />)}
+                                    {/* Requisitos de contraseña segura + medidor en vivo */}
+                                    <div style={{ marginTop: 2, background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px', marginBottom: 6 }}>
+                                        <div style={{ display: 'grid', gap: 3 }}>
+                                            {fortaleza.reqs.map(r => (
+                                                <div
+                                                    key={r.id}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: r.ok ? '#22c55e' : 'var(--text-dim)', transition: 'color .15s' }}
+                                                >
+                                                    <span style={{ fontSize: 12 }}>{r.ok ? '✓' : '○'}</span>
+                                                    {r.label}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                                            {[1, 2, 3, 4].map(i => (
+                                                <span
+                                                    key={i}
+                                                    style={{
+                                                        flex: 1, height: 4, borderRadius: 2, transition: 'background .15s',
+                                                        background: fortaleza.nivel && i <= fortaleza.puntos ? fortaleza.color : 'var(--line)',
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                        <p style={{ fontSize: 11, fontWeight: 600, color: fortaleza.color || 'var(--text-dim)', margin: '4px 0 0', minHeight: 14 }}>
+                                            {fortaleza.nivel || 'La fortaleza se actualiza mientras escribes'}
+                                        </p>
                                     </div>
-                                    <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-                                        {[1, 2, 3, 4].map(i => (
-                                            <span
-                                                key={i}
-                                                style={{
-                                                    flex: 1, height: 4, borderRadius: 2, transition: 'background .15s',
-                                                    background: fortaleza.nivel && i <= fortaleza.puntos ? fortaleza.color : 'var(--line)',
-                                                }}
-                                            />
-                                        ))}
-                                    </div>
-                                    <p style={{ fontSize: 11, fontWeight: 600, color: fortaleza.color || 'var(--text-dim)', margin: '4px 0 0', minHeight: 14 }}>
-                                        {fortaleza.nivel || 'La fortaleza se actualiza mientras escribes'}
-                                    </p>
-                                </div>
-                                {inputPass('confirmar', 'Confirmar nueva contraseña', <KeyRound size={16} />)}
-                                {mensajePass.error && <p style={{ color: '#ef4444', fontSize: 12, margin: '4px 0 10px' }}>{mensajePass.error}</p>}
-                                {mensajePass.ok && <p style={{ color: '#22c55e', fontSize: 12, margin: '4px 0 10px' }}>{mensajePass.ok}</p>}
-                                <button
-                                    type="submit"
-                                    disabled={cargandoPass}
-                                    style={{ ...botonAccion, marginBottom: 0, opacity: cargandoPass ? .7 : 1, cursor: cargandoPass ? 'default' : 'pointer' }}
-                                >
-                                    {cargandoPass ? 'Guardando...' : 'Actualizar contraseña'}
-                                </button>
-                            </form>
-                        </div>
+                                    {inputPass('confirmar', 'Confirmar nueva contraseña', <KeyRound size={16} />)}
+                                    {mensajePass.error && <p style={{ color: '#ef4444', fontSize: 12, margin: '4px 0 10px' }}>{mensajePass.error}</p>}
+                                    {mensajePass.ok && <p style={{ color: '#22c55e', fontSize: 12, margin: '4px 0 10px' }}>{mensajePass.ok}</p>}
+                                    <button
+                                        type="submit"
+                                        disabled={cargandoPass}
+                                        style={{ ...botonAccion, marginBottom: 0, opacity: cargandoPass ? .7 : 1, cursor: cargandoPass ? 'default' : 'pointer' }}
+                                    >
+                                        {cargandoPass ? 'Guardando...' : 'Actualizar contraseña'}
+                                    </button>
+                                </form>
+                            </div>
                         )}
 
                         {/* --- MFA --- */}
@@ -428,33 +424,33 @@ export default function SeguridadModal({ onClose }) {
                                         </button>
                                     </div>
                                     {tienePassword && (
-                                    <div style={{ position: 'relative', marginBottom: 6 }}>
-                                        <span style={{
-                                            position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
-                                            zIndex: 1, color: 'var(--text-dim)', display: 'flex', pointerEvents: 'none',
-                                        }}>
-                                            <KeyRound size={16} />
-                                        </span>
-                                        <input
-                                            autoComplete="new-password"
-                                            type={mostrarPasswordDesactivar ? 'text' : 'password'}
-                                            placeholder="Contraseña (para confirmar)"
-                                            value={passwordDesactivar}
-                                            onChange={(e) => { setPasswordDesactivar(e.target.value); setMensajeMfa({ ok: '', error: '' }) }}
-                                            style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34 }}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setMostrarPasswordDesactivar(v => !v)}
-                                            aria-label={mostrarPasswordDesactivar ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                                            style={{
-                                                position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 1,
-                                                background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 4, display: 'flex',
-                                            }}
-                                        >
-                                            {mostrarPasswordDesactivar ? <Eye size={16} /> : <EyeOff size={16} />}
-                                        </button>
-                                    </div>
+                                        <div style={{ position: 'relative', marginBottom: 6 }}>
+                                            <span style={{
+                                                position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
+                                                zIndex: 1, color: 'var(--text-dim)', display: 'flex', pointerEvents: 'none',
+                                            }}>
+                                                <KeyRound size={16} />
+                                            </span>
+                                            <input
+                                                autoComplete="new-password"
+                                                type={mostrarPasswordDesactivar ? 'text' : 'password'}
+                                                placeholder="Contraseña (para confirmar)"
+                                                value={passwordDesactivar}
+                                                onChange={(e) => { setPasswordDesactivar(e.target.value); setMensajeMfa({ ok: '', error: '' }) }}
+                                                style={{ ...inputStyle, paddingLeft: 34, paddingRight: 34 }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setMostrarPasswordDesactivar(v => !v)}
+                                                aria-label={mostrarPasswordDesactivar ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                                style={{
+                                                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', zIndex: 1,
+                                                    background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: 4, display: 'flex',
+                                                }}
+                                            >
+                                                {mostrarPasswordDesactivar ? <Eye size={16} /> : <EyeOff size={16} />}
+                                            </button>
+                                        </div>
                                     )}
                                     <input
                                         type="text"
@@ -482,13 +478,25 @@ export default function SeguridadModal({ onClose }) {
                             )}
                         </div>
                     </div>
-                    <p style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', marginTop: -30, marginBottom: 10 }}>
+                </div>
+                <div style={{
+                    flexShrink: 0,
+                    padding: '14px 24px',
+                    borderTop: '1px solid var(--line)',
+                    background: 'var(--surface)',
+                    textAlign: 'center'
+                }}>
+                    <p style={{
+                        fontSize: 12,
+                        color: 'var(--text-dim)',
+                        margin: 0,
+                        lineHeight: 1.5
+                    }}>
                         {tienePassword
                             ? 'Protege tu cuenta con autenticación de dos factores y gestiona tu contraseña.'
-                            : 'Tu contraseña se gestiona desde Google. Aquí administras la verificación en dos pasos de ApoloVibes.'}
+                            : 'Protege tu cuenta con autenticación de dos factores de ApoloVibes.'}
                     </p>
                 </div>
-                <div style={{ padding: '20px 32px', borderTop: '1px solid var(--line)', background: 'var(--surface)' }} />
             </div>
         </div>,
         document.body

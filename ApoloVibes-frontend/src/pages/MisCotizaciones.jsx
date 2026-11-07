@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { AlertTriangle, Eye, Info, X, User, Mail, Phone, Clock,
-    Lock, CheckCircle2, ChevronLeft, ChevronRight, Ruler, Hash, Layers, Tag, Palette, ImageOff } from 'lucide-react';
+import {
+    AlertTriangle, Eye, Info, X, User, Mail, Phone, Clock,
+    Lock, CheckCircle2, ChevronLeft, CreditCard, ChevronRight, Ruler, Hash, Layers, Tag, Palette, ImageOff
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { mediaPath, urlMedia } from '../utils/media.js';
 import { useBloqueoScroll } from '../hooks/useBloqueoScroll.js';
@@ -11,7 +13,7 @@ const estilosEstado = {
     pendiente: { background: '#FFF1D6', color: '#7A4B00' },
     aprobada: { background: '#D7F5D3', color: '#0F5A0B' },
     rechazada: { background: '#FFD9D9', color: '#8C1212' },
-    pagada: { background: '#DCE9FF', color: '#123F8C'},
+    pagada: { background: '#DCE9FF', color: '#123F8C' },
 };
 
 const ETIQUETAS_ESTADO = {
@@ -63,18 +65,18 @@ function capitalizar(texto) {
 
 function leerDescripcion(descripcion) {
     const texto = descripcion || '';
+    const etiquetas = '(?:Tamaño|Cantidad|Uso|Color|Detalles|Precio estimado IA|Material IA|Complejidad IA)';
     const tomar = (clave) => {
-        const m = texto.match(new RegExp(`^${clave}:\\s*(.+)$`, 'mi'));
+        const m = texto.match(new RegExp(`(?:^|\\n|/)\\s*${clave}:\\s*([^\\n]*?)(?:\\s*/\\s*${etiquetas}:|$)`, 'mi'));
         return m ? m[1].trim() : '';
     };
-    const marcas = texto.match(/(?:^|\n|\/)\s*(?:Tamaño|Cantidad|Uso|Color|Detalles|Precio estimado IA|Material IA|Complejidad IA):/gi) || [];
+    const marcas = texto.match(new RegExp(`(?:^|\\n|/)\\s*${etiquetas}:`, 'gi')) || [];
     const heredado = /^Tamaño:\s*/i.test(texto) && marcas.length >= 2;
-    const detallesHeredado = texto.match(/Detalles:\s*([^\n]*?)(?:\s*\/\s*(?:Tamaño|Cantidad|Uso|Color|Precio estimado IA|Material IA|Complejidad IA):|$)/i);
     return {
         tamano: tomar('Tamaño'),
         uso: tomar('Uso'),
         color: tomar('Color'),
-        detalles: heredado ? (detallesHeredado ? detallesHeredado[1].trim() : '') : texto.trim(),
+        detalles: heredado ? tomar('Detalles') : texto.trim(),
     };
 }
 
@@ -424,7 +426,10 @@ export default function MisCotizaciones() {
     const [detalle, setDetalle] = useState(null);
     const [avisoCotizacion, setAvisoCotizacion] = useState(null);
     const [pagina, setPagina] = useState(1);
-    const filasPorPagina = 10;
+    const navigate = useNavigate();
+    const [filasPorPagina, setFilasPorFagina] = useState(
+        () => (window.innerWidth <= 768 ? 5 : 10)
+    );
 
     async function cargar() {
         setCargando(true);
@@ -439,6 +444,12 @@ export default function MisCotizaciones() {
             setCargando(false);
         }
     }
+
+    useEffect(() => {
+        const ajustar = () => setFilasPorFagina(window.innerWidth <= 768 ? 5 : 10);
+        window.addEventListener('resize', ajustar);
+        return () => window.removeEventListener('resize', ajustar);
+    }, [])
 
     useEffect(() => {
         if (isLoggedIn) cargar();
@@ -467,7 +478,7 @@ export default function MisCotizaciones() {
     }
 
     return (
-        <div className="wrap" style={{ padding: '48px 32px', minHeight: '100vh', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
+        <div className="wrap cot-pagina" style={{ minHeight: '100vh', boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, marginBottom: 8, color: 'var(--surface)' }}>
                 Mis cotizaciones
             </h1>
@@ -498,75 +509,165 @@ export default function MisCotizaciones() {
                 </div>
             ) : (
                 <>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'center' }}>
-                        <thead style={{ borderBottom: '1px solid var(--surface-3)' }}>
-                            <tr style={{ color: 'var(--surface)', textAlign: 'center', fontSize: 11, textTransform: 'uppercase' }}>
-                                <th style={{ padding: '0 10px 12px' }}>Cotización</th>
-                                <th style={{ padding: '0 10px 12px' }}>Fecha/Hora</th>
-                                <th style={{ padding: '0 10px 12px' }}>Material</th>
-                                <th style={{ padding: '0 10px 12px' }}>Precio</th>
-                                <th style={{ padding: '0 10px 12px' }}>Detalle</th>
-                                <th style={{ padding: '0 10px 12px' }}>Estado</th>
-                                <th style={{ padding: '0 10px 12px' }}></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {cotizacionesPagina.map((c) => {
-                                const fecha = formatearFecha(c.creado_en);
-                                const estadoMostrado = c.pagada ? 'pagada' : c.estado;
-                                const estilo = estilosEstado[estadoMostrado] || estilosEstado.pendiente;
-                                return (
-                                    <tr key={c.id} style={{ borderTop: '1px solid var(--surface-3)' }}>
-                                        <td style={{ padding: '13px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', fontSize: 11 }}>
-                                            {String(c.id).slice(0, 8).toUpperCase()}
-                                        </td>
-                                        <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{fecha || '—'}</td>
-                                        <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{c.material || '—'}</td>
-                                        <td style={{ padding: '13px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
-                                            {c.precio != null ? `$${formatearPrecio(c.precio)}` : <span style={{ color: 'var(--text-dim)' }}>-</span>}
-                                        </td>
-                                        <td style={{ padding: '13px 10px', textAlign: 'center' }}>
-                                            <button
-                                                onClick={() => setDetalle(c)}
-                                                title="Ver detalle"
-                                                style={{
-                                                    background: 'transparent', border: 'none', cursor: 'pointer',
-                                                    color: 'var(--text-dim)', display: 'inline-flex',
-                                                    alignItems: 'center', justifyContent: 'center', padding: 6,
-                                                }}
-                                            >
-                                                <Eye size={16} />
-                                            </button>
-                                        </td>
-                                        <td style={{ padding: '13px 10px', textAlign: 'center' }}>
-                                            <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, ...estilo }}>
-                                                {ETIQUETAS_ESTADO[estadoMostrado] || estadoMostrado}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '14px 10px', textAlign: 'center', position: 'relative' }}>
-                                            <span
-                                                onClick={avisoActivoCotizacion(c) ? () => abrirAviso(c) : undefined}
-                                                title={avisoActivoCotizacion(c)
-                                                    ? 'Ver novedad de tu cotización'
-                                                    : c.estado === 'pendiente'
-                                                        ? 'Aún no hay novedades'
-                                                        : 'Ya viste el aviso'}
-                                                style={{
-                                                    display: 'inline-flex', position: 'relative', alignItems: 'center',
-                                                    cursor: avisoActivoCotizacion(c) ? 'pointer' : 'not-allowed',
-                                                    opacity: avisoActivoCotizacion(c) ? 1 : 0.35,
-                                                    color: 'var(--text-dim)',
-                                                }}
-                                            >
-                                                <Info size={15} />
-                                                {avisoActivoCotizacion(c) && <span className="cart-badge">1</span>}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                    <div className="cot-tabla-wrap cotizaciones-tabla">
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'center' }}>
+                            <thead style={{ borderBottom: '1px solid var(--surface-3)' }}>
+                                <tr style={{ color: 'var(--surface)', textAlign: 'center', fontSize: 11, textTransform: 'uppercase' }}>
+                                    <th style={{ padding: '0 10px 12px' }}>Cotización</th>
+                                    <th style={{ padding: '0 10px 12px' }}>Fecha/Hora</th>
+                                    <th style={{ padding: '0 10px 12px' }}>Material</th>
+                                    <th style={{ padding: '0 10px 12px' }}>Precio</th>
+                                    <th style={{ padding: '0 10px 12px' }}>Detalle</th>
+                                    <th style={{ padding: '0 10px 12px' }}>Estado</th>
+                                    <th style={{ padding: '0 10px 12px' }}></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {cotizacionesPagina.map((c) => {
+                                    const fecha = formatearFecha(c.creado_en);
+                                    const estadoMostrado = c.pagada ? 'pagada' : c.estado;
+                                    const estilo = estilosEstado[estadoMostrado] || estilosEstado.pendiente;
+                                    return (
+                                        <tr key={c.id} style={{ borderTop: '1px solid var(--surface-3)' }}>
+                                            <td style={{ padding: '13px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', fontSize: 11 }}>
+                                                {String(c.id).slice(0, 8).toUpperCase()}
+                                            </td>
+                                            <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{fecha || '—'}</td>
+                                            <td style={{ padding: '13px 10px', color: 'var(--text-dim)' }}>{c.material || '—'}</td>
+                                            <td style={{ padding: '13px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                                                {c.estado === 'rechazada' ? null : c.precio != null ? (
+                                                    `$${formatearPrecio(c.precio)}`
+                                                ) : (
+                                                    <span style={{ color: 'var(--text-dim)' }}>Esperando precio</span>
+                                                )}
+                                            </td>
+                                            <td style={{ padding: '13px 10px', textAlign: 'center' }}>
+                                                <button
+                                                    onClick={() => setDetalle(c)}
+                                                    title="Ver detalle"
+                                                    style={{
+                                                        background: 'transparent', border: 'none', cursor: 'pointer',
+                                                        color: 'var(--text-dim)', display: 'inline-flex',
+                                                        alignItems: 'center', justifyContent: 'center', padding: 6,
+                                                    }}
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                            </td>
+                                            <td style={{ padding: '13px 10px', textAlign: 'center' }}>
+                                                <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, ...estilo }}>
+                                                    {ETIQUETAS_ESTADO[estadoMostrado] || estadoMostrado}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '14px 10px', textAlign: 'center', position: 'relative' }}>
+                                                <span
+                                                    onClick={avisoActivoCotizacion(c) ? () => abrirAviso(c) : undefined}
+                                                    title={avisoActivoCotizacion(c)
+                                                        ? 'Ver novedad de tu cotización'
+                                                        : c.estado === 'pendiente'
+                                                            ? 'Aún no hay novedades'
+                                                            : 'Ya viste el aviso'}
+                                                    style={{
+                                                        display: 'inline-flex', position: 'relative', alignItems: 'center',
+                                                        cursor: avisoActivoCotizacion(c) ? 'pointer' : 'not-allowed',
+                                                        opacity: avisoActivoCotizacion(c) ? 1 : 0.35,
+                                                        color: 'var(--text-dim)',
+                                                    }}
+                                                >
+                                                    <Info size={15} />
+                                                    {avisoActivoCotizacion(c) && <span className="cart-badge">1</span>}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="cotizaciones-tarjetas">
+                        {cotizacionesPagina.map((c) => {
+                            const estadoMostrado = c.pagada ? 'pagada' : c.estado;
+                            const estilo = estilosEstado[estadoMostrado] || estilosEstado.pendiente;
+                            const puedePagarCot = c.estado === 'aprobada' && c.precio != null && !c.pagada;
+
+                            return (
+                                <div key={c.id} className="pedido-card">
+                                    <div className="pedido-card-fila">
+                                        <span className="pedido-card-id">#{String(c.id).slice(0, 8).toUpperCase()}</span>
+                                        <span style={{
+                                            display: 'inline-flex', alignItems: 'center',
+                                            fontSize: 12, fontWeight: 600, padding: '5px 10px', borderRadius: 999,
+                                            ...estilo,
+                                        }}>
+                                            {ETIQUETAS_ESTADO[estadoMostrado] || estadoMostrado}
+                                        </span>
+                                    </div>
+
+                                    <div className="pedido-card-fila" style={{ alignItems: 'flex-end', marginTop: 10 }}>
+                                        <div>
+                                            <div className="pedido-card-meta">
+                                                {formatearFechaLarga(c.creado_en)}{c.material ? ` · ${c.material}` : ''}
+                                            </div>
+                                            {c.estado === 'rechazada' ? null : c.precio != null ? (
+                                                <div className="pedido-card-total">
+                                                    ${formatearPrecio(c.precio)}
+                                                </div>
+                                            ) : (
+                                                <div
+                                                    className="pedido-card-total"
+                                                    style={{
+                                                        fontSize: 14,
+                                                        fontWeight: 500,
+                                                        color: 'var(--text-dim)'
+                                                    }}
+                                                >
+                                                    Esperando precio
+                                                </div>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setDetalle(c)}
+                                            aria-label="Ver detalle de la cotización"
+                                            className="pedido-card-icono"
+                                        >
+                                            <Eye size={18} />
+                                        </button>
+                                    </div>
+
+                                    {(puedePagarCot || avisoActivoCotizacion(c)) && (
+                                        <div className="pedido-card-acciones">
+                                            {puedePagarCot && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => navigate(`/checkout?cotizacion=${c.id}`, { state: { cotizacion: c } })}
+                                                    className="pedido-card-btn"
+                                                    style={{ background: 'var(--green, #22c55e)', color: '#fff', border: 'none' }}
+                                                >
+                                                    <CreditCard size={16} />
+                                                    Pagar ahora
+                                                </button>
+                                            )}
+
+                                            {avisoActivoCotizacion(c) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => abrirAviso(c)}
+                                                    className="pedido-card-btn"
+                                                    style={{ position: 'relative', background: 'transparent', color: 'var(--surface)', border: '1px solid var(--surface-3)' }}
+                                                >
+                                                    <Info size={16} />
+                                                    Ver novedad
+                                                    <span className="cart-badge">1</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
 
                     {cotizaciones.length > 0 && (
                         <div
