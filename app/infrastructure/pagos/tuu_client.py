@@ -72,7 +72,7 @@ class TuuCliente(PasarelaPago):
     def _construir_payload(self, solicitud: SolicitudPago) -> dict[str, Any]:
         parametros: dict[str, Any] = {
             "x_account_id": self._account_id,
-            "x_amount": solicitud.monto,
+            "x_amount": int(solicitud.monto),
             "x_currency": "CLP",
             "x_customer_email": solicitud.email_cliente,
             "x_customer_first_name": solicitud.nombre_cliente,

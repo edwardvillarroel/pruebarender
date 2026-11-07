@@ -75,8 +75,12 @@ class GestionarPedidoNoPagado:
 
         datos = _datos_cliente(pedido)
         referencia = codificar_referencia(pedido.id)
+        # El total releido de la base viene como Decimal (la columna es
+        # numeric(10,2) en Postgres): el contrato de la pasarela pide int y
+        # un Decimal ni serializa a JSON ni firma igual que un entero.
+        monto = int(pedido.total)
         solicitud = SolicitudPago(
-            monto=pedido.total,
+            monto=monto,
             referencia=referencia,
             descripcion=f"Pedido {referencia} en ApoloVibes",
             nombre_cliente=_texto(datos.get("nombre")) or "Cliente",
@@ -92,7 +96,7 @@ class GestionarPedidoNoPagado:
         self._pagos.add(
             Pago(
                 pedido_id=pedido.id,
-                monto=pedido.total,
+                monto=monto,
                 proveedor="tuu",
                 token=resultado.token,
                 url_intento=resultado.url,

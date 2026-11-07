@@ -340,9 +340,11 @@ class ProcesarPago:
             self._pedidos.crear_con_detalles(pedido, detalles)
             solicitud_referencia = codificar_referencia(pedido.id)
 
+        monto = int(pedido.total)
+
         if pago is not None:
             pago.estado = EstadoPago.PENDIENTE
-            pago.monto = pedido.total
+            pago.monto = monto
             pago.token = None
             pago.url_intento = None
             pago.clave_idempotencia = dto.clave_idempotencia
@@ -350,7 +352,7 @@ class ProcesarPago:
         else:
             pago = Pago(
                 pedido_id=pedido.id,
-                monto=pedido.total,
+                monto=monto,
                 proveedor="tuu",
                 clave_idempotencia=dto.clave_idempotencia,
             )
@@ -368,7 +370,7 @@ class ProcesarPago:
                 ) from None
 
         solicitud_pago = SolicitudPago(
-            monto=pedido.total,
+            monto=monto,
             referencia=solicitud_referencia,
             descripcion=f"Pedido {solicitud_referencia} en ApoloVibes",
             nombre_cliente=self._nombre_cliente(dto.cliente),
