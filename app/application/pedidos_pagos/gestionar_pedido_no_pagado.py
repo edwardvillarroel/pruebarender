@@ -86,6 +86,9 @@ class GestionarPedidoNoPagado:
         )
         resultado = self._pasarela.crear_intento(solicitud)
 
+        if pago is not None:
+            self._pagos.eliminar_por_pedido(pedido.id)  
+
         self._pagos.add(
             Pago(
                 pedido_id=pedido.id,

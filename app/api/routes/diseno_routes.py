@@ -3,7 +3,7 @@ import hmac
 import os
 
 import requests
-from flask import Blueprint, current_app, jsonify, request, send_from_directory
+from flask import Blueprint, current_app, jsonify, redirect, request, send_from_directory
 
 from app.api.middleware.auth import requiere_sesion, usuario_actual, rol_requerido
 from app.config import Config
@@ -11,6 +11,7 @@ from app.infrastructure.imagenes.firmas_upload import firmar, verificar
 from app.infrastructure.imagenes.validador_imagen_segura import ImagenInvalida
 from app.infrastructure.cotizador import ClienteCotizadorIA
 from app.infrastructure.database.connection import utcnow
+from app.infrastructure.storage.supabase_storage import almacen_desde_config
 from app.domain.entities.solicitud_diseno import EstadoSolicitud
 from decimal import Decimal
 
@@ -462,6 +463,16 @@ def servir_uploads(filename):
         # F1: sin firma vigente no se sirve el archivo (antes era público).
         if not verificar(filename, request.args.get("exp"), request.args.get("sig")):
             return jsonify({"error": "Enlace inválido o expirado."}), 403
+        # F4: si el objeto vive en Supabase Storage se redirige (302) a una URL
+        # firmada de vida corta; el servicio jamás ve la service-role key.
+        # Sin config, o si el objeto no está en el bucket (archivos legacy en
+        # disco), se sirve local como hasta ahora.
+        almacen = almacen_desde_config(current_app.config)
+        if almacen is not None and almacen.existe(filename):
+            url = almacen.url_firmada(filename)
+            if url:
+                return redirect(url, code=302)
+            # Sin URL firmada (nube a medias): mejor el local si existe.
         carpeta = current_app.config.get("UPLOAD_FOLDER") or Config.UPLOAD_FOLDER
         return send_from_directory(carpeta, filename)
     except Exception:
@@ -495,6 +506,45 @@ def purgar_cotizaciones_admin():
     except Exception:
         current_app.logger.exception("Error purgando cotizaciones")
         return jsonify({"error": "No pudimos purgar las cotizaciones."}), 500
+
+
+@diseno_bp.post("/admin/cotizaciones/migrar")
+def migrar_cotizaciones_storage():
+    """Migración one-time de imágenes al bucket de Supabase (F4), vía cron.
+
+    Mismo patrón de guard que la purga (F3): 503 sin `CRON_SECRET`, 401 con
+    `X-Cron-Secret` incorrecto, `?dry_run=1|true|yes|si` solo cuenta.
+    """
+    try:
+        secreto = str(current_app.config.get("CRON_SECRET") or "")
+        if not secreto:
+            return jsonify({"error": "Migración no configurada"}), 503
+        header = request.headers.get("X-Cron-Secret") or ""
+        if not hmac.compare_digest(secreto.encode("utf-8"), header.encode("utf-8")):
+            return jsonify({"error": "No autorizado"}), 401
+
+        almacen = almacen_desde_config(current_app.config)
+        if almacen is None:
+            return jsonify({"error": "Migración no configurada"}), 503
+
+        from app.application.diseno.migrar_cotizaciones import MigradorCotizaciones
+        from app.infrastructure.repositories.solicitud_diseno_repository import (
+            SolicitudDisenoRepository,
+        )
+
+        dry_run = (
+            (request.args.get("dry_run") or "").strip().lower()
+            in ("1", "true", "yes", "si")
+        )
+        resultado = MigradorCotizaciones(
+            SolicitudDisenoRepository(), almacen
+        ).ejecutar(dry_run=dry_run)
+        return jsonify(resultado), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 503
+    except Exception:
+        current_app.logger.exception("Error migrando cotizaciones al bucket")
+        return jsonify({"error": "No pudimos migrar las cotizaciones."}), 500
 
 
 @diseno_bp.delete("/cotizaciones/<uuid:solicitud_id>")

@@ -2,7 +2,7 @@
 
 **Control:** A.8.13 · **Dueño:** administración · **Versión:** 1.0 — 2026-11-06
 
-Cubre la base de datos PostgreSQL de producción alojada en Supabase. **No** cubre los archivos de cotización en `uploads/cotizaciones/` (pendiente F4).
+Cubre la base de datos PostgreSQL de producción alojada en Supabase. **No** cubre los archivos de cotización: desde F4 viven en el bucket privado de Supabase Storage (`Cotizaciones`), fuera de esta base; su retención la aplica el purge (F3) sobre Storage.
 
 ## Definiciones (formalizadas)
 
@@ -30,6 +30,7 @@ Cubre la base de datos PostgreSQL de producción alojada en Supabase. **No** cub
    $fecha = Get-Date -Format yyyy-MM-dd
    $dump = "$env:USERPROFILE\Downloads\apolovibes_$fecha.dump"
    pg_dump $env:DATABASE_URL --no-owner --no-privileges -Fc -f $dump
+   Remove-Item Env:DATABASE_URL
    ```
 
    Alternativa sin terminal: pgAdmin 4 → clic derecho en la base → *Backup* → formato **Custom** → mismo nombre `apolovibes_aaaa-mm-dd.dump`.
@@ -37,8 +38,16 @@ Cubre la base de datos PostgreSQL de producción alojada en Supabase. **No** cub
 2. **Cifrar** (7-Zip pedirá la contraseña dos veces — no la pongas como argumento):
 
    ```powershell
-   7z a -t7z -mhe=on $dump.Replace('.dump','.7z') $dump
-   Remove-Item $dump   # borrar el .dump plano: en el disco local solo queda el .7z
+$zip = $dump.Replace('.dump','.7z')
+
+7z a -t7z -mhe=on -p $zip $dump
+if ($LASTEXITCODE -eq 0) {
+    7z t $zip
+    if ($LASTEXITCODE -eq 0) { Remove-Item $dump }
+    else { Write-Host "El test falló. NO se borró el .dump." }
+} else {
+    Write-Host "Falló la compresión. NO se borró el .dump."
+}
    ```
 
 3. **Subir a cPanel:** *File Manager* → directorio home (**fuera de `public_html`**) → crear/entrar a `backups-apolovibes` → *Upload* del `.7z` → verificar que quedó → *Permissions* de la carpeta: `700`.
@@ -55,10 +64,12 @@ Cubre la base de datos PostgreSQL de producción alojada en Supabase. **No** cub
 2. Restaurar en una base de trabajo — opción A, PostgreSQL local:
 
    ```powershell
-   createdb apolovibes_restore_test
-   pg_restore --no-owner --if-exists -d apolovibes_restore_test .\apolovibes_aaaa-mm-dd.dump
-   psql -d apolovibes_restore_test -c "select count(*) from solicitudes_diseno;"
+   createdb -U postgres apolovibes_restore_test
+   pg_restore -U postgres --no-owner -d apolovibes_restore_test .\apolovibes_aaaa-mm-dd.dump
+   psql -U postgres -d apolovibes_restore_test -c "select count(*) from solicitudes_diseno;"
    ```
+
+   > **Errores esperados en `pg_restore`:** el volcado incluye objetos propios de Supabase que no existen en una instalación local (`pg_cron`/`cron.*`, políticas sobre los roles `anon`, `authenticated`, `service_role`). En la prueba del 2026-11-06 se reportaron **12 errores ignorados**, todos de esa categoría. **El criterio de éxito son los conteos** (paso 3), no un `pg_restore` sin errores. Nota: `--if-exists` exige `--clean` (`-c`); no usarlo con una BD recién creada y vacía.
 
    Opción B (prueba de extremo a extremo): crear un proyecto Supabase temporal gratuito, restaurar allí con el mismo `pg_restore`, verificar y **eliminar el proyecto**.
 

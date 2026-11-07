@@ -32,3 +32,9 @@ services:
       - { key: LLM_API_KEY, sync: false }
       - { key: COTIZADOR_IA_URL, sync: false }
       - { key: CRON_SECRET, sync: false }
+      # Supabase Storage de cotizaciones (F4). Sin ellas el backend sigue
+      # guardando las imagenes en disco local.
+      - { key: SUPABASE_URL, sync: false }
+      - { key: SUPABASE_SERVICE_KEY, sync: false }
+      - { key: SUPABASE_STORAGE_BUCKET, sync: false }
+      - { key: SUPABASE_SIGN_TTL_SECONDS, sync: false }

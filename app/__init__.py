@@ -220,16 +220,19 @@ def _configurar_disenos(app: Flask) -> None:
         SolicitudDisenoRepository,
     )
     from app.infrastructure.imagenes.almacen_cotizaciones import (
-        guardar_imagen_cotizacion,
+        guardar_imagen_cotizacion_supabase,
     )
     from app.infrastructure.cotizador import ClienteCotizadorIA
 
     repo = SolicitudDisenoRepository()
     cotizador_ia = ClienteCotizadorIA(base_url=app.config.get("COTIZADOR_IA_URL"))
     app.config["SOLICITUD_DISENO_REPOSITORY"] = repo 
+    # F4: el escritor decide por configuración (SUPABASE_URL/KEY/BUCKET) si la
+    # imagen va al bucket o a disco local; en ambos casos devuelve la misma
+    # ruta relativa `cotizaciones/<uuid><ext>` que guarda la BD.
     app.config["COTIZACION_SERVICE"] = CrearSolicitudDiseno(
         repo,
-        guardar_imagen=guardar_imagen_cotizacion,
+        guardar_imagen=guardar_imagen_cotizacion_supabase,
         cotizador_ia=cotizador_ia,
     )
 

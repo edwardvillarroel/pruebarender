@@ -254,6 +254,9 @@ def reintentar_pago(pedido_id: UUID):
         return _error(str(exc), 409)
     except ErrorPasarela as exc:
         return _error(str(exc), 502)
+    except Exception:
+        current_app.logger.exception("Fallo al reintentar pago")
+        raise
     return jsonify(url=resultado.url, token=resultado.token)
 
 

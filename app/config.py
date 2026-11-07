@@ -125,6 +125,17 @@ class Config:
     # Secreto del cron de purga de cotizaciones (F3). Vacío => endpoint 503.
     CRON_SECRET = os.getenv("CRON_SECRET", "")
 
+    # Supabase Storage para las imágenes de cotizaciones (F4). Sin URL + clave +
+    # cubeta NO vacíos el sistema se queda en disco local, igual que siempre.
+    # La cubeta es privada y el nombre tiene mayúscula inicial ("Cotizaciones"):
+    # SIEMPRE sale de la variable de entorno, nunca del código.
+    SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
+    SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
+    SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "")
+    # TTL de las URL firmadas que devuelve el 302 de /api/uploads (corto a
+    # propósito: la firma de F1 ya controla quién puede pedir el archivo).
+    SUPABASE_SIGN_TTL_SECONDS = int(os.getenv("SUPABASE_SIGN_TTL_SECONDS", "300"))
+
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
     FRONTEND_DIST = os.getenv(
         "FRONTEND_DIST", str(BASE_DIR.parent / "ApoloVibes-frontend" / "dist")
@@ -146,6 +157,15 @@ class DevelopmentConfig(Config):
 
 class TestingConfig(Config):
     TESTING = True
+
+    # F4: los tests NUNCA hablan con Supabase Storage de verdad (el .env local
+    # trae credenciales válidas y load_dotenv ya las cargó en Config). Cada test
+    # que necesite el almacenamiento "configurado" setea app.config y stubbea
+    # `AlmacenSupabaseStorage._request`.
+    SUPABASE_URL = ""
+    SUPABASE_SERVICE_KEY = ""
+    SUPABASE_STORAGE_BUCKET = ""
+
     _backend_test = os.getenv("TEST_DB_BACKEND", "postgres").strip().lower()
 
     if _backend_test == "oracle":

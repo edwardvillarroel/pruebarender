@@ -9,9 +9,15 @@ TRANSICIONES_PERMITIDAS: frozenset[tuple[EstadoPedido, EstadoPedido]] = frozense
     {
         (EstadoPedido.PENDIENTE, EstadoPedido.ENTREGADO),
         (EstadoPedido.ENVIADO, EstadoPedido.ENTREGADO),
-        # Cancelacion: solo antes de que el pedido salga de produccion.
         (EstadoPedido.PENDIENTE, EstadoPedido.CANCELADO),
         (EstadoPedido.EN_PRODUCCION, EstadoPedido.CANCELADO),
+    }
+)
+
+TRANSICIONES_RETIRO: frozenset[tuple[EstadoPedido, EstadoPedido]] = frozenset(
+    {
+        (EstadoPedido.PENDIENTE, EstadoPedido.ENVIADO),
+        (EstadoPedido.EN_PRODUCCION, EstadoPedido.ENVIADO),
     }
 )
 
@@ -58,7 +64,15 @@ class CambiarEstadoPedido:
         if pedido is None:
             raise PedidoNoEncontradoError("Pedido no encontrado")
 
-        if (pedido.estado, destino) not in TRANSICIONES_PERMITIDAS:
+        
+        entrega = getattr(pedido, "entrega", None)
+        es_retiro = str(getattr(entrega, "value", entrega) or "").lower() == "retiro"
+        transicion = (pedido.estado, destino)
+        permitida = transicion in TRANSICIONES_PERMITIDAS or (
+            es_retiro and transicion in TRANSICIONES_RETIRO
+        )
+
+        if not permitida:
             raise TransicionInvalidaError(
                 f"No se puede pasar un pedido de «{pedido.estado.value}» "
                 f"a «{destino.value}»"

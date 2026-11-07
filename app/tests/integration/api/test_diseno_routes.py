@@ -23,6 +23,7 @@ from app.infrastructure.imagenes.firmas_upload import firmar, verificar
 from app.infrastructure.repositories.solicitud_diseno_repository import (
     SolicitudDisenoRepository,
 )
+from app.infrastructure.storage.supabase_storage import AlmacenSupabaseStorage
 
 
 def _cabeceras(usuario_id: uuid.UUID) -> dict:
@@ -527,3 +528,302 @@ def test_delete_cotizacion_inexistente_devuelve_404(client, db_sesion, usuario):
     )
 
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# F4: servir desde Supabase Storage, migración one-time y purga del bucket
+# ---------------------------------------------------------------------------
+
+
+class _RespuestaStorage:
+    """Doble de `requests.Response` para el seam `_request`."""
+
+    def __init__(self, status_code: int = 200, json_datos=None, texto: str = ""):
+        self.status_code = status_code
+        self.ok = 200 <= status_code < 300
+        self._json = json_datos
+        self.text = texto
+
+    def json(self):
+        if self._json is None:
+            raise ValueError("respuesta sin cuerpo JSON")
+        return self._json
+
+
+class _AlmacenPurga:
+    """Doble inyectable de `AlmacenSupabaseStorage` para la purga."""
+
+    def __init__(self, objetos=None, existe_valor: bool = True):
+        self.configurado = True
+        self.objetos = list(objetos or [])
+        self.existe_valor = existe_valor
+        self.borradas: list[str] = []
+
+    def existe(self, ruta: str) -> bool:
+        return self.existe_valor
+
+    def eliminar(self, ruta: str) -> bool:
+        self.borradas.append(ruta)
+        return True
+
+    def listar(self, prefijo: str) -> list[dict]:
+        return list(self.objetos)
+
+
+def _configurar_supabase(app, monkeypatch) -> None:
+    # `app` es de sesión: SIEMPRE vía monkeypatch para no filtrar la config
+    # a los tests siguientes.
+    monkeypatch.setitem(app.config, "SUPABASE_URL", "https://ejemplo.supabase.co")
+    monkeypatch.setitem(app.config, "SUPABASE_SERVICE_KEY", "sb_secret_de_prueba")
+    monkeypatch.setitem(app.config, "SUPABASE_STORAGE_BUCKET", "Cotizaciones")
+    monkeypatch.setitem(app.config, "SUPABASE_SIGN_TTL_SECONDS", 300)
+
+
+def _stub_almacen_supabase(monkeypatch, respuestas):
+    """Parchea `AlmacenSupabaseStorage._request`; devuelve la lista de llamadas.
+
+    `respuestas(metodo, ruta, kwargs)` devuelve la respuesta o `None` para
+    marcar una llamada inesperada (falla el test con AssertionError).
+    """
+    llamadas = []
+
+    def _request(self, metodo, ruta, **kwargs):
+        llamadas.append((metodo, ruta, kwargs))
+        respuesta = respuestas(metodo, ruta, kwargs)
+        if respuesta is None:
+            raise AssertionError(f"llamada inesperada al bucket: {metodo} {ruta}")
+        return respuesta
+
+    monkeypatch.setattr(AlmacenSupabaseStorage, "_request", _request)
+    return llamadas
+
+
+def test_uploads_en_bucket_redirige_a_url_firmada(client, app, tmp_path, monkeypatch):
+    monkeypatch.setitem(app.config, "UPLOAD_FOLDER", tmp_path)
+    _archivo_temporal(tmp_path)  # copia local legacy: la rama nube decide igual
+    _configurar_supabase(app, monkeypatch)
+
+    def _respuestas(metodo, ruta, kwargs):
+        if metodo == "GET" and ruta.startswith("/object/info/"):
+            return _RespuestaStorage(200)
+        if metodo == "POST" and ruta.startswith("/object/sign/"):
+            return _RespuestaStorage(
+                200,
+                {
+                    "signedURL": (
+                        "/object/sign/Cotizaciones/"
+                        "cotizaciones/prueba-firma.png?token=abc"
+                    )
+                },
+            )
+        return None
+
+    _stub_almacen_supabase(monkeypatch, _respuestas)
+
+    url = firmar("cotizaciones/prueba-firma.png")
+    resp = client.get(f"/api/uploads/{url}")
+
+    assert resp.status_code == 302
+    location = resp.headers["Location"]
+    assert location.startswith(
+        "https://ejemplo.supabase.co/storage/v1/object/sign/Cotizaciones/"
+        "cotizaciones/prueba-firma.png"
+    )
+    assert "token=abc" in location
+
+
+def test_uploads_configurado_pero_ausente_en_bucket_sirve_local(
+    client, app, tmp_path, monkeypatch
+):
+    monkeypatch.setitem(app.config, "UPLOAD_FOLDER", tmp_path)
+    _archivo_temporal(tmp_path)
+    _configurar_supabase(app, monkeypatch)
+
+    def _respuestas(metodo, ruta, kwargs):
+        if metodo == "GET" and ruta.startswith("/object/info/"):
+            return _RespuestaStorage(404)
+        return None  # sin firma: no se pide URL si no existe el objeto
+
+    llamadas = _stub_almacen_supabase(monkeypatch, _respuestas)
+
+    url = firmar("cotizaciones/prueba-firma.png")
+    resp = client.get(f"/api/uploads/{url}")
+
+    assert resp.status_code == 200
+    assert resp.data == b"png-de-prueba"
+    assert llamadas == [
+        ("GET", "/object/info/Cotizaciones/cotizaciones/prueba-firma.png", {})
+    ]
+
+
+def test_migrar_endpoint_sin_secreto_devuelve_503(app, client, monkeypatch):
+    monkeypatch.setitem(app.config, "CRON_SECRET", "")
+
+    resp = client.post("/api/admin/cotizaciones/migrar")
+
+    assert resp.status_code == 503
+
+
+def test_migrar_endpoint_header_invalido_devuelve_401(app, client, monkeypatch):
+    monkeypatch.setitem(app.config, "CRON_SECRET", "secreto-cron-test")
+
+    resp = client.post(
+        "/api/admin/cotizaciones/migrar?dry_run=1",
+        headers={"X-Cron-Secret": "otro-secreto"},
+    )
+
+    assert resp.status_code == 401
+
+
+def test_migrar_endpoint_sin_supabase_devuelve_503(app, client, monkeypatch):
+    monkeypatch.setitem(app.config, "CRON_SECRET", "secreto-cron-test")
+
+    resp = client.post(
+        "/api/admin/cotizaciones/migrar?dry_run=1",
+        headers={"X-Cron-Secret": "secreto-cron-test"},
+    )
+
+    assert resp.status_code == 503
+
+
+def test_migrar_endpoint_dry_run_cuenta_sin_subir(
+    app, client, tmp_path, monkeypatch, centinela
+):
+    monkeypatch.setitem(app.config, "CRON_SECRET", "secreto-cron-test")
+    monkeypatch.setitem(app.config, "UPLOAD_FOLDER", tmp_path)
+    _configurar_supabase(app, monkeypatch)
+    carpeta = tmp_path / "cotizaciones"
+    carpeta.mkdir(parents=True, exist_ok=True)
+    nombre = f"migrar-dry-{centinela}.png"
+    (carpeta / nombre).write_bytes(b"PNG")
+
+    def _respuestas(metodo, ruta, kwargs):
+        if metodo == "GET" and ruta.startswith("/object/info/"):
+            return _RespuestaStorage(404)
+        return None  # dry_run: jamás se sube
+
+    llamadas = _stub_almacen_supabase(monkeypatch, _respuestas)
+
+    resp = client.post(
+        "/api/admin/cotizaciones/migrar?dry_run=1",
+        headers={"X-Cron-Secret": "secreto-cron-test"},
+    )
+
+    assert resp.status_code == 200
+    cuerpo = resp.get_json()
+    assert cuerpo["dry_run"] is True
+    assert cuerpo["migrados"] == 1
+    assert {"migrados", "ya_existian", "sin_archivo_local", "errores"} <= set(cuerpo)
+    subidas = [r for m, r, _ in llamadas if m == "POST"]
+    assert subidas == []
+    assert (carpeta / nombre).exists()
+
+
+def test_migrar_endpoint_real_sube_y_conserva_el_archivo_local(
+    app, client, tmp_path, monkeypatch, centinela
+):
+    monkeypatch.setitem(app.config, "CRON_SECRET", "secreto-cron-test")
+    monkeypatch.setitem(app.config, "UPLOAD_FOLDER", tmp_path)
+    _configurar_supabase(app, monkeypatch)
+    carpeta = tmp_path / "cotizaciones"
+    carpeta.mkdir(parents=True, exist_ok=True)
+    nombre = f"migrar-real-{centinela}.png"
+    (carpeta / nombre).write_bytes(b"PNG")
+
+    def _respuestas(metodo, ruta, kwargs):
+        if metodo == "GET" and ruta.startswith("/object/info/"):
+            return _RespuestaStorage(404)
+        if metodo == "POST" and ruta.startswith("/object/Cotizaciones/"):
+            return _RespuestaStorage(200, {})
+        return None
+
+    llamadas = _stub_almacen_supabase(monkeypatch, _respuestas)
+
+    resp = client.post(
+        "/api/admin/cotizaciones/migrar",
+        headers={"X-Cron-Secret": "secreto-cron-test"},
+    )
+
+    assert resp.status_code == 200
+    cuerpo = resp.get_json()
+    assert cuerpo["dry_run"] is False
+    assert cuerpo["migrados"] == 1
+    subidas = [r for m, r, _ in llamadas if m == "POST"]
+    assert subidas == [f"/object/Cotizaciones/cotizaciones/{nombre}"]
+    # Los archivos locales quedan como rollback.
+    assert (carpeta / nombre).read_bytes() == b"PNG"
+
+
+def test_purga_borra_el_objeto_del_bucket(db_sesion, usuario, tmp_path):
+    antiguo = utcnow() - timedelta(days=400)
+    imagen = f"cotizaciones/purga-bucket-{uuid.uuid4().hex}.png"
+    sid = _crear_solicitud(
+        db_sesion, usuario.id, imagen=imagen, creado_en=antiguo
+    )
+    almacen = _AlmacenPurga()
+    try:
+        res = PurgadorCotizaciones(
+            SolicitudDisenoRepository(),
+            carpeta_uploads=tmp_path,
+            almacen=almacen,
+        ).ejecutar(edad_dias=365)
+
+        assert res["filas"] >= 1
+        assert res["archivos_bucket"] >= 1
+        assert imagen in almacen.borradas
+        assert not _existe_solicitud(sid)
+    finally:
+        _limpiar_cotizaciones(db_sesion, usuario.id)
+
+
+def test_purga_dry_run_cuenta_el_bucket_sin_borrar(db_sesion, usuario, tmp_path):
+    antiguo = utcnow() - timedelta(days=400)
+    imagen = f"cotizaciones/dry-bucket-{uuid.uuid4().hex}.png"
+    sid = _crear_solicitud(
+        db_sesion, usuario.id, imagen=imagen, creado_en=antiguo
+    )
+    almacen = _AlmacenPurga()
+    try:
+        res = PurgadorCotizaciones(
+            SolicitudDisenoRepository(),
+            carpeta_uploads=tmp_path,
+            almacen=almacen,
+        ).ejecutar(edad_dias=365, dry_run=True)
+
+        assert res["dry_run"] is True
+        assert res["archivos_bucket"] >= 1
+        assert almacen.borradas == []
+        assert _existe_solicitud(sid)
+    finally:
+        _limpiar_cotizaciones(db_sesion, usuario.id)
+
+
+def test_purga_limpia_huerfanos_del_bucket_viejos(db_sesion, usuario, tmp_path):
+    imagen_ref = f"cotizaciones/ref-bucket-{uuid.uuid4().hex}.png"
+    sid = _crear_solicitud(db_sesion, usuario.id, imagen=imagen_ref)
+    viejo = (utcnow() - timedelta(days=400)).isoformat()
+    nuevo = utcnow().isoformat()
+    almacen = _AlmacenPurga(
+        objetos=[
+            {"name": "cotizaciones/huerfano-viejo.png", "created_at": viejo},
+            {"name": "cotizaciones/huerfano-nuevo.png", "created_at": nuevo},
+            {"name": imagen_ref, "created_at": viejo},
+            {"name": "cotizaciones/sin-fecha.png", "created_at": None},
+        ]
+    )
+    try:
+        res = PurgadorCotizaciones(
+            SolicitudDisenoRepository(),
+            carpeta_uploads=tmp_path,
+            almacen=almacen,
+        ).ejecutar(edad_dias=365)
+
+        assert res["huerfanos_bucket"] == 1
+        assert "cotizaciones/huerfano-viejo.png" in almacen.borradas
+        # Conservador: reciente, referenciado o sin fecha no se toca.
+        assert "cotizaciones/huerfano-nuevo.png" not in almacen.borradas
+        assert imagen_ref not in almacen.borradas
+        assert "cotizaciones/sin-fecha.png" not in almacen.borradas
+        assert _existe_solicitud(sid)
+    finally:
+        _limpiar_cotizaciones(db_sesion, usuario.id)
