@@ -38,6 +38,7 @@ refresh (`SameSite=Strict`, `Path=/api/auth`) viaja sin problema: es same-site.
 | `GATEWAY_SECRET_KEY` | Generada (`generateValue`). |
 | `DB_BACKEND` | `postgres` |
 | `BACKEND_INTERNAL_URL` | `http://127.0.0.1:8000` (interno, mismo servicio). |
+| `INTERNAL_SECRET` | Generada (`generateValue`) — **mismo valor** en backend y gateway. Firma la frontera `gateway → backend`; sin ella el backend rechaza toda request autenticada (fail-closed, OWASP A01). |
 | `GATEWAY_COOKIE_SECURE` | `true` (HTTPS en Render). |
 | `GATEWAY_COOKIE_SAMESITE` | `Strict` (front y API comparten dominio registrable). |
 | `CORS_ORIGINS` | `https://apolovibes3d.cl` (y `https://www.apolovibes3d.cl` si se usa). |

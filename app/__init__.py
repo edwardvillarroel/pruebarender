@@ -13,8 +13,38 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.config.from_object(config_class)
     app.json = ProveedorJsonApp(app)
 
-    CORS(app, origins=app.config.get("CORS_ORIGINS", "*"))
+    # OWASP A02: `CORS_ORIGINS` ya viene como lista desde Config (vacia si no se
+    # configura). Sin origenes no se habilita CORS (fail-closed, nunca "*").
+    origenes_cors = app.config.get("CORS_ORIGINS") or []
+    if origenes_cors:
+        CORS(app, origins=origenes_cors)
     db.init_app(app)
+
+    # OWASP A09: caso de uso de auditoria para los endpoints decorados con
+    # `@auditar` (acciones sensibles -> LogAuditoria).
+    from app.application.auditoria.gestionar_auditoria import GestionAuditoria
+    from app.infrastructure.repositories.log_auditoria_repository import (
+        LogAuditoriaRepository,
+    )
+
+    app.config["AUDITORIA_SERVICE"] = GestionAuditoria(LogAuditoriaRepository())
+
+    @app.after_request
+    def _cabeceras_seguridad(respuesta):
+        # OWASP A02: cabeceras de seguridad que antes faltaban en el backend.
+        respuesta.headers["X-Content-Type-Options"] = "nosniff"
+        respuesta.headers["X-Frame-Options"] = "DENY"
+        respuesta.headers["Referrer-Policy"] = "no-referrer"
+        # HSTS solo cuando la cookie va Secure (produccion/HTTPS). En dev (http)
+        # el navegador descartaria la header y romperia la navegacion normal.
+        if app.config.get("COOKIE_SECURE", True):
+            respuesta.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+        if (respuesta.content_type or "").startswith("application/json"):
+            # Respuestas de API (JWT/cuerpo) no deben quedar en cache.
+            respuesta.headers["Cache-Control"] = "no-store"
+        return respuesta
 
     _configurar_carrito(app)
     _configurar_catalogo(app)

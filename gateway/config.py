@@ -13,6 +13,9 @@ class Config:
     # primero, el backend escucha solo en IPv4 y cada request pagaba ~2s de
     # timeout de IPv6 antes de caer a 127.0.0.1. Se nota en cada pagina.
     BACKEND_INTERNAL_URL = os.getenv("BACKEND_INTERNAL_URL", "http://127.0.0.1:8000")
+    # OWASP A01: secreto compartido para la frontera gateway -> backend. El
+    # backend exige este header en los endpoints que inyectan X-User-Id/Rol.
+    INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "")
     JWT_SECRET_KEY = os.getenv("GATEWAY_JWT_SECRET", SECRET_KEY)
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
     # En produccion (HTTPS) la cookie del refresh debe ir con Secure=True.

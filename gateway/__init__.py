@@ -41,8 +41,13 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     @app.after_request
     def _cabeceras_seguridad(respuesta):
-        # HSTS solo cuando la cookie va Secure (producción/HTTPS). En dev (http)
-        # el navegador descartaría la header y rompería la navegación normal.
+        # OWASP A02: cabeceras de seguridad. X-Frame-Options siempre (la SPA no
+        # se anida); HSTS/nosniff/Referrer-Policy solo cuando la cookie va Secure
+        # (produccion/HTTPS). En dev (http) el navegador descartaria la HSTS.
+        respuesta.headers["X-Frame-Options"] = "DENY"
+        # Respuestas de API (JWT/cuerpo) no deben quedar en cache.
+        if (respuesta.content_type or "").startswith("application/json"):
+            respuesta.headers["Cache-Control"] = "no-store"
         if app.config.get("COOKIE_SECURE", True):
             respuesta.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"

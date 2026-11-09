@@ -206,7 +206,7 @@ def login():
 
 
 @auth_bp.post("/auth/mfa/verificar")
-@limiter.limit("10 per minute")
+@limiter.limit("5 per minute")
 def mfa_verificar():
     datos = request.get_json(silent=True) or {}
     try:

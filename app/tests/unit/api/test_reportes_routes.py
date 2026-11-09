@@ -9,6 +9,7 @@ from unittest.mock import Mock
 CABECERA_ADMIN = {
     "X-User-Id": "11111111-1111-1111-1111-111111111111",
     "X-User-Rol": "admin",
+    "X-Internal-Secret": "secreto-interno-test",
 }
 
 
@@ -67,7 +68,12 @@ def test_el_reporte_requiere_sesion(app, client):
 
 def test_el_reporte_rechaza_a_clientes(app, client):
     respuesta = client.get(
-        "/api/reportes", headers={"X-User-Id": "11111111-1111-1111-1111-111111111111", "X-User-Rol": "cliente"}
+        "/api/reportes",
+        headers={
+            "X-User-Id": "11111111-1111-1111-1111-111111111111",
+            "X-User-Rol": "cliente",
+            "X-Internal-Secret": "secreto-interno-test",
+        },
     )
     assert respuesta.status_code == 403
     assert respuesta.get_json()["mensaje"] == "No autorizado"

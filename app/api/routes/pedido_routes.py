@@ -8,6 +8,7 @@ from uuid import UUID
 from flask import Blueprint, current_app, jsonify, request, send_file
 
 from app.api.middleware.auth import requiere_sesion, rol_requerido, usuario_actual
+from app.api.middleware.audit_logger import auditar
 from app.application.common.dto import CrearPedidoDTO, IniciarPagoDTO, ItemPedidoDTO
 from app.application.facturacion.consultar_documento_tributario import (
     ConsultarDocumentoTributario,
@@ -199,6 +200,7 @@ def _es_dueno(pedido) -> bool:
 
 @pedido_bp.post("/pedidos")
 @requiere_sesion()
+@auditar("crear_pedido")
 def crear_pedido():
     datos = request.get_json(silent=True) or {}
     try:
@@ -241,6 +243,7 @@ def detalle_pedido(pedido_id: UUID):
 
 @pedido_bp.post("/pedidos/<uuid:pedido_id>/pagar")
 @requiere_sesion()
+@auditar("reintentar_pago")
 def reintentar_pago(pedido_id: UUID):
     try:
         resultado = _servicio_pedido_no_pagado().reintentar(
@@ -262,6 +265,7 @@ def reintentar_pago(pedido_id: UUID):
 
 @pedido_bp.delete("/pedidos/<uuid:pedido_id>")
 @requiere_sesion()
+@auditar("eliminar_pedido")
 def eliminar_pedido(pedido_id: UUID):
     try:
         _servicio_pedido_no_pagado().eliminar(pedido_id, _usuario_uuid())
@@ -276,6 +280,7 @@ def eliminar_pedido(pedido_id: UUID):
 
 @pedido_bp.post("/pedidos/<uuid:pedido_id>/cancelar")
 @requiere_sesion()
+@auditar("cancelar_pedido")
 def cancelar_pedido(pedido_id: UUID):
     """El cliente cancela su propio pedido, hasta que entre en produccion."""
     try:
@@ -292,6 +297,7 @@ def cancelar_pedido(pedido_id: UUID):
 @pedido_bp.post("/pedidos/<uuid:pedido_id>/aviso-cancelacion")
 @requiere_sesion()
 @rol_requerido("admin")
+@auditar("avisar_cancelacion_cliente")
 def avisar_cancelacion_cliente(pedido_id: UUID):
     """El admin confirma que Tuu acepto la anulacion: enciende el badge."""
     try:
@@ -327,6 +333,7 @@ def marcar_aviso_cancelacion_visto(pedido_id: UUID):
 @pedido_bp.patch("/pedidos/<uuid:pedido_id>/estado")
 @requiere_sesion()
 @rol_requerido("admin")
+@auditar("cambiar_estado_pedido")
 def cambiar_estado_pedido(pedido_id: UUID):
     datos = request.get_json(silent=True) or {}
     try:

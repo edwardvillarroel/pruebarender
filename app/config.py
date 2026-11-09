@@ -32,7 +32,11 @@ def _oracle_uri():
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
-
+    # OWASP A01: secreto compartido para la frontera gateway -> backend. El
+    # gateway lo agrega como `X-Internal-Secret` al reenviar. Fail-closed: si no
+    # esta configurado (o no coincide), el backend rechaza toda request
+    # autenticada. Debe existir en local y en produccion (Render).
+    INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "")
     _oracle_uri_val, _oracle_engine_options = _oracle_uri()
 
     _backend = os.getenv("DB_BACKEND", "postgres").strip().lower()
@@ -62,10 +66,11 @@ class Config:
 
     # Pasarela de pagos TUU (Pago Online de Haulmer)
     TUU_ACCOUNT_ID = os.getenv("TUU_ACCOUNT_ID", "62224230")
-    TUU_SECRET_KEY = os.getenv(
-        "TUU_SECRET_KEY",
-        "yAk0dXTJLQzkeEWODsQWVpPX0bn7ND50qwoQrXgqqNiUyEpgxIPxPtoCgKeLNeh1upTw72JZx5O9x5IaAtPIGUAVcMNcsUSg3M0M8tgWdUb4F8qkS8I7rHpOUmZqzvfS",
-    )
+    # OWASP A04: sin secret embebido en codigo. El valor por defecto es vacio:
+    # la key real (y el account) se toman de variables de entorno (Render en
+    # produccion; .env en local). El fallback embebido anterior era solo una key
+    # de pruebas y no debe vivir en el codigo fuente.
+    TUU_SECRET_KEY = os.getenv("TUU_SECRET_KEY", "")
     TUU_API_URL = os.getenv(
         "TUU_API_URL", "https://frontend-api.payment.haulmer.dev/v1/payment"
     )
@@ -136,7 +141,14 @@ class Config:
     # propósito: la firma de F1 ya controla quién puede pedir el archivo).
     SUPABASE_SIGN_TTL_SECONDS = int(os.getenv("SUPABASE_SIGN_TTL_SECONDS", "300"))
 
-    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
+    # OWASP A02: sin origenes explicitos no se habilita CORS (nunca "*").
+    # En dev y prod la API y el frontend comparten origen (gateway/proxy), asi
+    # que un valor vacio significa "misma origen" y no abre nada.
+    CORS_ORIGINS = [
+        origen.strip()
+        for origen in os.getenv("CORS_ORIGINS", "").split(",")
+        if origen.strip()
+    ]
     FRONTEND_DIST = os.getenv(
         "FRONTEND_DIST", str(BASE_DIR.parent / "ApoloVibes-frontend" / "dist")
     )
@@ -157,6 +169,11 @@ class DevelopmentConfig(Config):
 
 class TestingConfig(Config):
     TESTING = True
+
+    # OWASP A01: el backend es fail-closed y exige `X-Internal-Secret` cuando
+    # `INTERNAL_SECRET` no esta vacio. En tests se fija un secreto compartido y
+    # el cliente de integracion lo agrega (simula la firma del gateway).
+    INTERNAL_SECRET = os.getenv("TEST_INTERNAL_SECRET", "secreto-interno-test")
 
     # F4: los tests NUNCA hablan con Supabase Storage de verdad (el .env local
     # trae credenciales válidas y load_dotenv ya las cargó en Config). Cada test

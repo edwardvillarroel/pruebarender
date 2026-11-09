@@ -3,6 +3,7 @@ from uuid import UUID
 from flask import Blueprint, current_app, jsonify, request
 
 from app.api.middleware.auth import requiere_sesion, rol_requerido, usuario_actual
+from app.api.middleware.audit_logger import auditar
 from app.application.usuarios.gestionar_usuarios import (
     CorreoEnUso,
     DatosUsuarioInvalidos,
@@ -43,6 +44,7 @@ def listar_usuarios():
 @usuarios_bp.post("/usuarios")
 @requiere_sesion()
 @rol_requerido("admin")
+@auditar("crear_usuario")
 def crear_usuario():
     """Alta de usuario desde el panel (solo admin).
 
@@ -61,6 +63,7 @@ def crear_usuario():
 @usuarios_bp.patch("/usuarios/<uuid:usuario_id>/rol")
 @requiere_sesion()
 @rol_requerido("admin")
+@auditar("cambiar_rol")
 def cambiar_rol(usuario_id: UUID):
     """Otorga o quita permisos (admin <-> cliente) sin dejar el sistema sin admin."""
     try:
@@ -79,6 +82,7 @@ def cambiar_rol(usuario_id: UUID):
 @usuarios_bp.patch("/usuarios/<uuid:usuario_id>/estado")
 @requiere_sesion()
 @rol_requerido("admin")
+@auditar("cambiar_estado_usuario")
 def cambiar_estado(usuario_id: UUID):
     """Bloquea (`{activo: false}`) o desbloquea (`{activo: true}`) una cuenta.
 
@@ -101,6 +105,7 @@ def cambiar_estado(usuario_id: UUID):
 @usuarios_bp.delete("/usuarios/<uuid:usuario_id>")
 @requiere_sesion()
 @rol_requerido("admin")
+@auditar("eliminar_usuario")
 def eliminar_usuario(usuario_id: UUID):
     """Eliminacion logica (soft delete) de una cuenta.
 

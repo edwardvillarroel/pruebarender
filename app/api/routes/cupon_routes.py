@@ -45,21 +45,21 @@ def crear_cupon():
     descripcion = datos.get("descripcion")
 
     if not codigo:
-        return jsonify({"error": "El código es obligatorio"}), 400
+        return jsonify({"mensaje": "El código es obligatorio"}), 400
     if tipo not in ("porcentaje", "monto"):
-        return jsonify({"error": "Tipo inválido"}), 400
+        return jsonify({"mensaje": "Tipo inválido"}), 400
     try:
         valor = float(valor)
     except (TypeError, ValueError):
-        return jsonify({"error": "Valor inválido"}), 400
+        return jsonify({"mensaje": "Valor inválido"}), 400
     if valor <= 0:
-        return jsonify({"error": "El valor debe ser mayor a 0"}), 400
+        return jsonify({"mensaje": "El valor debe ser mayor a 0"}), 400
     if tipo == "porcentaje" and valor > 100:
-        return jsonify({"error": "El porcentaje no puede ser mayor a 100"}), 400
+        return jsonify({"mensaje": "El porcentaje no puede ser mayor a 100"}), 400
 
     existente = _repo.get_by_codigo(codigo)
     if existente:
-        return jsonify({"error": "Ya existe un cupón con ese código"}), 409
+        return jsonify({"mensaje": "Ya existe un cupón con ese código"}), 409
 
     from flask import g
     creado_por = getattr(g, "usuario_id", None)
@@ -97,7 +97,7 @@ def eliminar_cupon(cupon_id):
         _repo.eliminar(cupon_id)
         return jsonify({"ok": True})
     except ValueError as exc:
-        return jsonify({"error": str(exc)}), 404
+        return jsonify({"mensaje": str(exc)}), 404
 
 
 @cupon_bp.post("/cupones/validar")
@@ -106,11 +106,11 @@ def validar_cupon():
     datos = request.get_json(silent=True) or {}
     codigo = str(datos.get("codigo") or "").strip().upper()
     if not codigo:
-        return jsonify({"error": "Ingresa un código"}), 400
+        return jsonify({"mensaje": "Ingresa un código"}), 400
 
     cupon = _repo.get_by_codigo(codigo)
     if not cupon or not cupon.puede_usarse():
-        return jsonify({"error": "Cupón inválido o ya utilizado"}), 400
+        return jsonify({"mensaje": "Cupón inválido o ya utilizado"}), 400
 
     return jsonify({
         "valido": True,
