@@ -262,7 +262,7 @@ def test_uploads_sin_firma_devuelve_403(client, app, tmp_path, monkeypatch):
     resp = client.get("/api/uploads/cotizaciones/prueba-firma.png")
 
     assert resp.status_code == 403
-    assert "error" in resp.get_json()
+    assert "mensaje" in resp.get_json()
 
 
 def test_uploads_con_firma_valida_devuelve_200(client, app, tmp_path, monkeypatch):

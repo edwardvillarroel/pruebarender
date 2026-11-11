@@ -208,6 +208,11 @@ _LIMPIEZA = [
     ("documentos_tributarios", "pedido_id IN (SELECT id FROM pedidos WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
     ("pedidos", "usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test')"),
+    # Antes que `usuarios`: `logs_auditoria.usuario_id` es FK a `usuarios`
+    # (auditoria del hardening). Borrar el usuario con logs vivos viola
+    # fk_log_usuario, el DELETE falla y —al ser todo un unico commit— la
+    # limpieza entera se revierte y contamina la suite completa.
+    ("logs_auditoria", "usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test')"),
     ("usuarios", "email LIKE '%@caracterizacion.test'"),
     # Va antes de `productos`: `producto_colores.producto_id` es FK a
     # `productos`, asi que borrar el producto con colores vivos viola la FK.
