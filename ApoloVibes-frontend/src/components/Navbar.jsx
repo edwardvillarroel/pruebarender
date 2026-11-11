@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useTheme } from '../context/ThemeContext.jsx'
-import { mediaPath } from '../utils/media.js'
+import { mediaPath, urlMedia } from '../utils/media.js'
 import {
   ShoppingCart, Menu, X, User, LayoutDashboard, LogOut, Moon, Sun, CircleCheck, ClipboardList,
   Minus, Plus, Trash2, ShieldCheck, Calculator, ChevronRight, LogIn, ReceiptText
@@ -15,8 +15,8 @@ import SeguridadModal from './SeguridadModal.jsx'
 import ConfirmModal from './ConfirmModal.jsx'
 
 export default function Navbar() {
-  const { items, cantidadTotal, solicitarLogin, abrirLogin, cerrarLogin, quitarItem, actualizarCantidadItem, total, requiereLogin } = useCart()
-  const { isLoggedIn, isAdmin, logout, user } = useAuth()
+  const { items, cantidadTotal, solicitarLogin, abrirLogin, cerrarLogin, quitarItem, actualizarCantidadItem, total, requiereLogin, cargando: cargandoCarrito } = useCart()
+  const { isLoggedIn, isAdmin, logout, user, cargando: authCargando } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -67,6 +67,10 @@ export default function Navbar() {
     window.addEventListener('apolovibes:google-mfa', abrirGoogleMfa)
     return () => window.removeEventListener('apolovibes:google-mfa', abrirGoogleMfa)
   }, [abrirLogin])
+
+  useEffect(() => {
+    if (isLoggedIn && solicitarLogin && !cargandoCarrito) cerrarLogin()
+  }, [isLoggedIn, solicitarLogin, cargandoCarrito, cerrarLogin])
 
   useEffect(() => {
     function interceptarNavegacion(e) {
@@ -228,24 +232,9 @@ export default function Navbar() {
                   }
                 }}
               >Cotiza tu producto</Link>
-              <Link
-                to="/"
-                onClick={(e) => {
-                  const estaEnCheckout = window.__checkoutBlocking && (
-                    (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
-                    window.location.pathname.endsWith('/checkout') ||
-                    window.location.pathname.includes('/checkout')
-                  )
-                  if (estaEnCheckout) {
-                    e.preventDefault()
-                    window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: '/' } }))
-                  }
-                }}
-              >Nosotros</Link>
             </>
           )}
         </nav>
-
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'flex-end' }}>
           <button
             className="theme-toggle"
@@ -269,15 +258,18 @@ export default function Navbar() {
           {/* Desktop auth */}
           <div style={{ position: 'relative' }} ref={userMenuRef}>
             <button
-              onClick={() => isLoggedIn ? setUserMenuOpen(v => !v) : abrirLogin()}
+              onClick={() => {
+                if (authCargando) return
+                isLoggedIn ? setUserMenuOpen(v => !v) : abrirLogin()
+              }}
               aria-label="Mi cuenta"
               style={{
                 width: 34, height: 34, borderRadius: '50%',
                 border: '1.5px solid rgba(251,247,238,.3)',
                 background: 'rgba(251,247,238,.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: '#FBF7EE',
-                transition: 'border-color .2s, background .2s',
+                cursor: authCargando ? 'default' : 'pointer', color: '#FBF7EE',
+                transition: 'border-color .2s, background .35s',
               }}
               onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(251,247,238,.6)'; e.currentTarget.style.background = 'rgba(251,247,238,.15)' }}
               onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(251,247,238,.3)'; e.currentTarget.style.background = 'rgba(251,247,238,.1)' }}
@@ -412,14 +404,17 @@ export default function Navbar() {
                 <button
                   onClick={() => handlePedirLogout(() => setUserMenuOpen(false))}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                    padding: '12px 16px', border: 'none', background: 'none',
-                    color: '#b60303', fontSize: 13, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    width: 'calc(100% - 16px)', margin: '8px',
+                    padding: '11px 12px', border: 'none', borderRadius: 8,
+                    background: 'var(--red)',
+                    color: '#fff', fontSize: 13, fontWeight: 600,
+                    cursor: 'pointer',
                     textAlign: 'left',
-                    transition: 'background .15s',
+                    transition: 'filter .15s',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(239,68,68,.08)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                  onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(.85)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.filter = 'none')}
                 >
                   <LogOut size={16} />
                   Cerrar sesión
@@ -469,7 +464,7 @@ export default function Navbar() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--bg)' }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--surface)' }}> Tu carrito</h1>
+                      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-on-bg)' }}> Tu carrito</h1>
                       <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>
                         ({cantidadTotal} {cantidadTotal === 1 ? 'producto' : 'productos'})
                       </span>
@@ -511,7 +506,7 @@ export default function Navbar() {
                           onClick={() => { setCartOpen(false); abrirLogin() }}
                           style={{ color: 'var(--text)' }}
                         >
-                          <LogIn size={16} /> Iniciar sesión
+                          Iniciar sesión
                         </button>
                       </div>
                     ) : items.length === 0 ? (
@@ -559,7 +554,20 @@ export default function Navbar() {
                             borderBottom: index < items.length - 1 ? '1px solid var(--surface-3)' : 'none',
                           }}
                         >
-                          <div
+                          <Link
+                            to={`/producto/${item.id}`}
+                            onClick={(e) => {
+                              const estaEnCheckout = window.__checkoutBlocking && (
+                                (window.__checkoutLocation && window.__checkoutLocation.endsWith('/checkout')) ||
+                                window.location.pathname.endsWith('/checkout') ||
+                                window.location.pathname.includes('/checkout')
+                              )
+                              if (estaEnCheckout) {
+                                e.preventDefault()
+                                window.dispatchEvent(new CustomEvent('checkout:request-confirm', { detail: { to: `/producto/${item.id}` } }))
+                              }
+                              setCartOpen(false)
+                            }}
                             style={{
                               width: 56,
                               height: 56,
@@ -574,7 +582,7 @@ export default function Navbar() {
                           >
                             {item.imagen && (
                               <img
-                                src={item.imagen}
+                                src={urlMedia(item.imagen)}
                                 alt={item.nombre}
                                 loading="lazy"
                                 decoding="async"
@@ -583,11 +591,11 @@ export default function Navbar() {
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               />
                             )}
-                          </div>
+                          </Link>
 
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                              <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--surface)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <p style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-on-bg)', margin: '0 0 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {item.nombre}
                               </p>
                               <button
@@ -615,9 +623,9 @@ export default function Navbar() {
                                     color: 'inherit', cursor: 'pointer',
                                   }}
                                 >
-                                  <Minus size={13} style={{ color: 'var(--surface)' }} />
+                                  <Minus size={13} style={{ color: 'var(--text-on-bg)' }} />
                                 </button>
-                                <span style={{ minWidth: 26, textAlign: 'center', fontSize: 13, color: 'var(--surface)' }}>
+                                <span style={{ minWidth: 26, textAlign: 'center', fontSize: 13, color: 'var(--text-on-bg)' }}>
                                   {item.cantidad}
                                 </span>
                                 <button
@@ -630,7 +638,7 @@ export default function Navbar() {
                                     color: 'inherit', cursor: 'pointer',
                                   }}
                                 >
-                                  <Plus size={13} style={{ color: 'var(--surface)' }} />
+                                  <Plus size={13} style={{ color: 'var(--text-on-bg)' }} />
                                 </button>
                               </div>
                               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 800, color: 'var(--surface-2)' }}>
@@ -642,10 +650,10 @@ export default function Navbar() {
                       ))
                     )}
                   </div>
-                  <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text)' }}></div>
+                  <div className="separador-suave" style={{ display: 'flex', flexDirection: 'column', fontSize: 16, color: 'var(--text-on-bg)' }}></div>
                   {!requiereLogin && items.length > 0 && (
                     <div style={{ padding: '14px 16px', borderTop: '1px solid var(--bg)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, color: 'var(--surface)', marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 600, color: 'var(--text-on-bg)', marginBottom: 12 }}>
                         <span>Total</span>
                         <span style={{ fontFamily: 'var(--font-mono)' }}>${total.toLocaleString('es-CL')} CLP</span>
                       </div>
@@ -917,6 +925,19 @@ export default function Navbar() {
               }}>
                 {theme === 'dark' ? <><Sun size={18} /> Modo claro</> : <><Moon size={18} /> Modo oscuro</>}
               </button>
+            </div>
+
+            {/* Logo pie del menu */}
+            <div className="nm-footer">
+              <img
+                src={mediaPath('nombrelogo2.webp')}
+                alt="Apolo Vibes 3D"
+                loading="lazy"
+                decoding="async"
+                width="512"
+                height="171"
+                onClick={() => handleMobileNav('/')}
+              />
             </div>
           </div>
         </div>,
