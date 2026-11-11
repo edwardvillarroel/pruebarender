@@ -6,6 +6,7 @@ from uuid import UUID
 from app.domain.entities.categoria import Categoria
 from app.domain.entities.detalle_pedido import DetallePedido
 from app.domain.entities.documento_tributario import DocumentoTributario
+from app.domain.entities.log_auditoria import LogAuditoria
 from app.domain.entities.pago import Pago
 from app.domain.entities.pedido import Pedido
 from app.domain.entities.resena import Resena, ResenaPublica
@@ -324,4 +325,13 @@ class ResenaRepository(RepositoryBase[Resena], ABC):
     @abstractmethod
     def recalcular_stats_producto(self, producto_id: UUID) -> None:
         """Re-sincroniza los stats denormalizados del producto (re-seed/reparación)."""
+        raise NotImplementedError
+
+
+class LogAuditoriaRepository(ABC):
+    """Puerto de persistencia de eventos de auditoria (RNF-06)."""
+
+    @abstractmethod
+    def add(self, log: LogAuditoria) -> LogAuditoria:
+        """Persiste un evento de auditoria (RNF-06)."""
         raise NotImplementedError

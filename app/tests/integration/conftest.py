@@ -86,6 +86,29 @@ def app():
         _verificar_sin_residuos()
 
 
+@pytest.fixture
+def client(app):
+    """Cliente HTTP que simula la firma del gateway (OWASP A01).
+
+    El backend es fail-closed: toda request autenticada debe traer
+    `X-Internal-Secret`. Los tests de integracion ejercitan la API interna con
+    `X-User-Id`/`X-User-Rol` inyectados; el unico emisor legitimo de esas
+    cabeceras es el gateway, asi que el cliente agrega el secreto compartido
+    de testing en cada request.
+    """
+    cliente = app.test_client()
+    abrir_original = cliente.open
+
+    def _open(*args, **kwargs):
+        cabeceras = dict(kwargs.get("headers") or {})
+        cabeceras.setdefault("X-Internal-Secret", app.config["INTERNAL_SECRET"])
+        kwargs["headers"] = cabeceras
+        return abrir_original(*args, **kwargs)
+
+    cliente.open = _open
+    return cliente
+
+
 def _tablas_faltantes() -> list[str]:
     from sqlalchemy import inspect
 

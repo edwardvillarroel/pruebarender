@@ -9,6 +9,7 @@ from unittest.mock import Mock
 CABECERA_ADMIN = {
     "X-User-Id": "11111111-1111-1111-1111-111111111111",
     "X-User-Rol": "admin",
+    "X-Internal-Secret": "secreto-interno-test",
 }
 
 
@@ -44,6 +45,7 @@ def test_el_listado_rechaza_a_clientes(app, client):
         headers={
             "X-User-Id": "11111111-1111-1111-1111-111111111111",
             "X-User-Rol": "cliente",
+            "X-Internal-Secret": "secreto-interno-test",
         },
     )
     assert respuesta.status_code == 403

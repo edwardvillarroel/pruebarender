@@ -9,7 +9,7 @@ def _ip_real() -> str:
 
     Detrás del proxy TODOS los clientes comparten la IP del proxy, así que
     usar get_remote_address haría que los límites (login 20/min, refresh
-    10/min, MFA 10/min) fueran GLOBALES. Se toma la ÚLTIMA IP de
+    10/min, MFA 5/min) fueran GLOBALES. Se toma la ÚLTIMA IP de
     X-Forwarded-For (la que appendea el proxy de Render); nunca la primera,
     que es la que el cliente puede falsificar. Sin header: fallback a la IP
     remota directa.

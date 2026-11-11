@@ -23,7 +23,14 @@ def reenviar(ruta, datos_metodo, cabeceras_internas):
         "X-User-Id": cabeceras_internas.get("X-User-Id", ""),
         "X-User-Rol": cabeceras_internas.get("X-User-Rol", ""),
     }
-
+    # OWASP A01: se comparte el secreto interno para que el backend valide que
+    # la request viene del gateway antes de confiar en X-User-Id/X-User-Rol.
+    secreto_interno = (current_app.config.get("INTERNAL_SECRET") or "").strip()
+    if secreto_interno:
+        cabeceras["X-Internal-Secret"] = secreto_interno
+    # El secret del cron (X-Cron-Secret) lo encripta el cliente y el backend lo
+    # exige en endpoints tipo /admin/cotizaciones/*; sin reenviarlo la whitelist
+    # de arriba corta la peticion y el guard devuelve 401.
     secreto_cron = (datos_metodo.headers.get("X-Cron-Secret") or "").strip()
     if secreto_cron:
         cabeceras["X-Cron-Secret"] = secreto_cron

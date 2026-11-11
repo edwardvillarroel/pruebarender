@@ -22,11 +22,13 @@ from app.application.usuarios.gestionar_usuarios import (
 CABECERA_ADMIN = {
     "X-User-Id": "11111111-1111-1111-1111-111111111111",
     "X-User-Rol": "admin",
+    "X-Internal-Secret": "secreto-interno-test",
 }
 
 CABECERA_CLIENTE = {
     "X-User-Id": "11111111-1111-1111-1111-111111111111",
     "X-User-Rol": "cliente",
+    "X-Internal-Secret": "secreto-interno-test",
 }
 
 
@@ -349,6 +351,7 @@ def test_cambiar_estado_prohibido_bloquearse_propio(client, app):
         headers={
             "X-User-Id": "11111111-1111-1111-1111-111111111111",
             "X-User-Rol": "admin",
+            "X-Internal-Secret": "secreto-interno-test",
         },
     )
     assert respuesta.status_code == 409
@@ -384,6 +387,7 @@ def test_eliminar_prohibido_autoeliminacion(client, app):
         headers={
             "X-User-Id": "11111111-1111-1111-1111-111111111111",
             "X-User-Rol": "admin",
+            "X-Internal-Secret": "secreto-interno-test",
         },
     )
     # Cuando el usuario intenta eliminarse a sí mismo, el route retorna 409
@@ -407,6 +411,7 @@ def test_eliminar_prohibido_ultimo_admin(client, app):
             headers={
                 "X-User-Id": "11111111-1111-1111-1111-111111111111",
                 "X-User-Rol": "admin",
+                "X-Internal-Secret": "secreto-interno-test",
             },
         )
     # Cuando intenta eliminar el último admin, el route retorna 409

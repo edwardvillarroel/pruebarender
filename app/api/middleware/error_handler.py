@@ -29,3 +29,14 @@ def register_error_handlers(app) -> None:
     @app.errorhandler(NotImplementedError)
     def no_implementado(_e):
         return jsonify(mensaje="Endpoint no implementado"), 501
+
+    @app.errorhandler(Exception)
+    def error_no_manejado(exc):
+        """Error no controlado: se loguea con stack y se responde 500 genérico.
+
+        OWASP Top 10 2025 (A10): sin este handler una excepción no manejada
+        escapaba al fallback de Flask (HTML genérico + stack en debug) y el
+        contrato `{ "mensaje": string }` del frontend no se cumplía.
+        """
+        app.logger.exception("Error no manejado en la API")
+        return jsonify(mensaje="Error interno del servidor"), 500
