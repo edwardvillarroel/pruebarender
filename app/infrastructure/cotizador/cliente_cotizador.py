@@ -5,9 +5,10 @@ from typing import Any, Dict, Optional
 import requests
 
 class ClienteCotizadorIA:
-    def __init__(self, base_url: Optional[str] = None, timeout: int = 30):
+    def __init__(self, base_url: Optional[str] = None, timeout: int = 30, api_key: Optional[str] = None):
         self.base_url = (base_url or os.getenv("COTIZADOR_IA_URL") or "http://127.0.0.1:8000").rstrip("/")
         self.timeout = timeout
+        self.api_key = api_key or os.getenv("APOLO_API_KEY") or ""
 
     def estimar(
         self, 
@@ -38,7 +39,11 @@ class ClienteCotizadorIA:
         if material_usuario and material_usuario.strip().lower() not in ["no lo se", "no estoy seguro"]:
             data["material_usuario"] = material_usuario.strip()
 
-        resp = requests.post(f"{self.base_url}/cotizar", files=files, data=data, timeout=self.timeout)
+        headers = {
+            "x-apolo-key": self.api_key
+        }
+
+        resp = requests.post(f"{self.base_url}/cotizar", files=files, data=data, headers=headers, timeout=self.timeout)
         resp.raise_for_status()
         body = resp.json()
         print("[COTIZADOR] Respuesta:", body)
