@@ -135,13 +135,13 @@ def listar_cotizaciones():
                     "precio": float(s.precio) if s.precio is not None else None,
                     "estado": s.estado.value if s.estado else "pendiente",
                     "creado_en": s.creado_en.isoformat() if s.creado_en else None,
-                    "material_sugerido_ia": s.material_sugerido_ia,
-                    "complejidad_ia": s.complejidad_ia,
-                    "gramos_estimados_ia": float(s.gramos_estimados_ia) if s.gramos_estimados_ia is not None else None,
-                    "tiempo_estimado_horas_ia": float(s.tiempo_estimado_horas_ia) if s.tiempo_estimado_horas_ia is not None else None,
-                    "precio_estimado_ia": float(s.precio_estimado_ia) if s.precio_estimado_ia is not None else None,
-                    "confianza_material_ia": float(s.confianza_material_ia) if s.confianza_material_ia is not None else None,
-                    "confianza_complejidad_ia": float(s.confianza_complejidad_ia) if s.confianza_complejidad_ia is not None else None,
+                    "material_sugerido": s.material_sugerido_ia,
+                    "complejidad": s.complejidad_ia,
+                    "gramos_estimados": float(s.gramos_estimados_ia) if s.gramos_estimados_ia is not None else None,
+                    "tiempo_estimado_horas": float(s.tiempo_estimado_horas_ia) if s.tiempo_estimado_horas_ia is not None else None,
+                    "precio_estimado": float(s.precio_estimado_ia) if s.precio_estimado_ia is not None else None,
+                    "confianza_material": float(s.confianza_material_ia) if s.confianza_material_ia is not None else None,
+                    "confianza_complejidad": float(s.confianza_complejidad_ia) if s.confianza_complejidad_ia is not None else None,
                     "ia_calculado_en": s.ia_calculado_en.isoformat() if s.ia_calculado_en else None,
                     "ia_origen": s.ia_origen,
                     "pagada": bool(pago.get("pagada", False)),
@@ -155,45 +155,15 @@ def listar_cotizaciones():
 
 
 @diseno_bp.get("/cotizaciones/mias")
+@requiere_sesion()
 def listar_mis_cotizaciones():
     try:
-        from flask import request, session
         from app.infrastructure.repositories.pedido_repository import PedidoRepository
         from app.infrastructure.repositories.solicitud_diseno_repository import SolicitudDisenoRepository
 
-        try:
-            from flask_login import current_user
-        except Exception:
-            current_user = None
-
-        usuario_id_str = (
-            request.headers.get("X-User-Id")
-            or request.headers.get("x-user-id")
-            or request.args.get("usuario_id")
-            or request.args.get("user_id")
-            or session.get("usuario_id")
-            or session.get("user_id")
-            or session.get("uid")
-            or session.get("id")
-        )
-
-        if not usuario_id_str and current_user and getattr(current_user, "is_authenticated", False):
-            cid = getattr(current_user, "id", None)
-            if cid is not None:
-                usuario_id_str = cid
-
-        if not usuario_id_str:
-            user_sess = session.get("user") or session.get("usuario")
-            if isinstance(user_sess, dict):
-                usuario_id_str = user_sess.get("id") or user_sess.get("usuario_id") or user_sess.get("_id")
-            elif user_sess is not None:
-                uid = getattr(user_sess, "id", None)
-                if uid is not None:
-                    usuario_id_str = uid
-
+        usuario_id_str = usuario_actual()
         if not usuario_id_str:
             return jsonify({"mensaje": "Sesión requerida"}), 401
-
         try:
             usuario_id = UUID(str(usuario_id_str))
         except Exception:
@@ -238,7 +208,6 @@ def listar_mis_cotizaciones():
         current_app.logger.exception("Error listando mis cotizaciones")
         return jsonify({"mensaje": "No pudimos obtener tus cotizaciones."}), 500
 
-
 @diseno_bp.post("/cotizaciones/<uuid:solicitud_id>/aviso/visto")
 @requiere_sesion()
 def marcar_aviso_cotizacion_visto(solicitud_id):
@@ -252,12 +221,14 @@ def marcar_aviso_cotizacion_visto(solicitud_id):
             usuario_id = UUID(usuario_id_str)
         except Exception:
             return jsonify({"mensaje": "Sesión requerida"}), 401
-
         repo = SolicitudDisenoRepository()
         s = repo.obtener_por_id(solicitud_id)
         if s is None:
             return jsonify({"mensaje": "Cotización no encontrada"}), 404
-        if s.usuario_id and str(s.usuario_id) != str(usuario_id):
+
+        # Solo dueño o admin puede verla
+        from app.api.middleware.auth import rol_actual
+        if s.usuario_id and str(s.usuario_id) != str(usuario_id_str) and rol_actual() != "admin":
             return jsonify({"mensaje": "No autorizado"}), 403
 
         s.aviso_estado_visto = True
@@ -281,11 +252,10 @@ def obtener_cotizacion(solicitud_id):
         # Solo dueño o admin puede verla
         from app.api.middleware.auth import rol_actual
         usuario_id_str = usuario_actual()
-        if s.usuario_id and str(s.usuario_id) != str(usuario_id_str) and rol_actual() != "admin":
-            return jsonify({"mensaje": "No autorizado"}), 403
-
         if s is None:
             return jsonify({"mensaje": "Cotización no encontrada"}), 404
+        if s.usuario_id and str(s.usuario_id) != str(usuario_id_str) and rol_actual() != "admin":
+            return jsonify({"mensaje": "No autorizado"}), 403
         pago = PedidoRepository().pagos_por_cotizacion([s.id]).get(s.id, {})
         return jsonify(
             {
@@ -434,22 +404,18 @@ def estimar_cotizacion():
             color=color,
         )
 
-        def _limpio(v):
-            return v
+        respuesta = {
+            "precio_estimado": resultado.get("precio_estimado_ia") or resultado.get("precio_estimado") or resultado.get("precio_clp"),
+            "precio_unitario": resultado.get("precio_unitario_ia") or resultado.get("precio_unitario") or resultado.get("precio_unitario_clp"),
+            "gramos_estimados": resultado.get("gramos_estimados_ia") or resultado.get("gramos_estimados"),
+            "tiempo_estimado_horas": resultado.get("tiempo_estimado_horas_ia") or resultado.get("tiempo_estimado_horas"),
+            "material_sugerido": resultado.get("material_sugerido_ia") or resultado.get("material_sugerido") or resultado.get("material_detectado"),
+            "complejidad": resultado.get("complejidad_ia") or resultado.get("complejidad"),
+            "confianza_material": resultado.get("confianza_material_ia") or resultado.get("confianza_material"),
+            "confianza_complejidad": resultado.get("confianza_complejidad_ia") or resultado.get("confianza_complejidad"),
+        }
 
-respuesta = {
-    "precio_estimado": resultado.get("precio_estimado_ia") or resultado.get("precio_estimado") or resultado.get("precio_clp"),
-    "precio_unitario": resultado.get("precio_unitario_ia") or resultado.get("precio_unitario") or resultado.get("precio_unitario_clp"),
-    "gramos_estimados": resultado.get("gramos_estimados_ia") or resultado.get("gramos_estimados"),
-    "tiempo_estimado_horas": resultado.get("tiempo_estimado_horas_ia") or resultado.get("tiempo_estimado_horas"),
-    "material_sugerido": resultado.get("material_sugerido_ia") or resultado.get("material_sugerido") or resultado.get("material_detectado"),
-    "complejidad": resultado.get("complejidad_ia") or resultado.get("complejidad"),
-    "confianza_material": resultado.get("confianza_material_ia") or resultado.get("confianza_material"),
-    "confianza_complejidad": resultado.get("confianza_complejidad_ia") or resultado.get("confianza_complejidad"),
-    "detalle": resultado.get("detalle"),
-}
-
-        return jsonify(resultado), 200
+        return jsonify(respuesta), 200
     except requests.exceptions.RequestException:
         current_app.logger.exception("Error llamando al servicio de estimación")
         return jsonify({"mensaje": "No pudimos procesar tu solicitud. Inténtalo de nuevo."}), 503

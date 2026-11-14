@@ -13,7 +13,7 @@ from app.infrastructure.cotizador import ClienteCotizadorIA
 MATERIALES_PERMITIDOS = {"PLA", "PLA+", "ABS+", "ABS", "PETG", "Resina", "No estoy seguro"}
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 IA_ORIGEN_SERVER = "cotizador-apolovibes-v2"
-IA_ORIGEN_CLIENTE = "cotizador-apolovibes-v2-front"
+
 
 
 class CrearSolicitudDiseno:
@@ -126,9 +126,6 @@ class CrearSolicitudDiseno:
                     color=color,
                 )
 
-            if estimacion is None:
-                estimacion = self._aplicar_estimacion_cliente(datos, solicitud)
-
             if estimacion is not None:
                 self._aplicar_resultado(solicitud, estimacion)
 
@@ -176,45 +173,6 @@ class CrearSolicitudDiseno:
         solicitud.ia_origen = IA_ORIGEN_SERVER
         return res
 
-    def _aplicar_estimacion_cliente(self, datos: dict, solicitud: SolicitudDiseno) -> dict | None:
-        """Reutiliza la estimacion calculada por el cliente (en el upload) si la firma
-        de las especificaciones sigue siendo la misma."""
-        firma_esperada = self._firma_especificaciones(
-            alto=solicitud.alto,
-            ancho=solicitud.ancho,
-            largo=solicitud.largo,
-            unidad=solicitud.unidad,
-            cantidad=solicitud.cantidad,
-            uso=solicitud.uso,
-            material=solicitud.material,
-            color=solicitud.color,
-        )
-        if str(datos.get("estimacion_firma") or "") != firma_esperada:
-            return None
-
-        def _get(*nombres):
-            for n in nombres:
-                v = datos.get(n)
-                if v is not None and str(v).strip() != "":
-                    return v
-            return None
-
-        precio = self._to_decimal(_get("precio_estimado", "precio_estimado_ia", "precio_clp"))
-        if precio is None or precio <= 0 or precio > Decimal("9999999999.99"):
-            return None
-        solicitud.ia_calculado_en = datetime.utcnow()
-        solicitud.ia_origen = IA_ORIGEN_CLIENTE
-        return {
-            "precio_estimado_ia": precio,
-            "precio_unitario_ia": self._to_decimal(_get("precio_unitario", "precio_unitario_ia", "precio_unitario_clp")),
-            "gramos_estimados_ia": self._to_decimal(_get("gramos_estimados", "gramos_estimados_ia")),
-            "tiempo_estimado_horas_ia": self._to_decimal(_get("tiempo_estimado_horas", "tiempo_estimado_horas_ia")),
-            "material_sugerido_ia": self._texto_largo(_get("material_sugerido", "material_sugerido_ia", "material_detectado"), 50),
-            "complejidad_ia": self._texto_largo(_get("complejidad", "complejidad_ia"), 50),
-            "confianza_material_ia": self._to_decimal(_get("confianza_material", "confianza_material_ia")),
-            "confianza_complejidad_ia": self._to_decimal(_get("confianza_complejidad", "confianza_complejidad_ia")),
-        }
-
     def _aplicar_resultado(self, solicitud: SolicitudDiseno, res: dict) -> None:
         solicitud.material_sugerido_ia = self._texto_largo(res.get("material_sugerido_ia") or res.get("material_detectado"), 50)
         solicitud.complejidad_ia = self._texto_largo(res.get("complejidad_ia") or res.get("complejidad"), 50)
@@ -223,45 +181,6 @@ class CrearSolicitudDiseno:
         solicitud.precio_estimado_ia = self._to_decimal(res.get("precio_estimado_ia") if res.get("precio_estimado_ia") is not None else res.get("precio_clp"))
         solicitud.confianza_material_ia = self._to_decimal(res.get("confianza_material_ia") if res.get("confianza_material_ia") is not None else res.get("confianza_material"))
         solicitud.confianza_complejidad_ia = self._to_decimal(res.get("confianza_complejidad_ia") if res.get("confianza_complejidad_ia") is not None else res.get("confianza_complejidad"))
-
-    def _firma_especificaciones(
-        self,
-        alto,
-        ancho,
-        largo,
-        unidad: str,
-        cantidad: int,
-        uso: str | None,
-        material: str,
-        color: str | None,
-    ) -> str:
-        """Firma canonica de las especificaciones de la pieza (para cachear la estimacion)."""
-        return "|".join([
-            self._num_firma(alto, 10),
-            self._num_firma(ancho, 10),
-            self._num_firma(largo, 10),
-            str(unidad or "cm").strip() or "cm",
-            str(int(cantidad or 1)),
-            str((uso or "Decorativo").strip() or "Decorativo"),
-            str((material or "").strip()),
-            str((color or "Negro").strip() or "Negro"),
-        ])
-
-    def _num_firma(self, valor, default=None) -> str:
-        if valor is None or str(valor).strip() == "":
-            valor = default
-        if valor is None or str(valor).strip() == "":
-            return ""
-        try:
-            numero = Decimal(str(valor).strip().replace(",", ".")).normalize()
-            if numero == numero.to_integral_value():
-                return str(int(numero))
-            texto = format(numero, "f")
-            if "." in texto:
-                texto = texto.rstrip("0").rstrip(".")
-            return texto or "0"
-        except Exception:
-            return str(valor).strip()
 
     def _texto_largo(self, valor, maximo: int):
         texto = str(valor).strip() if valor is not None else ""
