@@ -24,7 +24,7 @@ def _notificar_nueva_cotizacion(solicitud) -> None:
         return
     try:
         correo.avisar_admin_nueva_cotizacion(solicitud)
-    except Exception:  # noqa: BLE001 - el correo no rompe la solicitud
+    except Exception: 
         current_app.logger.exception(
             "No se pudo avisar al admin de la cotización %s", solicitud.id
         )
@@ -36,7 +36,7 @@ def _notificar_estado_cotizacion(solicitud, estado: str, precio=None) -> None:
         return
     try:
         correo.enviar_estado_cotizacion(solicitud, estado, precio)
-    except Exception:  # noqa: BLE001 - el correo no rompe la evaluación
+    except Exception:  
         current_app.logger.exception(
             "No se pudo enviar el correo de cotización %s (%s)",
             solicitud.id,
@@ -86,7 +86,7 @@ def crear_cotizacion():
 
         servicio = current_app.config.get("COTIZACION_SERVICE")
         if servicio is None:
-            return jsonify({"mensaje": "No pudimos procesar the solicitud."}), 500
+            return jsonify({"mensaje": "No pudimos procesar la solicitud."}), 500
 
         solicitud = servicio.ejecutar(usuario_id, datos, imagen)
         _notificar_nueva_cotizacion(solicitud)
@@ -97,16 +97,13 @@ def crear_cotizacion():
         return jsonify({"mensaje": str(e)}), 400
     except Exception:
         current_app.logger.exception("Error creando cotización")
-        return jsonify({"mensaje": "No pudimos procesar the solicitud."}), 500
+        return jsonify({"mensaje": "No pudimos procesar la solicitud."}), 500
 
 
 @diseno_bp.get("/cotizaciones")
 @requiere_sesion()
 @rol_requerido("admin")
 def listar_cotizaciones():
-    # Solo el panel de administracion lista todas las cotizaciones: la respuesta
-    # incluye nombre, email y telefono de los clientes. Antes estaba abierta y
-    # cualquiera podia leerla con un GET anonimo.
     try:
         from app.infrastructure.repositories.pedido_repository import PedidoRepository
         from app.infrastructure.repositories.solicitud_diseno_repository import SolicitudDisenoRepository
@@ -229,15 +226,6 @@ def listar_mis_cotizaciones():
                     "precio": float(s.precio) if s.precio is not None else None,
                     "estado": s.estado.value if s.estado else "pendiente",
                     "creado_en": s.creado_en.isoformat() if s.creado_en else None,
-                    "material_sugerido_ia": s.material_sugerido_ia,
-                    "complejidad_ia": s.complejidad_ia,
-                    "gramos_estimados_ia": float(s.gramos_estimados_ia) if s.gramos_estimados_ia is not None else None,
-                    "tiempo_estimado_horas_ia": float(s.tiempo_estimado_horas_ia) if s.tiempo_estimado_horas_ia is not None else None,
-                    "precio_estimado_ia": float(s.precio_estimado_ia) if s.precio_estimado_ia is not None else None,
-                    "confianza_material_ia": float(s.confianza_material_ia) if s.confianza_material_ia is not None else None,
-                    "confianza_complejidad_ia": float(s.confianza_complejidad_ia) if s.confianza_complejidad_ia is not None else None,
-                    "ia_calculado_en": s.ia_calculado_en.isoformat() if s.ia_calculado_en else None,
-                    "ia_origen": s.ia_origen,
                     "aviso_estado_en": s.aviso_estado_en.isoformat() if getattr(s, "aviso_estado_en", None) else None,
                     "aviso_estado_visto": bool(getattr(s, "aviso_estado_visto", False)),
                     "aviso_estado_pendiente": bool(getattr(s, "aviso_estado_en", None)) and not bool(getattr(s, "aviso_estado_visto", False)),
@@ -281,6 +269,7 @@ def marcar_aviso_cotizacion_visto(solicitud_id):
 
 
 @diseno_bp.get("/cotizaciones/<uuid:solicitud_id>")
+@requiere_sesion()
 def obtener_cotizacion(solicitud_id):
     try:
         from app.infrastructure.repositories.pedido_repository import PedidoRepository
@@ -288,6 +277,13 @@ def obtener_cotizacion(solicitud_id):
 
         repo = SolicitudDisenoRepository()
         s = repo.obtener_por_id(solicitud_id)
+
+        # Solo dueño o admin puede verla
+        from app.api.middleware.auth import rol_actual
+        usuario_id_str = usuario_actual()
+        if s.usuario_id and str(s.usuario_id) != str(usuario_id_str) and rol_actual() != "admin":
+            return jsonify({"mensaje": "No autorizado"}), 403
+
         if s is None:
             return jsonify({"mensaje": "Cotización no encontrada"}), 404
         pago = PedidoRepository().pagos_por_cotizacion([s.id]).get(s.id, {})
@@ -312,15 +308,6 @@ def obtener_cotizacion(solicitud_id):
                 "precio": float(s.precio) if s.precio is not None else None,
                 "estado": s.estado.value if s.estado else "pendiente",
                 "creado_en": s.creado_en.isoformat() if s.creado_en else None,
-                "material_sugerido_ia": s.material_sugerido_ia,
-                "complejidad_ia": s.complejidad_ia,
-                "gramos_estimados_ia": float(s.gramos_estimados_ia) if s.gramos_estimados_ia is not None else None,
-                "tiempo_estimado_horas_ia": float(s.tiempo_estimado_horas_ia) if s.tiempo_estimado_horas_ia is not None else None,
-                "precio_estimado_ia": float(s.precio_estimado_ia) if s.precio_estimado_ia is not None else None,
-                "confianza_material_ia": float(s.confianza_material_ia) if s.confianza_material_ia is not None else None,
-                "confianza_complejidad_ia": float(s.confianza_complejidad_ia) if s.confianza_complejidad_ia is not None else None,
-                "ia_calculado_en": s.ia_calculado_en.isoformat() if s.ia_calculado_en else None,
-                "ia_origen": s.ia_origen,
                 "pagada": bool(pago.get("pagada", False)),
                 "pedido_id": pago.get("pedido_id"),
             }
@@ -389,9 +376,8 @@ def evaluar_cotizacion(solicitud_id):
         return jsonify({"mensaje": "No pudimos evaluar la cotización."}), 500
 
 
-@diseno_bp.post("/cotizaciones/estimar-ia")
-def estimar_cotizacion_ia():
-    """Estima el precio con el cotizador IA (Gemini) a partir de la foto + specs."""
+@diseno_bp.post("/cotizaciones/estimar")
+def estimar_cotizacion():
     try:
         archivo = None
         imagen = None
@@ -448,14 +434,28 @@ def estimar_cotizacion_ia():
             color=color,
         )
 
+        def _limpio(v):
+            return v
+
+respuesta = {
+    "precio_estimado": resultado.get("precio_estimado_ia") or resultado.get("precio_estimado") or resultado.get("precio_clp"),
+    "precio_unitario": resultado.get("precio_unitario_ia") or resultado.get("precio_unitario") or resultado.get("precio_unitario_clp"),
+    "gramos_estimados": resultado.get("gramos_estimados_ia") or resultado.get("gramos_estimados"),
+    "tiempo_estimado_horas": resultado.get("tiempo_estimado_horas_ia") or resultado.get("tiempo_estimado_horas"),
+    "material_sugerido": resultado.get("material_sugerido_ia") or resultado.get("material_sugerido") or resultado.get("material_detectado"),
+    "complejidad": resultado.get("complejidad_ia") or resultado.get("complejidad"),
+    "confianza_material": resultado.get("confianza_material_ia") or resultado.get("confianza_material"),
+    "confianza_complejidad": resultado.get("confianza_complejidad_ia") or resultado.get("confianza_complejidad"),
+    "detalle": resultado.get("detalle"),
+}
+
         return jsonify(resultado), 200
     except requests.exceptions.RequestException:
-        current_app.logger.exception("Error llamando al cotizador IA")
-        return jsonify({"mensaje": "El cotizador IA no está disponible. Verifica que este levantado el puerto 8001."}), 503
+        current_app.logger.exception("Error llamando al servicio de estimación")
+        return jsonify({"mensaje": "No pudimos procesar tu solicitud. Inténtalo de nuevo."}), 503
     except Exception:
-        current_app.logger.exception("Error estimando with cotizador IA")
-        return jsonify({"mensaje": "No pudimos estimar with IA."}), 500
-
+        current_app.logger.exception("Error estimando cotización")
+        return jsonify({"mensaje": "No pudimos procesar tu solicitud. Inténtalo de nuevo."}), 500
 
 @diseno_bp.get("/uploads/<path:filename>")
 def servir_uploads(filename):

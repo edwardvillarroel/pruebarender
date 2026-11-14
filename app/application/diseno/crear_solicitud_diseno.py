@@ -127,8 +127,6 @@ class CrearSolicitudDiseno:
                 )
 
             if estimacion is None:
-                # Sin cotizador disponible o fallo en la IA: reutilizar la estimacion
-                # calculada por el cliente en el momento de subir la imagen (si aplica).
                 estimacion = self._aplicar_estimacion_cliente(datos, solicitud)
 
             if estimacion is not None:
@@ -136,7 +134,7 @@ class CrearSolicitudDiseno:
 
         except Exception as e:
             import traceback
-            print(f"[IA] Fallo cotizador: {e}")
+            print(f"[Estimacion] Fallo: {e}")
             traceback.print_exc()
 
         return self.repositorio.crear(solicitud)
@@ -193,22 +191,28 @@ class CrearSolicitudDiseno:
         )
         if str(datos.get("estimacion_firma") or "") != firma_esperada:
             return None
-        precio = self._to_decimal(
-            datos.get("precio_estimado_ia") if datos.get("precio_estimado_ia") is not None else datos.get("precio_estimado")
-        )
+
+        def _get(*nombres):
+            for n in nombres:
+                v = datos.get(n)
+                if v is not None and str(v).strip() != "":
+                    return v
+            return None
+
+        precio = self._to_decimal(_get("precio_estimado", "precio_estimado_ia", "precio_clp"))
         if precio is None or precio <= 0 or precio > Decimal("9999999999.99"):
             return None
         solicitud.ia_calculado_en = datetime.utcnow()
         solicitud.ia_origen = IA_ORIGEN_CLIENTE
         return {
             "precio_estimado_ia": precio,
-            "precio_unitario_ia": self._to_decimal(datos.get("precio_unitario_ia")),
-            "gramos_estimados_ia": self._to_decimal(datos.get("gramos_estimados_ia")),
-            "tiempo_estimado_horas_ia": self._to_decimal(datos.get("tiempo_estimado_horas_ia")),
-            "material_sugerido_ia": self._texto_largo(datos.get("material_sugerido_ia"), 50),
-            "complejidad_ia": self._texto_largo(datos.get("complejidad_ia"), 50),
-            "confianza_material_ia": self._to_decimal(datos.get("confianza_material_ia")),
-            "confianza_complejidad_ia": self._to_decimal(datos.get("confianza_complejidad_ia")),
+            "precio_unitario_ia": self._to_decimal(_get("precio_unitario", "precio_unitario_ia", "precio_unitario_clp")),
+            "gramos_estimados_ia": self._to_decimal(_get("gramos_estimados", "gramos_estimados_ia")),
+            "tiempo_estimado_horas_ia": self._to_decimal(_get("tiempo_estimado_horas", "tiempo_estimado_horas_ia")),
+            "material_sugerido_ia": self._texto_largo(_get("material_sugerido", "material_sugerido_ia", "material_detectado"), 50),
+            "complejidad_ia": self._texto_largo(_get("complejidad", "complejidad_ia"), 50),
+            "confianza_material_ia": self._to_decimal(_get("confianza_material", "confianza_material_ia")),
+            "confianza_complejidad_ia": self._to_decimal(_get("confianza_complejidad", "confianza_complejidad_ia")),
         }
 
     def _aplicar_resultado(self, solicitud: SolicitudDiseno, res: dict) -> None:
