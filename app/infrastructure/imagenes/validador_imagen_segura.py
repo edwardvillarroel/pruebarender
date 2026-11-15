@@ -20,8 +20,6 @@ SUSPICIOUS = [
     b'onclick=',
     b'onmouseover=',
     b'<iframe',
-    b'<?xml',
-    b'<!doctype',
     b'<!entity',
     b'%3cscript',
     b'%3Cscript',

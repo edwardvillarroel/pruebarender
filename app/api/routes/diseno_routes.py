@@ -394,6 +394,7 @@ def evaluar_cotizacion(solicitud_id):
 
 
 @diseno_bp.post("/cotizaciones/estimar")
+@requiere_sesion()
 def estimar_cotizacion():
     try:
         archivo = None

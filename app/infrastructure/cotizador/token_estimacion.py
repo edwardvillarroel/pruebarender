@@ -37,7 +37,7 @@ def crear_token_estimacion(
     Devuelve `None` si no hay un secreto seguro configurado: en ese caso el alta
     volvera a estimar en el backend en vez de confiar en el navegador.
     """
-    if not _secreto_valido(secreto):
+    if not token or not _secreto_valido(secreto):
         return None
     payload = {
         "v": VERSION,
