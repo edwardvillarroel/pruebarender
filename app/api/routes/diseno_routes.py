@@ -389,6 +389,7 @@ def estimar_cotizacion():
 
         cliente = ClienteCotizadorIA(
             base_url=current_app.config.get("COTIZADOR_IA_URL"),
+            api_key=current_app.config.get("APOLO_API_KEY"),
             timeout=int(current_app.config.get("COTIZADOR_IA_TIMEOUT") or 60),
         )
         resultado = cliente.estimar(

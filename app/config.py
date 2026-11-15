@@ -156,6 +156,7 @@ class Config:
     FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "/ApoloVibes3D-Frontend/")
 
     COTIZADOR_IA_URL = os.getenv("COTIZADOR_IA_URL", "http://127.0.0.1:8001")
+    APOLO_API_KEY = os.getenv("APOLO_API_KEY", "")
     # El cotizador vive en otro servicio de Render (free tier) con cold-starts
     # de ~20 s, por eso el timeout por defecto es más alto que los 30 s del cliente.
     COTIZADOR_IA_TIMEOUT = int(os.getenv("COTIZADOR_IA_TIMEOUT", "60"))
