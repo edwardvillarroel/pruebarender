@@ -16,6 +16,13 @@ import time
 
 from flask import current_app
 
+# El `exp` se redondea a una ventana fija. Antes se recalculaba al segundo en
+# cada listado: la MISMA imagen salía con una URL distinta en cada respuesta y
+# el navegador no podía reutilizar nada de su cache, así que cada visita volvía
+# a descargar todas las fotos. Redondeando, la misma ruta produce la misma
+# firma (y por lo tanto la misma URL) durante toda la ventana.
+_VENTANA_SEGUNDOS = 3600
+
 
 def firmar(ruta: str | None) -> str | None:
     """Devuelve `ruta` con `?exp=&sig=`; `None` y URLs absolutas pasan tal cual."""
@@ -24,7 +31,7 @@ def firmar(ruta: str | None) -> str | None:
     if ruta.startswith(("http://", "https://")):
         return ruta
     normalizada = ruta.replace("\\", "/")
-    exp = int(time.time()) + _ttl()
+    exp = _exp_estable(_ttl())
     sig = _firma(normalizada, exp)
     return f"{normalizada}?exp={exp}&sig={sig}"
 
@@ -57,6 +64,18 @@ def _ttl() -> int:
         return int(current_app.config.get("UPLOAD_SIGN_TTL_SECONDS") or 86400)
     except (TypeError, ValueError):
         return 86400
+
+
+def _exp_estable(ttl: int) -> int:
+    """`exp` = ahora + ttl, redondeado hacia abajo a la ventana.
+
+    Redondear hacia abajo puede recortar hasta `_VENTANA_SEGUNDOS - 1` de vida
+    útil; con el TTL por defecto (24h) la firma sigue vigente ~23h. La ventaja
+    es que la URL no cambia entre peticiones, que es lo que habilita el cache
+    del navegador.
+    """
+    ahora = int(time.time())
+    return ((ahora + ttl) // _VENTANA_SEGUNDOS) * _VENTANA_SEGUNDOS
 
 
 def _firma(ruta_normalizada: str, exp: int) -> str:

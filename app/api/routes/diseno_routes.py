@@ -1,14 +1,29 @@
 from uuid import UUID
 import hmac
+import io
 import os
+from pathlib import Path
 
 import requests
-from flask import Blueprint, current_app, jsonify, redirect, request, send_from_directory
+from flask import (
+    Blueprint,
+    current_app,
+    jsonify,
+    redirect,
+    request,
+    send_file,
+    send_from_directory,
+)
 
 from app.api.middleware.auth import requiere_sesion, usuario_actual, usuario_confiable, rol_requerido
 from app.application.diseno.firma_especificaciones import firma_especificaciones
 from app.config import Config
 from app.infrastructure.imagenes.firmas_upload import firmar, verificar
+from app.infrastructure.imagenes.miniaturas_cotizacion import (
+    MIME_MINIATURA,
+    crear_miniatura,
+    ruta_miniatura,
+)
 from app.infrastructure.imagenes.validador_imagen_segura import ImagenInvalida
 from app.infrastructure.cotizador import ClienteCotizadorIA
 from app.infrastructure.cotizador.token_estimacion import (
@@ -21,6 +36,12 @@ from app.domain.entities.solicitud_diseno import EstadoSolicitud
 from decimal import Decimal
 
 diseno_bp = Blueprint("disenos", __name__)
+
+# C: cache de las imágenes servidas por la app. La ruta de una cotización es un
+# UUID inmutable, así que la miniatura de esa ruta no cambia nunca; los
+# archivos legacy en disco se cachean un día (el TTL de la firma).
+_CACHE_MINIATURA_SEGUNDOS = 7 * 24 * 3600
+_CACHE_IMAGEN_SEGUNDOS = 86400
 
 
 def _notificar_nueva_cotizacion(solicitud) -> None:
@@ -136,6 +157,7 @@ def listar_cotizaciones():
                     "uso": s.uso,
                     "color": s.color,
                     "imagen": firmar(s.imagen),
+                    "imagen_thumb": _firmar_miniatura(s.imagen),
                     "modelo_url": s.modelo_url,
                     "precio": float(s.precio) if s.precio is not None else None,
                     "estado": s.estado.value if s.estado else "pendiente",
@@ -197,6 +219,7 @@ def listar_mis_cotizaciones():
                     "uso": s.uso,
                     "color": s.color,
                     "imagen": firmar(s.imagen),
+                    "imagen_thumb": _firmar_miniatura(s.imagen),
                     "modelo_url": s.modelo_url,
                     "precio": float(s.precio) if s.precio is not None else None,
                     "estado": s.estado.value if s.estado else "pendiente",
@@ -279,6 +302,7 @@ def obtener_cotizacion(solicitud_id):
                 "uso": s.uso,
                 "color": s.color,
                 "imagen": firmar(s.imagen),
+                "imagen_thumb": _firmar_miniatura(s.imagen),
                 "modelo_url": s.modelo_url,
                 "precio": float(s.precio) if s.precio is not None else None,
                 "estado": s.estado.value if s.estado else "pendiente",
@@ -475,20 +499,110 @@ def servir_uploads(filename):
         # F1: sin firma vigente no se sirve el archivo (antes era público).
         if not verificar(filename, request.args.get("exp"), request.args.get("sig")):
             return jsonify({"mensaje": "Enlace inválido o expirado."}), 403
+        # C: el listado muestra 96×96; servir la foto completa ahí es lo que
+        # hacía tardar la carga. Si hay miniatura se responde con eso.
+        if request.args.get("thumb") == "1":
+            respuesta = _servir_miniatura(filename)
+            if respuesta is not None:
+                return respuesta
         # F4: si el objeto vive en Supabase Storage se redirige (302) a una URL
         # firmada de vida corta; el servicio jamás ve la service-role key.
-        # Sin config, o si el objeto no está en el bucket (archivos legacy en
-        # disco), se sirve local como hasta ahora.
+        # B: no se pregunta antes si el objeto existe — si no está en el bucket
+        # (archivos legacy en disco) el `sign` falla y se sirve local igual.
         almacen = almacen_desde_config(current_app.config)
-        if almacen is not None and almacen.existe(filename):
+        if almacen is not None:
             url = almacen.url_firmada(filename)
             if url:
                 return redirect(url, code=302)
-            # Sin URL firmada (nube a medias): mejor el local si existe.
         carpeta = current_app.config.get("UPLOAD_FOLDER") or Config.UPLOAD_FOLDER
-        return send_from_directory(carpeta, filename)
+        return send_from_directory(carpeta, filename, max_age=_CACHE_IMAGEN_SEGUNDOS)
     except Exception:
         return jsonify({"mensaje": "Archivo no encontrado"}), 404
+
+
+def _firmar_miniatura(ruta):
+    """URL de la miniatura, o la de la imagen original si no hay miniatura.
+
+    La firma cubre la ruta (no los query params extra): `thumb=1` solo cambia
+    cómo se sirve el mismo contenido ya autorizado.
+    """
+    firmada = firmar(ruta)
+    if firmada is None or ruta_miniatura(ruta) is None:
+        return firmada
+    return f"{firmada}&thumb=1"
+
+
+def _servir_miniatura(filename):
+    """Respuesta con la miniatura, o `None` si conviene servir el original.
+
+    `None` (foto ya chica, Pillow ausente, original ilegible) no es un error:
+    es preferible bajar la foto grande antes que mostrar una imagen rota.
+    """
+    datos = _obtener_miniatura(filename)
+    if datos is None:
+        return None
+    respuesta = send_file(io.BytesIO(datos), mimetype=MIME_MINIATURA)
+    # El UUID de la imagen es inmutable: su miniatura no cambia nunca.
+    respuesta.headers["Cache-Control"] = (
+        f"private, max-age={_CACHE_MINIATURA_SEGUNDOS}"
+    )
+    return respuesta
+
+
+def _obtener_miniatura(filename):
+    """Bytes de la miniatura, generándola y guardándola si todavía no existe."""
+    destino = ruta_miniatura(filename)
+    if destino is None:
+        return None
+    almacen = almacen_desde_config(current_app.config)
+    if almacen is not None:
+        cacheada = almacen.descargar(destino)
+        if cacheada:
+            return cacheada
+        return _generar_miniatura_bucket(
+            almacen, destino, almacen.descargar(filename)
+        )
+    return _obtener_miniatura_local(filename, destino)
+
+
+def _generar_miniatura_bucket(almacen, destino, original):
+    generada = crear_miniatura(original)
+    if generada is None:
+        return None
+    # Best-effort: si la subida falla se sirve igual y se reintenta al próximo
+    # request (el `subir` del almacen ya avisa y no lanza).
+    almacen.subir(destino, generada, MIME_MINIATURA)
+    return generada
+
+
+def _obtener_miniatura_local(filename, destino):
+    carpeta = Path(current_app.config.get("UPLOAD_FOLDER") or Config.UPLOAD_FOLDER)
+    try:
+        raiz = carpeta.resolve()
+        cacheada = (raiz / destino).resolve()
+        # Anti path-traversal: la ruta derivada debe quedar dentro de uploads.
+        cacheada.relative_to(raiz)
+    except (OSError, ValueError):
+        return None
+    if cacheada.is_file():
+        return cacheada.read_bytes()
+    try:
+        original = (raiz / filename).resolve()
+        original.relative_to(raiz)
+    except (OSError, ValueError):
+        return None
+    if not original.is_file():
+        return None
+    generada = crear_miniatura(original.read_bytes())
+    if generada is None:
+        return None
+    try:
+        cacheada.parent.mkdir(parents=True, exist_ok=True)
+        cacheada.write_bytes(generada)
+    except OSError:
+        # Disco efímero o permisos: se sirve la miniatura recién generada igual.
+        pass
+    return generada
 
 
 @diseno_bp.post("/admin/cotizaciones/purgar")

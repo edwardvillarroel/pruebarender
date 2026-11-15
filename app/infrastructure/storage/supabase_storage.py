@@ -154,6 +154,34 @@ class AlmacenSupabaseStorage:
             return False
 
     # ------------------------------------------------------------------
+    # Descarga
+    # ------------------------------------------------------------------
+    def descargar(self, ruta: str) -> bytes | None:
+        """Bytes del objeto; `None` si no existe o la nube falla.
+
+        Es la única operación que trae el contenido al proceso: se usa para
+        generar la miniatura de una cotización que todavía no la tiene. El
+        tamaño está acotado por `MAX_UPLOAD_SIZE`.
+        """
+        if not self.configurado:
+            return None
+        try:
+            respuesta = self._request("GET", f"/object/{self.cubeta}/{ruta}")
+            if respuesta.ok:
+                return respuesta.content
+            if respuesta.status_code not in (400, 404):
+                logger.warning(
+                    "[supabase-storage] no se pudo descargar %s (HTTP %s): %s",
+                    ruta,
+                    respuesta.status_code,
+                    _resumen(respuesta),
+                )
+            return None
+        except Exception as exc:  # noqa: BLE001 - best-effort: nada de la nube rompe al caller
+            logger.warning("[supabase-storage] error descargando %s: %s", ruta, exc)
+            return None
+
+    # ------------------------------------------------------------------
     # URL firmada
     # ------------------------------------------------------------------
     def url_firmada(self, ruta: str) -> str | None:

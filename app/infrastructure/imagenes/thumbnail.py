@@ -64,12 +64,17 @@ def _convertir_a_rgb(imagen: "Image.Image") -> "Image.Image":
 def generar_thumbnail(
     datos: bytes,
     content_type: str,
+    lado_maximo: int = LADO_MAXIMO,
 ) -> tuple[bytes, str] | None:
     """Devuelve `(bytes, content_type)` del thumbnail, o `None` si no se puede.
 
     `None` no es un error: el llamador debe seguir sirviendo la imagen original.
     No falla si Pillow no está instalado, el archivo está dañado o el
     formato no se puede decodificar.
+
+    `lado_maximo` permite pedir una reducción más agresiva que la del catálogo
+    (las miniaturas de cotización se muestran en 96px) sin duplicar el manejo
+    de Pillow ni la composición de transparencias.
     """
     if Image is None or not datos:
         return None
@@ -81,9 +86,9 @@ def generar_thumbnail(
     try:
         with Image.open(io.BytesIO(datos)) as imagen:
             imagen.load()
-            if max(imagen.size) <= LADO_MAXIMO:
+            if max(imagen.size) <= lado_maximo:
                 return None
-            imagen.thumbnail((LADO_MAXIMO, LADO_MAXIMO), Image.LANCZOS)
+            imagen.thumbnail((lado_maximo, lado_maximo), Image.LANCZOS)
             salida = io.BytesIO()
             _convertir_a_rgb(imagen).save(
                 salida, format="JPEG", quality=CALIDAD_JPEG, optimize=True

@@ -60,6 +60,7 @@ class PurgadorCotizaciones:
                         archivos_bucket += 1
                 elif almacen.eliminar(bucket_ruta):
                     archivos_bucket += 1
+            self._borrar_miniatura(almacen, entidad.imagen, dry_run)
             destino = self._archivo_local(entidad.imagen)
             if destino is None:
                 continue
@@ -104,10 +105,37 @@ class PurgadorCotizaciones:
         bucket_ruta = self._ruta_bucket(entidad.imagen)
         if almacen is not None and bucket_ruta is not None:
             almacen.eliminar(bucket_ruta)
+        self._borrar_miniatura(almacen, entidad.imagen)
         destino = self._archivo_local(entidad.imagen)
         if destino is not None and destino.is_file():
             self._borrar(destino)
         self.repo.eliminar([entidad.id])
+
+    def _borrar_miniatura(self, almacen, ruta, dry_run: bool = False) -> None:
+        """Borra la miniatura derivada de una imagen (best-effort).
+
+        `miniaturas/cotizaciones/` queda fuera del listado de huérfanos del
+        bucket (que solo mira `cotizaciones/`), así que se borra junto con su
+        original para que no se acumule basura.
+        """
+        if dry_run:
+            return
+        from app.infrastructure.imagenes.miniaturas_cotizacion import ruta_miniatura
+
+        destino = ruta_miniatura(self._ruta_bucket(ruta))
+        if destino is None:
+            return
+        if almacen is not None and getattr(almacen, "configurado", False):
+            almacen.eliminar(destino)
+        base = self._carpeta().resolve()
+        archivo = base / destino
+        try:
+            # Anti path-traversal: la miniatura derivada vive dentro de uploads.
+            archivo.resolve().relative_to(base)
+        except (OSError, ValueError):
+            return
+        if archivo.is_file():
+            self._borrar(archivo)
 
     def _almacen(self):
         """Almacen de Supabase o `None` si no está configurado (best-effort)."""

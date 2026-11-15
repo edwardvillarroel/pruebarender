@@ -9,13 +9,25 @@ fábrica `almacen_desde_config`; la suite nunca toca la red.
 
 from __future__ import annotations
 
+import io
 import logging
+
+from PIL import Image
 
 from app.infrastructure.imagenes.almacen_cotizaciones import (
     guardar_imagen_cotizacion,
     guardar_imagen_cotizacion_supabase,
 )
 from app.infrastructure.storage.supabase_storage import AlmacenSupabaseStorage
+
+
+def _png_grande(lado: int = 900) -> bytes:
+    """PNG con ruido: supera el mínimo de bytes y el lado máximo de la miniatura."""
+    salida = io.BytesIO()
+    Image.effect_noise((lado, lado), 90).convert("RGB").save(
+        salida, format="PNG"
+    )
+    return salida.getvalue()
 
 
 class _AlmacenFalso:
@@ -197,3 +209,76 @@ def test_config_de_app_config_usa_el_almacen_real(app, tmp_path, monkeypatch):
     assert kwargs["data"] == b"PNG"
     # Éxito en la nube: nada en disco.
     assert not (tmp_path / "cotizaciones").exists()
+
+
+# --------------------------------------------------------------------------
+# Miniatura en el momento de la subida
+# --------------------------------------------------------------------------
+
+
+def test_la_imagen_local_se_guarda_con_su_miniatura(tmp_path):
+    original = _png_grande()
+
+    ruta = guardar_imagen_cotizacion(original, "png", tmp_path)
+
+    assert (tmp_path / ruta).read_bytes() == original
+    tallo = ruta.rsplit("/", 1)[1].rsplit(".", 1)[0]
+    miniatura = tmp_path / "miniaturas" / "cotizaciones" / f"{tallo}.jpg"
+    assert miniatura.is_file()
+    assert len(miniatura.read_bytes()) < len(original)
+
+
+def test_la_imagen_en_bucket_se_sube_con_su_miniatura(app, tmp_path, monkeypatch):
+    falso = _AlmacenFalso(sube=True)
+    monkeypatch.setattr(
+        "app.infrastructure.storage.supabase_storage.almacen_desde_config",
+        lambda config=None: falso,
+    )
+    original = _png_grande()
+
+    with app.app_context():
+        ruta = guardar_imagen_cotizacion_supabase(original, "png", tmp_path)
+
+    assert [c[0] for c in falso.llamadas] == [
+        ruta,
+        ruta.replace("cotizaciones/", "miniaturas/cotizaciones/").rsplit(".", 1)[0]
+        + ".jpg",
+    ]
+    assert falso.llamadas[1][2] == "image/jpeg"
+    assert len(falso.llamadas[1][1]) < len(original)
+
+
+def test_si_falla_la_nube_la_miniatura_va_a_disco(app, tmp_path, monkeypatch):
+    falso = _AlmacenFalso(sube=False)
+    monkeypatch.setattr(
+        "app.infrastructure.storage.supabase_storage.almacen_desde_config",
+        lambda config=None: falso,
+    )
+    original = _png_grande()
+
+    with app.app_context():
+        ruta = guardar_imagen_cotizacion_supabase(original, "png", tmp_path)
+
+    tallo = ruta.rsplit("/", 1)[1].rsplit(".", 1)[0]
+    assert (tmp_path / "miniaturas" / "cotizaciones" / f"{tallo}.jpg").is_file()
+
+
+def test_un_modelo_3d_no_intenta_generar_miniatura(tmp_path):
+    ruta = guardar_imagen_cotizacion(b"glTF-bytes", "glb", tmp_path)
+
+    assert ruta.endswith(".glb")
+    assert not (tmp_path / "miniaturas").exists()
+
+
+def test_una_imagen_ilegible_no_rompe_la_subida(app, tmp_path, monkeypatch):
+    falso = _AlmacenFalso(sube=True)
+    monkeypatch.setattr(
+        "app.infrastructure.storage.supabase_storage.almacen_desde_config",
+        lambda config=None: falso,
+    )
+
+    with app.app_context():
+        ruta = guardar_imagen_cotizacion_supabase(b"PNG", "png", tmp_path)
+
+    # Solo el original: la miniatura devolvió `None` y no se subió nada más.
+    assert [c[0] for c in falso.llamadas] == [ruta]

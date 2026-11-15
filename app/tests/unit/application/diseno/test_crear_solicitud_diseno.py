@@ -33,10 +33,24 @@ SECRETO_TEST = "secreto-de-test-para-token-de-estimacion-1234567890"
 FIRMA_FRONT = "5|5|5|cm|1|Decorativo|PLA+|Negro"
 
 
+def _configurar(monkeypatch, clave, valor):
+    """Fija una config en las dos fuentes que lee `_config`.
+
+    `CrearSolicitudDiseno._config` usa `current_app` cuando hay contexto de
+    aplicacion. La suite de integracion deja un contexto vivo (fixture de
+    sesion), asi que sin esto el resultado depende del orden de las suites.
+    """
+    monkeypatch.setattr(Config, clave, valor)
+    from flask import current_app, has_app_context
+
+    if has_app_context():
+        monkeypatch.setitem(current_app.config, clave, valor)
+
+
 @pytest.fixture(autouse=True)
 def _secreto_fuerte(monkeypatch):
-    monkeypatch.setattr(Config, "SECRET_KEY", SECRETO_TEST)
-    monkeypatch.setattr(Config, "ESTIMACION_TOKEN_TTL_SECONDS", 7200)
+    _configurar(monkeypatch, "SECRET_KEY", SECRETO_TEST)
+    _configurar(monkeypatch, "ESTIMACION_TOKEN_TTL_SECONDS", 7200)
 
 
 class _RepoFalso:
@@ -225,7 +239,7 @@ def test_token_adulterado_cae_al_cotizador():
 
 
 def test_token_expirado_cae_al_cotizador(monkeypatch):
-    monkeypatch.setattr(Config, "ESTIMACION_TOKEN_TTL_SECONDS", -1)
+    _configurar(monkeypatch, "ESTIMACION_TOKEN_TTL_SECONDS", -1)
     cotizador = _CotizadorFalso(resultado=_resultado_cotizador())
     servicio = CrearSolicitudDiseno(_RepoFalso(), cotizador_ia=cotizador)
     usuario_id = uuid4()

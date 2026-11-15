@@ -49,6 +49,14 @@ def _png_bytes() -> bytes:
     return buf.getvalue()
 
 
+def _png_grande(lado: int = 900) -> bytes:
+    """PNG con ruido: comprime mal, así el original pesa mucho más que la miniatura."""
+    img = Image.effect_noise((lado, lado), 90).convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def test_post_cotizacion_valido_crea_fila(client, db_sesion, centinela):
     u = _crear_usuario(db_sesion, centinela)
     try:
@@ -299,7 +307,9 @@ def test_detalle_cotizacion_devuelve_imagen_firmada(client, db_sesion, usuario):
         db_sesion, usuario.id, imagen="cotizaciones/firma-detalle.png"
     )
     try:
-        resp = client.get(f"/api/cotizaciones/{sid}")
+        resp = client.get(
+            f"/api/cotizaciones/{sid}", headers=_cabeceras(usuario.id)
+        )
         assert resp.status_code == 200
         imagen = resp.get_json()["imagen"]
         assert imagen.startswith("cotizaciones/firma-detalle.png?")
@@ -307,6 +317,16 @@ def test_detalle_cotizacion_devuelve_imagen_firmada(client, db_sesion, usuario):
         args = parse_qs(urlparse(imagen).query)
         assert verificar(
             "cotizaciones/firma-detalle.png", args["exp"][0], args["sig"][0]
+        ) is True
+
+        thumb = resp.get_json()["imagen_thumb"]
+        assert thumb.startswith("cotizaciones/firma-detalle.png?")
+        assert thumb.endswith("&thumb=1")
+        args_thumb = parse_qs(urlparse(thumb).query)
+        assert verificar(
+            "cotizaciones/firma-detalle.png",
+            args_thumb["exp"][0],
+            args_thumb["sig"][0],
         ) is True
     finally:
         _limpiar_cotizaciones(db_sesion, usuario.id)
@@ -328,6 +348,8 @@ def test_listado_admin_devuelve_imagen_firmada(client, db_sesion, usuario):
         assert fila is not None
         assert "exp=" in fila["imagen"] and "sig=" in fila["imagen"]
         assert fila["imagen"].startswith("cotizaciones/firma-listado.png?")
+        assert fila["imagen_thumb"].startswith("cotizaciones/firma-listado.png?")
+        assert fila["imagen_thumb"].endswith("&thumb=1")
     finally:
         _limpiar_cotizaciones(db_sesion, usuario.id)
 
@@ -538,11 +560,18 @@ def test_delete_cotizacion_inexistente_devuelve_404(client, db_sesion, usuario):
 class _RespuestaStorage:
     """Doble de `requests.Response` para el seam `_request`."""
 
-    def __init__(self, status_code: int = 200, json_datos=None, texto: str = ""):
+    def __init__(
+        self,
+        status_code: int = 200,
+        json_datos=None,
+        texto: str = "",
+        contenido: bytes = b"",
+    ):
         self.status_code = status_code
         self.ok = 200 <= status_code < 300
         self._json = json_datos
         self.text = texto
+        self.content = contenido
 
     def json(self):
         if self._json is None:
@@ -604,8 +633,6 @@ def test_uploads_en_bucket_redirige_a_url_firmada(client, app, tmp_path, monkeyp
     _configurar_supabase(app, monkeypatch)
 
     def _respuestas(metodo, ruta, kwargs):
-        if metodo == "GET" and ruta.startswith("/object/info/"):
-            return _RespuestaStorage(200)
         if metodo == "POST" and ruta.startswith("/object/sign/"):
             return _RespuestaStorage(
                 200,
@@ -618,7 +645,7 @@ def test_uploads_en_bucket_redirige_a_url_firmada(client, app, tmp_path, monkeyp
             )
         return None
 
-    _stub_almacen_supabase(monkeypatch, _respuestas)
+    llamadas = _stub_almacen_supabase(monkeypatch, _respuestas)
 
     url = firmar("cotizaciones/prueba-firma.png")
     resp = client.get(f"/api/uploads/{url}")
@@ -630,6 +657,10 @@ def test_uploads_en_bucket_redirige_a_url_firmada(client, app, tmp_path, monkeyp
         "cotizaciones/prueba-firma.png"
     )
     assert "token=abc" in location
+    # B: una sola llamada a la nube (firmar), ya no se pregunta si existe.
+    assert [(m, r) for m, r, _ in llamadas] == [
+        ("POST", "/object/sign/Cotizaciones/cotizaciones/prueba-firma.png")
+    ]
 
 
 def test_uploads_configurado_pero_ausente_en_bucket_sirve_local(
@@ -640,9 +671,9 @@ def test_uploads_configurado_pero_ausente_en_bucket_sirve_local(
     _configurar_supabase(app, monkeypatch)
 
     def _respuestas(metodo, ruta, kwargs):
-        if metodo == "GET" and ruta.startswith("/object/info/"):
-            return _RespuestaStorage(404)
-        return None  # sin firma: no se pide URL si no existe el objeto
+        if metodo == "POST" and ruta.startswith("/object/sign/"):
+            return _RespuestaStorage(404, texto="Object not found")
+        return None
 
     llamadas = _stub_almacen_supabase(monkeypatch, _respuestas)
 
@@ -651,9 +682,88 @@ def test_uploads_configurado_pero_ausente_en_bucket_sirve_local(
 
     assert resp.status_code == 200
     assert resp.data == b"png-de-prueba"
-    assert llamadas == [
-        ("GET", "/object/info/Cotizaciones/cotizaciones/prueba-firma.png", {})
+    # Si el `sign` falla (archivo legacy en disco) se sirve local, sin un
+    # `object/info` extra que solo agregaba latencia.
+    assert [(m, r) for m, r, _ in llamadas] == [
+        ("POST", "/object/sign/Cotizaciones/cotizaciones/prueba-firma.png")
     ]
+
+
+def test_uploads_thumb_genera_y_cachea_la_miniatura_local(
+    client, app, tmp_path, monkeypatch
+):
+    monkeypatch.setitem(app.config, "UPLOAD_FOLDER", tmp_path)
+    monkeypatch.setitem(app.config, "SUPABASE_URL", "")
+    monkeypatch.setitem(app.config, "SUPABASE_SERVICE_KEY", "")
+    monkeypatch.setitem(app.config, "SUPABASE_STORAGE_BUCKET", "")
+    original = _png_grande()
+    carpeta = tmp_path / "cotizaciones"
+    carpeta.mkdir(parents=True, exist_ok=True)
+    (carpeta / "grande.png").write_bytes(original)
+
+    url = firmar("cotizaciones/grande.png") + "&thumb=1"
+    resp = client.get(f"/api/uploads/{url}")
+
+    assert resp.status_code == 200
+    assert resp.mimetype == "image/jpeg"
+    assert "max-age=" in resp.headers["Cache-Control"]
+    assert len(resp.data) < len(original)
+    miniatura = tmp_path / "miniaturas" / "cotizaciones" / "grande.jpg"
+    assert miniatura.is_file()
+
+    # Segunda visita: se sirve la miniatura guardada, ya no hace falta el
+    # original (por eso se puede borrar y la URL sigue funcionando).
+    (carpeta / "grande.png").unlink()
+    resp2 = client.get(f"/api/uploads/{url}")
+    assert resp2.status_code == 200
+    assert resp2.data == miniatura.read_bytes()
+
+
+def test_uploads_thumb_cae_al_original_si_no_se_puede_generar(
+    client, app, tmp_path, monkeypatch
+):
+    monkeypatch.setitem(app.config, "UPLOAD_FOLDER", tmp_path)
+    monkeypatch.setitem(app.config, "SUPABASE_URL", "")
+    monkeypatch.setitem(app.config, "SUPABASE_SERVICE_KEY", "")
+    monkeypatch.setitem(app.config, "SUPABASE_STORAGE_BUCKET", "")
+    _archivo_temporal(tmp_path)  # bytes que no son una imagen decodificable
+
+    url = firmar("cotizaciones/prueba-firma.png") + "&thumb=1"
+    resp = client.get(f"/api/uploads/{url}")
+
+    assert resp.status_code == 200
+    assert resp.data == b"png-de-prueba"
+    assert not (tmp_path / "miniaturas").exists()
+
+
+def test_uploads_thumb_en_bucket_la_genera_y_la_sube(client, app, monkeypatch):
+    _configurar_supabase(app, monkeypatch)
+    original = _png_grande()
+    subidos: list[bytes] = []
+
+    def _respuestas(metodo, ruta, kwargs):
+        if metodo == "GET" and ruta == (
+            "/object/Cotizaciones/miniaturas/cotizaciones/grande.jpg"
+        ):
+            return _RespuestaStorage(404, texto="Object not found")
+        if metodo == "GET" and ruta == "/object/Cotizaciones/cotizaciones/grande.png":
+            return _RespuestaStorage(200, contenido=original)
+        if metodo == "POST" and ruta == (
+            "/object/Cotizaciones/miniaturas/cotizaciones/grande.jpg"
+        ):
+            subidos.append(kwargs.get("data") or b"")
+            return _RespuestaStorage(200, {})
+        return None
+
+    _stub_almacen_supabase(monkeypatch, _respuestas)
+
+    url = firmar("cotizaciones/grande.png") + "&thumb=1"
+    resp = client.get(f"/api/uploads/{url}")
+
+    assert resp.status_code == 200
+    assert resp.mimetype == "image/jpeg"
+    assert len(subidos) == 1
+    assert 0 < len(subidos[0]) < len(original)
 
 
 def test_migrar_endpoint_sin_secreto_devuelve_503(app, client, monkeypatch):
