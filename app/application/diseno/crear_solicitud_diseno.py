@@ -46,10 +46,8 @@ INTERVALO_COTIZADOR_SEGUNDOS = 65
 _LOCK_COTIZADOR = threading.Lock()
 _ULTIMO_LLAMADO = 0.0
 
-
 class CotizadorOcupado(Exception):
     """El cotizador está en uso o dentro del intervalo mínimo entre llamados."""
-
 
 class CrearSolicitudDiseno:
     def __init__(self, repositorio, guardar_imagen=None, cotizador_ia: ClienteCotizadorIA | None = None):
@@ -134,15 +132,21 @@ class CrearSolicitudDiseno:
                 self._aplicar_resultado(solicitud, estimacion_firmada)
                 solicitud.ia_calculado_en = utcnow()
                 solicitud.ia_origen = IA_ORIGEN_CLIENTE
-            elif self.cotizador_ia is not None:
-                estimacion = self._estimar_con_cola(
-                    contenido=contenido, extension=extension,
-                    alto=alto, ancho=ancho, largo=largo, unidad=unidad,
-                    cantidad=cantidad, uso=uso, material=material, color=color,
-                )
-                self._aplicar_resultado(solicitud, estimacion)
-                solicitud.ia_calculado_en = utcnow()
-                solicitud.ia_origen = IA_ORIGEN_SERVER
+            else:
+                estimacion_front = self._estimacion_desde_datos(datos)
+                if estimacion_front is not None:
+                    self._aplicar_resultado(solicitud, estimacion_front)
+                    solicitud.ia_calculado_en = utcnow()
+                    solicitud.ia_origen = IA_ORIGEN_CLIENTE
+                elif self.cotizador_ia is not None:
+                    estimacion = self._estimar_con_cola(
+                        contenido=contenido, extension=extension,
+                        alto=alto, ancho=ancho, largo=largo, unidad=unidad,
+                        cantidad=cantidad, uso=uso, material=material, color=color,
+                    )
+                    self._aplicar_resultado(solicitud, estimacion)
+                    solicitud.ia_calculado_en = utcnow()
+                    solicitud.ia_origen = IA_ORIGEN_SERVER
         except CotizadorOcupado:
             solicitud.ia_origen = IA_ORIGEN_PENDIENTE
             logger.info("Cotizador ocupado; la solicitud queda pendiente de estimación.")
@@ -161,6 +165,35 @@ class CrearSolicitudDiseno:
         except Exception:
             self._eliminar_imagen(ruta_imagen)
             raise
+
+    def _estimacion_desde_datos(self, datos: dict) -> dict | None:
+        precio = self._to_decimal(
+            self._primero_no_nulo(datos, "precio_estimado_ia", "precio_estimado", "precio_clp")
+        )
+        if precio is None or precio <= 0 or precio > MAX_PRECIO:
+            return None
+        return {
+            "precio_estimado_ia": precio,
+            "precio_unitario_ia": self._to_decimal(
+                self._primero_no_nulo(datos, "precio_unitario_ia", "precio_unitario")
+            ),
+            "gramos_estimados_ia": self._to_decimal(
+                self._primero_no_nulo(datos, "gramos_estimados_ia", "gramos_estimados")
+            ),
+            "tiempo_estimado_horas_ia": self._to_decimal(
+                self._primero_no_nulo(datos, "tiempo_estimado_horas_ia", "tiempo_estimado_horas")
+            ),
+            "material_sugerido_ia": self._primero_no_nulo(
+                datos, "material_sugerido_ia", "material_sugerido", "material_detectado"
+            ),
+            "complejidad_ia": self._primero_no_nulo(datos, "complejidad_ia", "complejidad"),
+            "confianza_material_ia": self._to_decimal(
+                self._primero_no_nulo(datos, "confianza_material_ia", "confianza_material")
+            ),
+            "confianza_complejidad_ia": self._to_decimal(
+                self._primero_no_nulo(datos, "confianza_complejidad_ia", "confianza_complejidad")
+            ),
+        }
 
     # ------------------------------------------------------------------
     # Normalización y validaciones
@@ -325,8 +358,11 @@ class CrearSolicitudDiseno:
     def _primero_no_nulo(res: dict, *claves: str):
         for clave in claves:
             valor = res.get(clave)
-            if valor is not None:
-                return valor
+            if valor is None:
+                continue
+            if isinstance(valor, str) and valor.strip().lower() in ("", "undefined", "null", "none"):
+                continue
+            return valor
         return None
 
     def _secreto_estimacion(self) -> str:
