@@ -3,12 +3,14 @@ from __future__ import annotations
 import logging
 import os
 import re
+import requests
 import threading
 import time
 from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
+from app.application.diseno.estimacion_local import estimacion_local
 from app.application.diseno.firma_especificaciones import firma_especificaciones
 from app.config import Config
 from app.domain.entities.solicitud_diseno import EstadoSolicitud, SolicitudDiseno
@@ -307,12 +309,19 @@ class CrearSolicitudDiseno:
                 "Cotización con valores por defecto (alto=%s ancho=%s largo=%s uso=%s color=%s)",
                 alto, ancho, largo, uso, color,
             )
-        return self.cotizador_ia.estimar(
-            imagen_bytes=contenido, filename=f"cotizacion.{extension}",
-            alto=float(alto) if alto else 10, ancho=float(ancho) if ancho else 10,
-            largo=float(largo) if largo else 10, unidad=unidad, cantidad=cantidad,
-            uso=uso or "Decorativo", material_usuario=material, color=color or "Negro",
-        )
+        try:
+            return self.cotizador_ia.estimar(
+                imagen_bytes=contenido, filename=f"cotizacion.{extension}",
+                alto=float(alto) if alto else 10, ancho=float(ancho) if ancho else 10,
+                largo=float(largo) if largo else 10, unidad=unidad, cantidad=cantidad,
+                uso=uso or "Decorativo", material_usuario=material, color=color or "Negro",
+            )
+        except requests.exceptions.RequestException as e:
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            if status == 429 or "429" in str(e):
+                logger.warning("Cotizador IA devolvió 429; usando estimación local al crear solicitud.")
+                return estimacion_local(alto, ancho, largo, cantidad, material)
+            raise
 
     def _aplicar_estimacion_firmada(self, datos, solicitud, contenido, usuario_id) -> dict | None:
         token = str(datos.get("estimacion_token") or "").strip()
