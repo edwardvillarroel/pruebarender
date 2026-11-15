@@ -117,12 +117,6 @@ class CrearSolicitudDiseno:
             estado=EstadoSolicitud.PENDIENTE,
         )
 
-        # Estrategia: el frontend ya estima al subir la imagen y recibe un token
-        # firmado por el backend. Se reutiliza esa estimacion si el token es
-        # valido para este usuario, esta imagen y estas especificaciones (una
-        # sola llamada al cotizador por cotizacion, sin chocar con su limite de
-        # 1 request/minuto). Los precios que mande el navegador fuera del token
-        # se ignoran por completo. Sin token valido se estima en el backend.
         try:
             estimacion = self._aplicar_estimacion_firmada(
                 datos, solicitud, contenido, usuario_id
@@ -230,23 +224,26 @@ class CrearSolicitudDiseno:
             )
             return None
 
-        precio = self._to_decimal(estimacion.get("precio_estimado_ia"))
+        precio = self._to_decimal(
+            estimacion.get("precio_estimado_ia")
+            or estimacion.get("precio_estimado")
+            or estimacion.get("precio_clp")
+        )
         if precio is None or precio <= 0 or precio > Decimal("9999999999.99"):
             return None
         return estimacion
 
     def _aplicar_resultado(self, solicitud: SolicitudDiseno, res: dict) -> None:
-        solicitud.material_sugerido_ia = self._texto_largo(res.get("material_sugerido_ia") or res.get("material_detectado"), 50)
+        solicitud.material_sugerido_ia = self._texto_largo(res.get("material_sugerido_ia") or res.get("material_sugerido") or res.get("material_detectado"), 50)
         solicitud.complejidad_ia = self._texto_largo(res.get("complejidad_ia") or res.get("complejidad"), 50)
         solicitud.gramos_estimados_ia = self._to_decimal(res.get("gramos_estimados_ia") if res.get("gramos_estimados_ia") is not None else res.get("gramos_estimados"))
         solicitud.tiempo_estimado_horas_ia = self._to_decimal(res.get("tiempo_estimado_horas_ia") if res.get("tiempo_estimado_horas_ia") is not None else res.get("tiempo_estimado_horas"))
-        solicitud.precio_estimado_ia = self._to_decimal(res.get("precio_estimado_ia") if res.get("precio_estimado_ia") is not None else res.get("precio_clp"))
+        solicitud.precio_estimado_ia = self._to_decimal(res.get("precio_estimado_ia") if res.get("precio_estimado_ia") is not None else res.get("precio_estimado") if res.get("precio_estimado") is not None else res.get("precio_clp"))
         solicitud.confianza_material_ia = self._to_decimal(res.get("confianza_material_ia") if res.get("confianza_material_ia") is not None else res.get("confianza_material"))
         solicitud.confianza_complejidad_ia = self._to_decimal(res.get("confianza_complejidad_ia") if res.get("confianza_complejidad_ia") is not None else res.get("confianza_complejidad"))
 
     def _secreto_estimacion(self) -> str:
         return str(self._config("SECRET_KEY") or "")
-
     def _ttl_estimacion(self) -> int:
         try:
             return int(self._config("ESTIMACION_TOKEN_TTL_SECONDS") or 7200)

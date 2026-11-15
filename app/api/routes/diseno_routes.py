@@ -224,6 +224,15 @@ def listar_mis_cotizaciones():
                     "precio": float(s.precio) if s.precio is not None else None,
                     "estado": s.estado.value if s.estado else "pendiente",
                     "creado_en": s.creado_en.isoformat() if s.creado_en else None,
+                    "material_sugerido_ia": s.material_sugerido_ia,
+                    "complejidad_ia": s.complejidad_ia,
+                    "gramos_estimados_ia": float(s.gramos_estimados_ia) if s.gramos_estimados_ia is not None else None,
+                    "tiempo_estimado_horas_ia": float(s.tiempo_estimado_horas_ia) if s.tiempo_estimado_horas_ia is not None else None,
+                    "precio_estimado_ia": float(s.precio_estimado_ia) if s.precio_estimado_ia is not None else None,
+                    "confianza_material_ia": float(s.confianza_material_ia) if s.confianza_material_ia is not None else None,
+                    "confianza_complejidad_ia": float(s.confianza_complejidad_ia) if s.confianza_complejidad_ia is not None else None,
+                    "ia_calculado_en": s.ia_calculado_en.isoformat() if s.ia_calculado_en else None,
+                    "ia_origen": s.ia_origen,
                     "aviso_estado_en": s.aviso_estado_en.isoformat() if getattr(s, "aviso_estado_en", None) else None,
                     "aviso_estado_visto": bool(getattr(s, "aviso_estado_visto", False)),
                     "aviso_estado_pendiente": bool(getattr(s, "aviso_estado_en", None)) and not bool(getattr(s, "aviso_estado_visto", False)),
@@ -444,14 +453,15 @@ def estimar_cotizacion():
         )
 
         respuesta = {
-            "precio_estimado": resultado.get("precio_estimado_ia") or resultado.get("precio_estimado") or resultado.get("precio_clp"),
-            "precio_unitario": resultado.get("precio_unitario_ia") or resultado.get("precio_unitario") or resultado.get("precio_unitario_clp"),
-            "gramos_estimados": resultado.get("gramos_estimados_ia") or resultado.get("gramos_estimados"),
-            "tiempo_estimado_horas": resultado.get("tiempo_estimado_horas_ia") or resultado.get("tiempo_estimado_horas"),
-            "material_sugerido": resultado.get("material_sugerido_ia") or resultado.get("material_sugerido") or resultado.get("material_detectado"),
-            "complejidad": resultado.get("complejidad_ia") or resultado.get("complejidad"),
-            "confianza_material": resultado.get("confianza_material_ia") or resultado.get("confianza_material"),
-            "confianza_complejidad": resultado.get("confianza_complejidad_ia") or resultado.get("confianza_complejidad"),
+            "precio_estimado_ia": resultado.get("precio_estimado_ia") or resultado.get("precio_estimado") or resultado.get("precio_clp"),
+            "precio_unitario_ia": resultado.get("precio_unitario_ia") or resultado.get("precio_unitario") or resultado.get("precio_unitario_clp"),
+            "gramos_estimados_ia": resultado.get("gramos_estimados_ia") or resultado.get("gramos_estimados"),
+            "tiempo_estimado_horas_ia": resultado.get("tiempo_estimado_horas_ia") or resultado.get("tiempo_estimado_horas"),
+            "material_sugerido_ia": resultado.get("material_sugerido_ia") or resultado.get("material_sugerido") or resultado.get("material_detectado"),
+            "complejidad_ia": resultado.get("complejidad_ia") or resultado.get("complejidad"),
+            "confianza_material_ia": resultado.get("confianza_material_ia") or resultado.get("confianza_material"),
+            "confianza_complejidad_ia": resultado.get("confianza_complejidad_ia") or resultado.get("confianza_complejidad"),
+            "ia_origen": resultado.get("ia_origen") or resultado.get("origen_ia") or resultado.get("origen") or "ia",
         }
 
         firma = firma_especificaciones(
