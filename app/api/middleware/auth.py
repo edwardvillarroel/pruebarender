@@ -52,3 +52,8 @@ def rol_requerido(*roles: str):
 def usuario_actual():
     """Id del usuario autenticado (inyectado por el gateway)."""
     return request.headers.get("X-User-Id")
+
+
+def rol_actual():
+    """Rol del usuario autenticado (inyectado por el gateway)."""
+    return request.headers.get("X-User-Rol")

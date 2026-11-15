@@ -16,6 +16,9 @@ class Config:
     # OWASP A01: secreto compartido para la frontera gateway -> backend. El
     # backend exige este header en los endpoints que inyectan X-User-Id/Rol.
     INTERNAL_SECRET = os.getenv("INTERNAL_SECRET", "")
+    # El backend espera hasta este tiempo al cotizador IA externo (cold start
+    # de ~20 s en Render). El proxy le suma un margen para no cortar antes.
+    COTIZADOR_IA_TIMEOUT = int(os.getenv("COTIZADOR_IA_TIMEOUT", "60"))
     JWT_SECRET_KEY = os.getenv("GATEWAY_JWT_SECRET", SECRET_KEY)
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
     # En produccion (HTTPS) la cookie del refresh debe ir con Secure=True.

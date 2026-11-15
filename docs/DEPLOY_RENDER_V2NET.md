@@ -49,6 +49,7 @@ refresh (`SameSite=Strict`, `Path=/api/auth`) viaja sin problema: es same-site.
 | `RESEND_API_KEY` / `EMAIL_FROM` / `ADMIN_EMAIL` | Correo transaccional por Resend. `FRONTEND_URL` se usa en los enlaces de los correos. |
 | `TUU_*`, `STARKEN_*`, `OPENFACTURA_*`, `EMISOR_*` | Integraciones pago/facturación/LLM. |
 | `LLM_API_KEY` / `COTIZADOR_IA_URL` | LLM para cotizador. |
+| `APOLO_API_KEY` | Key del cotizador IA externo (`x-apolo-key`). Sin ella responde 401 y la cotización se guarda sin estimación IA. |
 
 ### Correo transaccional (Resend)
 

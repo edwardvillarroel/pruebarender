@@ -3,6 +3,20 @@ from flask import current_app
 
 _cliente = httpx.Client(timeout=30)
 
+# Las rutas que estiman con el cotizador IA pueden tardar mas que una request
+# normal (cold start del servicio externo). Se les da un timeout aparte para
+# que el proxy no corte antes que el backend.
+_TIMEOUT_IA_MARGEN = 10
+
+
+def _timeout_para(ruta: str, metodo: str) -> float:
+    es_estimacion = ruta == "cotizaciones/estimar" or (
+        ruta == "cotizaciones" and metodo == "POST"
+    )
+    if es_estimacion:
+        return float(current_app.config.get("COTIZADOR_IA_TIMEOUT") or 60) + _TIMEOUT_IA_MARGEN
+    return 30
+
 _WHITELIST = (
     "content-type",
     "cache-control",
@@ -41,6 +55,7 @@ def reenviar(ruta, datos_metodo, cabeceras_internas):
             params=datos_metodo.args,
             content=datos_metodo.get_data(),
             headers=cabeceras,
+            timeout=_timeout_para(ruta, datos_metodo.method),
         )
     except httpx.RequestError:
         return (

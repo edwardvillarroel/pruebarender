@@ -255,7 +255,11 @@ def _configurar_disenos(app: Flask) -> None:
     from app.infrastructure.cotizador import ClienteCotizadorIA
 
     repo = SolicitudDisenoRepository()
-    cotizador_ia = ClienteCotizadorIA(base_url=app.config.get("COTIZADOR_IA_URL"))
+    cotizador_ia = ClienteCotizadorIA(
+        base_url=app.config.get("COTIZADOR_IA_URL"),
+        timeout=int(app.config.get("COTIZADOR_IA_TIMEOUT") or 60),
+        api_key=app.config.get("APOLO_API_KEY"),
+    )
     app.config["SOLICITUD_DISENO_REPOSITORY"] = repo 
     # F4: el escritor decide por configuración (SUPABASE_URL/KEY/BUCKET) si la
     # imagen va al bucket o a disco local; en ambos casos devuelve la misma
