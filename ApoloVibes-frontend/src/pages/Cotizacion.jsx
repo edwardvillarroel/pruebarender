@@ -1,4 +1,4 @@
-import { useState, useRef, useLayoutEffect } from 'react'
+import { useState, useRef, useLayoutEffect, useEffect } from 'react'
 import { api } from '../services/api.js'
 import { firmaEspecificaciones, estimarPieza } from '../services/cotizador.js'
 import { validarImagenSegura } from '../services/validacion-imagen.js'
@@ -8,6 +8,7 @@ import SelectOpciones from '../components/SelectOpciones.jsx'
 import { Upload, X } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { mediaPath } from '../utils/media.js'
+import { optimizarImagen } from '../utils/optimizarImagen.js'
 
 const ESTADO_INICIAL = {
   nombre: '', email: '', telefono: '',
@@ -38,7 +39,7 @@ function Paso({ titulo, completo, bloqueado, textoBloqueo, children }) {
       padding: 24, marginBottom: 24, opacity: bloqueado ? 0.4 : 1,
       transition: 'opacity .2s'
     }}>
-      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>{titulo}</h2>
+      <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--text-on-bg)' }}>{titulo}</h2>
 
       {bloqueado && (
         <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '0 0 12px' }}>{textoBloqueo}</p>
@@ -69,18 +70,46 @@ export default function Cotizacion() {
   const [estadoImagen, setEstadoImagen] = useState('idle')
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
+  const [segundosRestantes, setSegundosRestantes] = useState(0)
   const [error, setError] = useState(null)
   const [tocado, setTocado] = useState({})
   const fileInputRef = useRef(null)
   const timerReestimacion = useRef(null)
   const [validandoImagen, setValidandoImagen] = useState(false)
-  const [cotizacionIA, setCotizacionIA] = useState(null)
+  const [cotizacion, setCotizacion] = useState(null)
   const [calculandoEstimacion, setCalculandoEstimacion] = useState(false)
+  const [aviso, setAviso] = useState(null)
+  const ultimaFirmaEstimada = useRef(null)
 
 
   useLayoutEffect(() => {
     if (enviado) window.scrollTo(0, 0)
   }, [enviado])
+
+  useEffect(() => {
+    if (!enviado || segundosRestantes <= 0) return
+    const id = setInterval(() => {
+      setSegundosRestantes(s => {
+        if (s <= 1) {
+          setEnviado(false)
+          setSegundosRestantes(0)
+          setError(null)
+          setArchivo(null)
+          setPrevisualizacion(null)
+          setCotizacion(null)
+          setEstadoImagen('idle')
+          setProgreso({ status: 'idle', percent: 0, message: '' })
+          setValidandoImagen(false)
+          setTocado({})
+          setForm({ ...ESTADO_INICIAL, nombre: user?.nombre || '', email: user?.email || '' })
+          if (fileInputRef.current) fileInputRef.current.value = ''
+          return 0
+        }
+        return s - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [enviado, segundosRestantes])
 
   const email = form.email.trim()
   const telefono = form.telefono.trim()
@@ -105,15 +134,16 @@ export default function Cotizacion() {
   const paso2Completo = paso1Completo && !erroresCampo.nombre && !erroresCampo.email && !erroresCampo.telefono
   const paso3Completo = paso2Completo && !erroresCampo.tamano && !erroresCampo.cantidad && !erroresCampo.color
 
-  const camposQueReestiman = ['alto', 'ancho', 'largo', 'cantidad', 'uso', 'material', 'color', 'unidad']
+  const camposQueReestiman = ['alto', 'ancho', 'largo', 'cantidad', 'uso', 'material', 'color', 'colorOtro', 'unidad']
 
   function actualizar(campo, valor) {
-    setForm(prev => ({ ...prev, [campo]: valor }))
+    const nuevoForm = { ...form, [campo]: valor }
+    setForm(nuevoForm)
     if (camposQueReestiman.includes(campo)) {
       window.clearTimeout(timerReestimacion.current)
       timerReestimacion.current = setTimeout(() => {
-        if (archivo && paso1Completo) estimar()
-      }, 700)
+        if (archivo && paso1Completo) estimarConForm(nuevoForm)
+      }, 1500)
     }
   }
 
@@ -128,19 +158,25 @@ export default function Cotizacion() {
     const file = e.target.files[0]
     if (!file) return
     if (!file.type.startsWith('image/')) return
-    if (file.size > 8 * 1024 * 1024) return
+    if (file.size > 15 * 1024 * 1024) {
+      setError('La imagen supera los 15 MB. Elige una mas liviana.')
+      return
+    }
 
     setError(null)
     setArchivo(file)
     setPrevisualizacion(URL.createObjectURL(file))
-    setCotizacionIA(null)
+    setCotizacion(null)
     setEstadoImagen('validando')
-
     setValidandoImagen(true)
+
     try {
-      await validarImagenSegura(file, setProgreso)
+      const liviana = await optimizarImagen(file)
+      await validarImagenSegura(liviana, setProgreso)
+
+      setArchivo(liviana)
       setEstadoImagen('valida')
-      await estimar(file)
+      ultimaFirmaEstimada.current = null
     } catch (err) {
       setEstadoImagen('invalida')
       setProgreso(prev => ({ ...prev, status: 'failed', message: err?.message || 'La imagen no es válida.' }))
@@ -150,74 +186,114 @@ export default function Cotizacion() {
     }
   }
 
-  async function estimar(referencia = archivo) {
-    if (!referencia) return
+  async function estimarConForm(formAUsar = form, referencia = archivo) {
+    if (!referencia) return null
+
+    const colorFinal = formAUsar.color === 'Otro' ? formAUsar.colorOtro.trim() : formAUsar.color
+    if (!esPositivo(formAUsar.alto) || !esPositivo(formAUsar.ancho) || !esPositivo(formAUsar.largo) || !colorFinal) {
+      return cotizacion
+    }
+
+    const firmaActual = firmaEspecificaciones({ ...formAUsar, color: colorFinal })
+    if (firmaActual === ultimaFirmaEstimada.current && cotizacion?.token) {
+      return cotizacion
+    }
+
     setCalculandoEstimacion(true)
+    setAviso(null)
     try {
-      const resultado = await estimarPieza(referencia, form)
-      setCotizacionIA(resultado)
+      const resultado = await estimarPieza(referencia, { ...formAUsar, color: colorFinal })
+      setCotizacion(resultado)
+      ultimaFirmaEstimada.current = firmaActual
+      return resultado
     } catch (err) {
-      console.warn('Fallo la estimacion IA en el upload', err)
+      if (err?.status === 429) {
+        setAviso('Demasiadas solicitudes, espera 1 minuto y vuelve a intentarlo.')
+      }
+      return cotizacion
     } finally {
       setCalculandoEstimacion(false)
     }
   }
 
+  async function estimar(referencia = archivo) {
+    return estimarConForm(form, referencia)
+  }
+
   function quitarImagen() {
     if (procesando) return
-    setCotizacionIA(null)
+    setCotizacion(null)
+    ultimaFirmaEstimada.current = null
+    window.clearTimeout(timerReestimacion.current)
     setArchivo(null)
     setPrevisualizacion(null)
     setEstadoImagen('idle')
     setProgreso({ status: 'idle', percent: 0, message: '' })
     setValidandoImagen(false)
     setError(null)
+    setAviso(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   async function enviarSolicitud(e) {
     e.preventDefault()
-    if (!paso3Completo || enviando) return
+    if (!paso3Completo || enviando || calculandoEstimacion) return
+
+    window.clearTimeout(timerReestimacion.current)
 
     setEnviando(true)
     setError(null)
 
-    const colorFinal = form.color === 'Otro' ? form.colorOtro.trim() : form.color
-    const cotizacion = cotizacionIA
-    const firma = cotizacion ? (cotizacion.firma || firmaEspecificaciones(form)) : firmaEspecificaciones(form)
-
-    const data = new FormData()
-    data.append('nombre', form.nombre.trim())
-    data.append('email', form.email.trim())
-    data.append('telefono', '+56' + form.telefono.trim())
-    data.append('material', form.material)
-    data.append('alto', form.alto)
-    data.append('ancho', form.ancho)
-    data.append('largo', form.largo)
-    data.append('unidad', form.unidad)
-    data.append('cantidad', form.cantidad)
-    data.append('uso', form.uso)
-    data.append('color', colorFinal)
-    data.append('descripcion', form.descripcion.trim())
-
-    if (cotizacion) {
-      data.append('estimacion_firma', firma)
-      data.append('precio_estimado_ia', cotizacion.precio_estimado_ia ?? cotizacion.precio_clp)
-      data.append('precio_unitario_ia', cotizacion.precio_unitario_ia ?? cotizacion.precio_unitario_clp)
-      data.append('gramos_estimados_ia', cotizacion.gramos_estimados_ia ?? cotizacion.gramos_estimados)
-      data.append('tiempo_estimado_horas_ia', cotizacion.tiempo_estimado_horas_ia ?? cotizacion.tiempo_estimado_horas)
-      data.append('material_sugerido_ia', cotizacion.material_sugerido_ia ?? cotizacion.material_detectado)
-      data.append('complejidad_ia', cotizacion.complejidad_ia ?? cotizacion.complejidad)
-      data.append('confianza_material_ia', cotizacion.confianza_material_ia ?? cotizacion.confianza_material)
-      data.append('confianza_complejidad_ia', cotizacion.confianza_complejidad_ia ?? cotizacion.confianza_complejidad)
-      data.append('detalle_costos', JSON.stringify(cotizacion.detalle))
-    }
-
-    data.append('imagen', archivo)
-
     try {
+
+      let estimacion = cotizacion
+
+      if (!estimacion?.token) {
+        try {
+          const estimacionFresca = await estimarConForm(form, archivo)
+          if (estimacionFresca?.token) estimacion = estimacionFresca
+        } catch {
+        }
+      }
+
+      const colorFinal = form.color === 'Otro' ? form.colorOtro.trim() : form.color
+
+      const data = new FormData()
+      data.append('nombre', form.nombre.trim())
+      data.append('email', form.email.trim())
+      data.append('telefono', '+56' + form.telefono.trim())
+      data.append('material', form.material)
+      data.append('alto', form.alto)
+      data.append('ancho', form.ancho)
+      data.append('largo', form.largo)
+      data.append('unidad', form.unidad)
+      data.append('cantidad', form.cantidad)
+      data.append('uso', form.uso)
+      data.append('color', colorFinal)
+      data.append('descripcion', form.descripcion.trim())
+
+
+      if (estimacion?.token) {
+        const formParaFirma = { ...form, color: colorFinal }
+        const firma = firmaEspecificaciones(formParaFirma)
+
+        data.append('estimacion_token', estimacion.token)
+        data.append('estimacion_firma', firma)
+        data.append('precio_estimado', estimacion.precio_estimado_ia ?? estimacion.precio_estimado ?? estimacion.precio_clp)
+        data.append('precio_unitario', estimacion.precio_unitario_ia ?? estimacion.precio_unitario ?? estimacion.precio_unitario_clp)
+        data.append('gramos_estimados', estimacion.gramos_estimados_ia ?? estimacion.gramos_estimados)
+        data.append('tiempo_estimado_horas', estimacion.tiempo_estimado_horas_ia ?? estimacion.tiempo_estimado_horas)
+        data.append('material_sugerido', estimacion.material_sugerido_ia ?? estimacion.material_sugerido ?? estimacion.material_detectado)
+        data.append('complejidad', estimacion.complejidad_ia ?? estimacion.complejidad)
+        data.append('confianza_material', estimacion.confianza_material_ia ?? estimacion.confianza_material)
+        data.append('confianza_complejidad', estimacion.confianza_complejidad_ia ?? estimacion.confianza_complejidad)
+      }
+
+      data.append('imagen', archivo)
+
       await api.post('/cotizaciones', data)
       setEnviado(true)
+      setSegundosRestantes(10)
     } catch (err) {
       const msg = err?.datos?.mensaje || err?.message || 'No pudimos enviar tu solicitud. Intenta nuevamente.'
       setError(msg)
@@ -235,13 +311,18 @@ export default function Cotizacion() {
           Recibimos tu pieza de referencia.
           Nuestro equipo revisará tu cotización. Te avisaremos dentro de 24 a 48 horas hábiles a tu correo: {form.email}. También puedes revisar el estado en Mis-cotizaciones.
         </p>
+        {segundosRestantes > 0 && (
+          <p style={{ marginTop: 18, fontSize: 14, color: 'var(--accent)', fontWeight: 600 }}>
+            Volveremos al formulario en {segundosRestantes} segundo{segundosRestantes !== 1 ? 's' : ''}…
+          </p>
+        )}
       </section>
     )
   }
 
   return (
     <section className="wrap" style={{ paddingTop: '48px', paddingBottom: '80px', maxWidth: 1100 }}>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, margin: '10px 0 8px', color: 'var(--surface)' }}>Cotiza tu producto</h1>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, margin: '10px 0 8px', color: 'var(--text-on-bg)' }}>Cotiza tu producto</h1>
       <p style={{ color: 'var(--text-dim)', marginBottom: 32, lineHeight: 1.6 }}>
         Sube una imagen de lo que necesitas imprimir. Nuestro equipo revisará la cotización. Una vez enviada tu cotización te confirmaremos mediante correo, puedes revisar también Mis-cotizaciones.
       </p>
@@ -280,14 +361,14 @@ export default function Cotizacion() {
               </span>
 
               <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                JPG, PNG o WEBP · máx. 8MB
+                JPG, PNG o WEBP · máx. 15MB
               </span>
             </label>
           ) : (
             <div className="grid-2" style={{ marginBottom: 16 }}>
 
               {/* Imagen original */}
-              <div>
+              <div className="cot-ref">
                 <p
                   style={{
                     fontSize: 11,
@@ -302,25 +383,8 @@ export default function Cotizacion() {
                   Imagen de referencia
                 </p>
 
-                <div
-                  style={{
-                    position: 'relative',
-                    borderRadius: 10,
-                    overflow: 'hidden',
-                    border: '1px solid var(--line)',
-                    background: 'var(--input-bg)',
-                  }}
-                >
-                  <img
-                    src={previsualizacion}
-                    alt="Referencia subida"
-                    style={{
-                      width: '100%',
-                      maxHeight: 280,
-                      objectFit: 'cover',
-                      display: 'block',
-                    }}
-                  />
+                <div className="cot-ref-marco">
+                  <img src={previsualizacion} alt="Referencia subida" />
 
                   <button
                     type="button"
@@ -344,6 +408,7 @@ export default function Cotizacion() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      zIndex: 1,
                     }}
                   >
                     <X size={14} />
@@ -354,7 +419,7 @@ export default function Cotizacion() {
               {/* Progreso + validación de seguridad */}
               <div>
 
-                {/* Barra de progreso: primero */}
+                {/* Barra de progreso*/}
                 {(validandoImagen ||
                   progreso.status === 'completed' ||
                   progreso.status === 'failed') && (
@@ -365,7 +430,7 @@ export default function Cotizacion() {
                     />
                   )}
 
-                {/* Validación de seguridad: debajo */}
+                {/* Validación de seguridad*/}
                 <div>
                   <p
                     style={{
@@ -376,6 +441,7 @@ export default function Cotizacion() {
                       textTransform: 'uppercase',
                       letterSpacing: '.05em',
                       marginBottom: 8,
+                      marginTop: 12,
                     }}
                   >
                     Validación de seguridad
@@ -383,7 +449,7 @@ export default function Cotizacion() {
 
                   <ModelViewer
                     estado={estadoImagen === 'idle' ? 'validando' : estadoImagen}
-                    height={280}
+                    height={240}
                   />
                 </div>
               </div>
@@ -399,6 +465,12 @@ export default function Cotizacion() {
             style={{ display: 'none' }}
           />
         </Paso>
+
+        {aviso && (
+          <p role="alert" style={{ fontSize: 13, color: '#92400e', background: '#fef3c7', padding: '10px 14px', borderRadius: 8, marginBottom: 24 }}>
+            {aviso}
+          </p>
+        )}
 
         {/* ─── Paso 2: Datos de contacto ─── */}
         <Paso
@@ -554,7 +626,7 @@ export default function Cotizacion() {
                     padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
                     border: `1px solid ${activo ? 'var(--accent)' : 'var(--line)'}`,
                     background: activo ? 'var(--accent)' : 'var(--input-bg)',
-                    color: activo ? 'var(--text)' : 'var(--surface-2)', transition: 'border-color .15s, background .15s',
+                    color: activo ? 'var(--text)' : 'var(--text-dim)', transition: 'border-color .15s, background .15s',
                   }}
                 >
                   {c}
@@ -593,17 +665,10 @@ export default function Cotizacion() {
             {error}
           </p>
         )}
-
-        {calculandoEstimacion && (
-          <p role="status" style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 12 }}>
-            Calculando estimación con IA, espera unos segundos...
-          </p>
-        )}
-
         <button
           className="btn btn-primary"
           type="submit"
-          disabled={!paso3Completo || enviando}
+          disabled={!paso3Completo || enviando || calculandoEstimacion}
           style={{
             width: '100%', padding: '14px 0', fontSize: 15,
             justifyContent: 'center', opacity: paso3Completo ? 1 : 0.5,
