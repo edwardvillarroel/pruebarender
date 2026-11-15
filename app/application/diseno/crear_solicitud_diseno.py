@@ -5,10 +5,15 @@ import re
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
+from app.application.diseno.firma_especificaciones import firma_especificaciones
 from app.domain.entities.solicitud_diseno import EstadoSolicitud, SolicitudDiseno
 from app.domain.time import utcnow
 from app.infrastructure.imagenes.validador_imagen_segura import validar_imagen_segura
 from app.infrastructure.cotizador import ClienteCotizadorIA
+from app.infrastructure.cotizador.token_estimacion import (
+    hash_imagen,
+    verificar_token_estimacion,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +21,6 @@ MATERIALES_PERMITIDOS = {"PLA", "PLA+", "ABS+", "ABS", "PETG", "Resina", "No est
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 IA_ORIGEN_SERVER = "cotizador-apolovibes-v2"
 IA_ORIGEN_CLIENTE = "cotizador-apolovibes-v2-front"
-
-# Valores que el navegador puede mandar cuando no tiene una estimacion real
-# (FormData convierte `undefined` a la cadena "undefined").
-_VALORES_VACIOS = {"", "undefined", "null", "none", "nan"}
 
 
 
@@ -116,13 +117,16 @@ class CrearSolicitudDiseno:
             estado=EstadoSolicitud.PENDIENTE,
         )
 
-        # Estrategia: el frontend ya estima al subir la imagen y manda el
-        # resultado junto con la firma de las especificaciones. Se reutiliza si
-        # la firma coincide (una sola llamada al cotizador por cotizacion, sin
-        # chocar con su limite de 1 request/minuto). Solo si no hay estimacion
-        # valida del cliente se llama al cotizador desde el backend.
+        # Estrategia: el frontend ya estima al subir la imagen y recibe un token
+        # firmado por el backend. Se reutiliza esa estimacion si el token es
+        # valido para este usuario, esta imagen y estas especificaciones (una
+        # sola llamada al cotizador por cotizacion, sin chocar con su limite de
+        # 1 request/minuto). Los precios que mande el navegador fuera del token
+        # se ignoran por completo. Sin token valido se estima en el backend.
         try:
-            estimacion = self._aplicar_estimacion_cliente(datos, solicitud)
+            estimacion = self._aplicar_estimacion_firmada(
+                datos, solicitud, contenido, usuario_id
+            )
             if estimacion is not None:
                 self._aplicar_resultado(solicitud, estimacion)
                 solicitud.ia_calculado_en = utcnow()
@@ -184,10 +188,24 @@ class CrearSolicitudDiseno:
             color=color or "Negro",
         )
 
-    def _aplicar_estimacion_cliente(self, datos: dict, solicitud: SolicitudDiseno) -> dict | None:
-        """Reutiliza la estimacion calculada por el cliente (en el upload) si la firma
-        de las especificaciones sigue siendo la misma."""
-        firma_esperada = self._firma_especificaciones(
+    def _aplicar_estimacion_firmada(
+        self,
+        datos: dict,
+        solicitud: SolicitudDiseno,
+        contenido: bytes,
+        usuario_id: UUID,
+    ) -> dict | None:
+        """Reutiliza la estimacion del upload solo si viene en un token firmado
+        por el backend y corresponde a este usuario, imagen y especificaciones.
+
+        Nunca se leen precios sueltos del formulario: el cliente puede
+        modificarlos y no son confiables.
+        """
+        token = str(datos.get("estimacion_token") or "").strip()
+        if not token:
+            return None
+
+        firma_esperada = firma_especificaciones(
             alto=solicitud.alto,
             ancho=solicitud.ancho,
             largo=solicitud.largo,
@@ -197,33 +215,25 @@ class CrearSolicitudDiseno:
             material=solicitud.material,
             color=solicitud.color,
         )
-        if str(datos.get("estimacion_firma") or "").strip() != firma_esperada:
+        estimacion = verificar_token_estimacion(
+            token,
+            usuario_id=usuario_id,
+            imagen_sha256=hash_imagen(contenido),
+            firma=firma_esperada,
+            secreto=self._secreto_estimacion(),
+            max_age=self._ttl_estimacion(),
+        )
+        if estimacion is None:
+            logger.warning(
+                "Token de estimacion invalido, expirado o de otra imagen/usuario; "
+                "se vuelve a estimar con el cotizador."
+            )
             return None
 
-        def _get(*nombres):
-            for n in nombres:
-                v = datos.get(n)
-                if v is None:
-                    continue
-                texto = str(v).strip()
-                if texto.lower() in _VALORES_VACIOS:
-                    continue
-                return v
-            return None
-
-        precio = self._to_decimal(_get("precio_estimado", "precio_estimado_ia", "precio_clp"))
+        precio = self._to_decimal(estimacion.get("precio_estimado_ia"))
         if precio is None or precio <= 0 or precio > Decimal("9999999999.99"):
             return None
-        return {
-            "precio_estimado_ia": precio,
-            "precio_unitario_ia": self._to_decimal(_get("precio_unitario", "precio_unitario_ia", "precio_unitario_clp")),
-            "gramos_estimados_ia": self._to_decimal(_get("gramos_estimados", "gramos_estimados_ia")),
-            "tiempo_estimado_horas_ia": self._to_decimal(_get("tiempo_estimado_horas", "tiempo_estimado_horas_ia")),
-            "material_sugerido_ia": self._texto_largo(_get("material_sugerido", "material_sugerido_ia", "material_detectado"), 50),
-            "complejidad_ia": self._texto_largo(_get("complejidad", "complejidad_ia"), 50),
-            "confianza_material_ia": self._to_decimal(_get("confianza_material", "confianza_material_ia")),
-            "confianza_complejidad_ia": self._to_decimal(_get("confianza_complejidad", "confianza_complejidad_ia")),
-        }
+        return estimacion
 
     def _aplicar_resultado(self, solicitud: SolicitudDiseno, res: dict) -> None:
         solicitud.material_sugerido_ia = self._texto_largo(res.get("material_sugerido_ia") or res.get("material_detectado"), 50)
@@ -234,48 +244,27 @@ class CrearSolicitudDiseno:
         solicitud.confianza_material_ia = self._to_decimal(res.get("confianza_material_ia") if res.get("confianza_material_ia") is not None else res.get("confianza_material"))
         solicitud.confianza_complejidad_ia = self._to_decimal(res.get("confianza_complejidad_ia") if res.get("confianza_complejidad_ia") is not None else res.get("confianza_complejidad"))
 
-    def _firma_especificaciones(
-        self,
-        alto,
-        ancho,
-        largo,
-        unidad: str,
-        cantidad: int,
-        uso: str | None,
-        material: str,
-        color: str | None,
-    ) -> str:
-        """Firma canonica de las especificaciones de la pieza.
+    def _secreto_estimacion(self) -> str:
+        return str(self._config("SECRET_KEY") or "")
 
-        Debe coincidir con `firmaEspecificaciones` del frontend
-        (src/services/cotizador.js) para poder reutilizar su estimacion.
-        """
-        return "|".join([
-            self._num_firma(alto, 10),
-            self._num_firma(ancho, 10),
-            self._num_firma(largo, 10),
-            str(unidad or "cm").strip() or "cm",
-            str(int(cantidad or 1)),
-            str((uso or "Decorativo").strip() or "Decorativo"),
-            str((material or "").strip()),
-            str((color or "Negro").strip() or "Negro"),
-        ])
-
-    def _num_firma(self, valor, default=None) -> str:
-        if valor is None or str(valor).strip() == "":
-            valor = default
-        if valor is None or str(valor).strip() == "":
-            return ""
+    def _ttl_estimacion(self) -> int:
         try:
-            numero = Decimal(str(valor).strip().replace(",", ".")).normalize()
-            if numero == numero.to_integral_value():
-                return str(int(numero))
-            texto = format(numero, "f")
-            if "." in texto:
-                texto = texto.rstrip("0").rstrip(".")
-            return texto or "0"
+            return int(self._config("ESTIMACION_TOKEN_TTL_SECONDS") or 7200)
+        except (TypeError, ValueError):
+            return 7200
+
+    def _config(self, clave: str):
+        """Lee la configuracion de la app; fuera de un request usa `Config`."""
+        try:
+            from flask import current_app, has_app_context
+
+            if has_app_context():
+                return current_app.config.get(clave)
         except Exception:
-            return str(valor).strip()
+            pass
+        from app.config import Config
+
+        return getattr(Config, clave, None)
 
     def _marcador_error(self, exc: Exception) -> str:
         respuesta = getattr(exc, "response", None)

@@ -54,6 +54,17 @@ def usuario_actual():
     return request.headers.get("X-User-Id")
 
 
+def usuario_confiable():
+    """Id del usuario autenticado solo si la request viene del gateway.
+
+    Para endpoints publicos que opcionalmente aprovechan la sesion (por ejemplo
+    `/cotizaciones/estimar`): sin el secreto interno no se confia en el header.
+    """
+    if not _es_cliente_interno_valido():
+        return None
+    return usuario_actual()
+
+
 def rol_actual():
     """Rol del usuario autenticado (inyectado por el gateway)."""
     return request.headers.get("X-User-Rol")

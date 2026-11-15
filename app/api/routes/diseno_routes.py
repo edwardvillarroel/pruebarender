@@ -5,11 +5,16 @@ import os
 import requests
 from flask import Blueprint, current_app, jsonify, redirect, request, send_from_directory
 
-from app.api.middleware.auth import requiere_sesion, usuario_actual, rol_requerido
+from app.api.middleware.auth import requiere_sesion, usuario_actual, usuario_confiable, rol_requerido
+from app.application.diseno.firma_especificaciones import firma_especificaciones
 from app.config import Config
 from app.infrastructure.imagenes.firmas_upload import firmar, verificar
 from app.infrastructure.imagenes.validador_imagen_segura import ImagenInvalida
 from app.infrastructure.cotizador import ClienteCotizadorIA
+from app.infrastructure.cotizador.token_estimacion import (
+    crear_token_estimacion,
+    hash_imagen,
+)
 from app.infrastructure.database.connection import utcnow
 from app.infrastructure.storage.supabase_storage import almacen_desde_config
 from app.domain.entities.solicitud_diseno import EstadoSolicitud
@@ -424,6 +429,37 @@ def estimar_cotizacion():
             "confianza_material": resultado.get("confianza_material_ia") or resultado.get("confianza_material"),
             "confianza_complejidad": resultado.get("confianza_complejidad_ia") or resultado.get("confianza_complejidad"),
         }
+
+        firma = firma_especificaciones(
+            alto=alto,
+            ancho=ancho,
+            largo=largo,
+            unidad=unidad,
+            cantidad=cantidad_int,
+            uso=uso,
+            material=material_usuario,
+            color=color,
+        )
+        respuesta["firma"] = firma
+
+        # El token liga la estimacion a este usuario, estos bytes de imagen y
+        # estas especificaciones. Solo se emite para usuarios autenticados a
+        # traves del gateway; el alta lo consume y nunca lee precios sueltos.
+        usuario = usuario_confiable()
+        if usuario:
+            try:
+                usuario_token = str(UUID(str(usuario)))
+            except Exception:
+                usuario_token = str(usuario)
+            token = crear_token_estimacion(
+                usuario_id=usuario_token,
+                imagen_sha256=hash_imagen(contenido),
+                firma=firma,
+                estimacion=resultado,
+                secreto=str(current_app.config.get("SECRET_KEY") or ""),
+            )
+            if token:
+                respuesta["token"] = token
 
         return jsonify(respuesta), 200
     except requests.exceptions.RequestException:

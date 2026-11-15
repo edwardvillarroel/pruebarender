@@ -138,6 +138,11 @@ class Config:
     )
     APOLO_API_KEY = os.getenv("APOLO_API_KEY", "")
     COTIZADOR_IA_TIMEOUT = int(os.getenv("COTIZADOR_IA_TIMEOUT", "60"))
+    # Vigencia del token firmado que permite reutilizar la estimacion hecha al
+    # subir la imagen sin confiar en los precios que manda el navegador.
+    ESTIMACION_TOKEN_TTL_SECONDS = int(
+        os.getenv("ESTIMACION_TOKEN_TTL_SECONDS", "7200")
+    )
 
     JSON_SORT_KEYS = False
 

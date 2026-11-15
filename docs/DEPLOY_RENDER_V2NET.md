@@ -50,6 +50,7 @@ refresh (`SameSite=Strict`, `Path=/api/auth`) viaja sin problema: es same-site.
 | `TUU_*`, `STARKEN_*`, `OPENFACTURA_*`, `EMISOR_*` | Integraciones pago/facturación/LLM. |
 | `LLM_API_KEY` / `COTIZADOR_IA_URL` | LLM para cotizador. |
 | `APOLO_API_KEY` | Key del cotizador IA externo (`x-apolo-key`). Sin ella responde 401 y la cotización se guarda sin estimación IA. |
+| `ESTIMACION_TOKEN_TTL_SECONDS` | Vigencia (default 7200) del token firmado con `SECRET_KEY` que permite reutilizar la estimación sin confiar en los precios del navegador. |
 
 ### Correo transaccional (Resend)
 
