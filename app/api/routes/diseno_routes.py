@@ -512,7 +512,7 @@ def estimar_cotizacion():
                 usuario_id=usuario_token,
                 imagen_sha256=hash_imagen(contenido),
                 firma=firma,
-                estimacion=resultado,
+                estimacion=respuesta,
                 secreto=str(current_app.config.get("SECRET_KEY") or ""),
             )
             if token:
