@@ -417,18 +417,44 @@ def estimar_cotizacion():
                 return default
             return numero if numero > 0 else default
 
+        def _opcional(valor):
+            if valor is None:
+                return None
+            t = str(valor).strip()
+            return t or None
+
+        # Valores para el COTIZADOR (con defaults)
         alto = _numero("alto", _numero("altura", 10))
         ancho = _numero("ancho", 10)
         largo = _numero("largo", 10)
-        unidad = request.form.get("unidad") or "cm"
+        unidad_raw = request.form.get("unidad") or "cm"
+        unidad = unidad_raw.strip().lower() or "cm"
         cantidad = request.form.get("cantidad") or 1
         try:
             cantidad_int = max(1, int(float(str(cantidad).replace(",", "."))))
         except (TypeError, ValueError):
             cantidad_int = 1
-        uso = request.form.get("uso") or "Decorativo"
-        material_usuario = request.form.get("material_usuario") or request.form.get("material")
-        color = request.form.get("color") or "Negro"
+        uso_cotizador = _opcional(request.form.get("uso")) or "Decorativo"
+        material_usuario = _opcional(request.form.get("material_usuario") or request.form.get("material"))
+        color_cotizador = _opcional(request.form.get("color")) or "Negro"
+
+        # Valores para la FIRMA (igual que en CrearSolicitudDiseno: None si vacío)
+        # Si el frontend mandó alto vacío, en crear va a ser None, acá también tiene que ser None para la firma
+        def _decimal_o_none(nombre):
+            v = request.form.get(nombre)
+            if v is None or str(v).strip() == "":
+                return None
+            try:
+                return Decimal(str(v).strip().replace(",", "."))
+            except Exception:
+                return None
+
+        alto_firma = _decimal_o_none("alto") or _decimal_o_none("altura")
+        ancho_firma = _decimal_o_none("ancho")
+        largo_firma = _decimal_o_none("largo")
+        uso_firma = _opcional(request.form.get("uso"))
+        color_firma = _opcional(request.form.get("color"))
+        material_firma = material_usuario  # ya es None o texto con strip
 
         from app.infrastructure.imagenes.validador_imagen_segura import validar_imagen_segura
 
@@ -447,9 +473,9 @@ def estimar_cotizacion():
             largo=largo,
             unidad=unidad,
             cantidad=cantidad_int,
-            uso=uso,
+            uso=uso_cotizador,
             material_usuario=material_usuario,
-            color=color,
+            color=color_cotizador,
         )
 
         respuesta = {
@@ -465,20 +491,17 @@ def estimar_cotizacion():
         }
 
         firma = firma_especificaciones(
-            alto=alto,
-            ancho=ancho,
-            largo=largo,
+            alto=alto_firma,
+            ancho=ancho_firma,
+            largo=largo_firma,
             unidad=unidad,
             cantidad=cantidad_int,
-            uso=uso,
-            material=material_usuario,
-            color=color,
+            uso=uso_firma,
+            material=material_firma,
+            color=color_firma,
         )
         respuesta["firma"] = firma
 
-        # El token liga la estimacion a este usuario, estos bytes de imagen y
-        # estas especificaciones. Solo se emite para usuarios autenticados a
-        # traves del gateway; el alta lo consume y nunca lee precios sueltos.
         usuario = usuario_confiable()
         if usuario:
             try:
@@ -494,6 +517,7 @@ def estimar_cotizacion():
             )
             if token:
                 respuesta["token"] = token
+                respuesta["estimacion_token"] = token
 
         return jsonify(respuesta), 200
     except requests.exceptions.RequestException:
