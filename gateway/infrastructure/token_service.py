@@ -5,7 +5,7 @@ from flask_jwt_extended import create_access_token, create_refresh_token, decode
 from gateway.domain.seguridad import nuevo_jti
 
 TIPO_TICKET_MFA = "mfa"
-DURACION_TICKET_MFA_APP = 5  # minutos
+DURACION_TICKET_MFA_APP = 5
 
 
 class TokenServiceFlaskJWT:
@@ -22,11 +22,7 @@ class TokenServiceFlaskJWT:
         return {"access_token": access_token, "refresh_token": refresh_token}
 
     def crear_ticket_mfa(self, *, user_id, rol, email):
-        """Firma un ticket de paso MFA de corta duración (no es sesión).
 
-        El ticket se crea SOLO después de validar el password (o el perfil de
-        Google) y permite completar el segundo factor. No concede acceso directo.
-        """
         return create_access_token(
             identity=user_id,
             additional_claims={
@@ -39,7 +35,6 @@ class TokenServiceFlaskJWT:
         )
 
     def decodificar_ticket(self, token: str) -> dict | None:
-        """Decodifica un ticket MFA. Devuelve sus claims o None si es inválido."""
         try:
             claims = decode_token(token)
         except Exception:

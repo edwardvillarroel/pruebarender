@@ -8,13 +8,7 @@ from app.domain.interfaces.venta_local_repository import VentaLocalRepository
 
 
 class GestionarVentaLocal:
-    """Caso de uso: ventas en el local (apertura, registro y cierre de sesión).
 
-    Depende únicamente de las interfaces `VentaLocalRepository` y
-    `ProductoRepository` (inyectadas desde el punto de composición). No conoce
-    Flask, la sesión ni el origen del `usuario_id`: ese valor llega como
-    parámetro explícito desde los headers del gateway.
-    """
 
     def __init__(self, repositorio: VentaLocalRepository, producto_repo: ProductoRepository) -> None:
         self._repositorio = repositorio

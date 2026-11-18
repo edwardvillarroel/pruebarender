@@ -133,7 +133,6 @@ export default function AdminLayout() {
 
   return (
     <div className="admin-layout" style={{ display: 'grid', gridTemplateColumns: '238px 1fr', minHeight: '100vh' }}>
-      {/* Desktop sidebar */}
       <aside className="hide-mobile" style={{
         background: 'var(--accent)', borderRight: '1px solid var(--line)',
         padding: '24px 18px', display: 'flex', flexDirection: 'column',
@@ -141,7 +140,6 @@ export default function AdminLayout() {
         <SidebarContent onLogout={() => setShowConfirm(true)} user={user} />
       </aside>
 
-      {/* Mobile sidebar overlay */}
       <div
         className={`admin-sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
         onClick={() => setSidebarOpen(false)}

@@ -50,10 +50,8 @@ load_dotenv(REPO / ".env")
 BASE_PROD = "https://api.haulmer.com"
 BASE_DEV = "https://dev-api.haulmer.com"
 
-# RUT de "Apolo Vibes SPA" segun los terminos legales (LegalModal.jsx).
 RUT_EMISOR_POR_DEFECTO = "78064166-5"
 
-# Codigos de tipo de documento del SII que nos interesan.
 TIPO_BOLETA = 39
 TIPO_FACTURA = 33
 NOMBRES_TIPO = {
@@ -106,11 +104,8 @@ def _cuerpo(respuesta: httpx.Response) -> str:
 
 
 def verificar_autorizacion(cliente: httpx.Client, rut_emisor: str) -> dict:
-    """Tipos de documento autorizados y folios disponibles de la organizacion."""
     _titulo("1. Organizacion: tipos autorizados y folios disponibles")
 
-    # El endpoint aparece documentado como GET y como POST con el RUT en el
-    # cuerpo. Se prueba el GET y, si no responde, el POST.
     respuesta = cliente.get("/v2/dte/organization/document")
     if respuesta.status_code == 404:
         respuesta = cliente.post("/v2/dte/organization/document", json={"rut": rut_emisor})
@@ -155,7 +150,6 @@ def verificar_autorizacion(cliente: httpx.Client, rut_emisor: str) -> dict:
 
 
 def verificar_emisor(cliente: httpx.Client, rut_emisor: str) -> dict:
-    """Datos del emisor tal como los tiene el SII: base del bloque `Emisor`."""
     _titulo(f"2. Emisor {rut_emisor} segun el SII")
     respuesta = cliente.get(f"/v2/dte/taxpayer/{rut_emisor}")
     if respuesta.status_code != 200:
@@ -205,12 +199,7 @@ def verificar_emisor(cliente: httpx.Client, rut_emisor: str) -> dict:
 def _payload_prueba(
     tipo_dte: int, emisor: dict, monto: int, nombre: str, rut_receptor: str
 ) -> dict:
-    """Arma un DTE minimo de 1 linea para probar la forma del payload.
 
-    Los precios del repo son IVA incluido, asi que el neto se calcula aqui
-    (bruto / 1.19) y el IVA es la diferencia. Asi `MntNeto + IVA = MntTotal`
-    cierra al peso, que es lo que el SII exige.
-    """
     neto = round(monto / 1.19)
     iva = monto - neto
     return {
@@ -261,7 +250,6 @@ def emitir_prueba(
     rut_receptor: str,
     idempotency_key: str,
 ) -> dict:
-    """Emite un DTE de prueba. ESCRIBE en la contabilidad: usar con cuidado."""
     etiqueta = "boleta" if tipo_dte == TIPO_BOLETA else "factura"
     _titulo(f"3. Emision de prueba: {etiqueta} (DTE {tipo_dte}) por ${monto}")
 

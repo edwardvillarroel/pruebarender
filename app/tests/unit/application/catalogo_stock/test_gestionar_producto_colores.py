@@ -34,7 +34,6 @@ def test_listar_colores_devuelve_lista_vacia_para_producto_de_una_foto():
 
     servicio = GestionarProducto(repositorio)
 
-    # Sin colores declarados, el detalle usa la imagen unica del producto.
     assert servicio.listar_colores(producto.id) == []
 
 
@@ -122,7 +121,6 @@ def test_listar_con_foto_de_color_no_consulta_colores_si_ya_hay_foto():
 
     GestionarProducto(repositorio).listar_con_foto_de_color()
 
-    # Con la foto principal no hay nada que completar: se evita la consulta.
     repositorio.primera_imagen_color_por_producto.assert_not_called()
 
 
@@ -141,7 +139,6 @@ def test_listar_con_foto_de_color_completa_con_el_primer_color():
     resultado = GestionarProducto(repositorio).listar_con_foto_de_color()
 
     assert resultado[0].imagen == f"/api/productos/colores/{color_id}/imagen"
-    # La tarjeta necesita el thumbnail tambien cuando la foto viene de un color.
     assert resultado[0].imagen_thumb == f"/api/productos/colores/{color_id}/thumb"
     repositorio.primera_imagen_color_por_producto.assert_called_once_with([producto.id])
 
@@ -160,8 +157,6 @@ def test_listar_con_foto_de_color_sin_thumb_cacheado_no_inventa_la_url():
 
     resultado = GestionarProducto(repositorio).listar_con_foto_de_color()
 
-    # El thumbnail es perezoso: hasta que se pide no existe, y el frontend cae
-    # a la imagen original en vez de pedir una URL que devolveria 404.
     assert resultado[0].imagen_thumb is None
 
 
@@ -178,7 +173,6 @@ def test_listar_con_foto_de_color_deja_la_imagen_principal_si_la_hay():
 
     resultado = GestionarProducto(repositorio).listar_con_foto_de_color()
 
-    # Solo se consultan los que no tienen foto: la principal gana siempre.
     repositorio.primera_imagen_color_por_producto.assert_called_once_with([sin_foto.id])
     assert resultado[0].imagen == "/api/productos/h/imagen"
     assert resultado[1].imagen == "/api/productos/colores/c/imagen"

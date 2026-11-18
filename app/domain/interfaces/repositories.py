@@ -30,17 +30,11 @@ class UsuarioRepository(RepositoryBase[Usuario], ABC):
 
     @abstractmethod
     def listar_con_metricas(self) -> list[UsuarioMetricas]:
-        """Todos los usuarios vivos con sus metricas de compra y cotizaciones.
 
-        Las metricas se agregan en la consulta (una sola pasada) para que el
-        panel de administracion no cargue pedidos ni cotizaciones en memoria.
-        Las cuentas con soft delete (`eliminado_en`) no se incluyen.
-        """
         raise NotImplementedError
 
     @abstractmethod
     def buscar_por_id(self, usuario_id: UUID) -> Usuario | None:
-        """Usuario por id, incluidos los eliminados (para validar el estado)."""
         raise NotImplementedError
 
     @abstractmethod
@@ -49,17 +43,14 @@ class UsuarioRepository(RepositoryBase[Usuario], ABC):
 
     @abstractmethod
     def actualizar(self, usuario: Usuario) -> Usuario:
-        """Persiste rol, estado activo y soft delete del usuario."""
         raise NotImplementedError
 
     @abstractmethod
     def contar_admins_activos(self) -> int:
-        """Administradores activos y no eliminados (para no dejar el sistema sin admin)."""
         raise NotImplementedError
 
     @abstractmethod
     def correo_en_uso(self, email: str) -> bool:
-        """True si el correo ya existe, sin distinguir mayusculas ni eliminados."""
         raise NotImplementedError
 
 
@@ -77,33 +68,19 @@ class ProductoRepository(RepositoryBase[Producto], ABC):
     def listar_mas_vendidos(
         self, desde: datetime | None, limite: int
     ) -> list[ProductoVendido]:
-        """Productos ordenados por unidades vendidas, de mas a menos.
 
-        `desde` es la cota inferior de la ventana de venta (None = todo el
-        historico). Solo cuenta lo pagado: un pedido sin pago completado no es
-        una venta.
-        """
         raise NotImplementedError
 
     @abstractmethod
     def listar_mas_vendidos_en_ventana(
         self, desde: datetime, hasta: datetime, limite: int
     ) -> list[ProductoVendido]:
-        """Igual que `listar_mas_vendidos`, pero dentro de `[desde, hasta)`.
 
-        Se usa para el ranking de una semana concreta (actual o anterior): la
-        cota superior es necesaria para que la semana anterior no se mezcle con
-        la actual.
-        """
         raise NotImplementedError
 
     @abstractmethod
     def contar_productos_distintos(self, desde: datetime, hasta: datetime) -> int:
-        """Cantidad de productos distintos vendidos en `[desde, hasta)`.
 
-        Cuenta productos, no unidades: un producto con 10 unidades suma 1.
-        Solo cuenta pagos completados, igual que el ranking.
-        """
         raise NotImplementedError
 
     @abstractmethod
@@ -172,12 +149,10 @@ class ProductoRepository(RepositoryBase[Producto], ABC):
     def listar_avisos_stock_pendientes(
         self, producto_ids: Sequence[UUID]
     ) -> list[Producto]:
-        """Productos de `producto_ids` bajo el umbral y sin aviso notificado."""
         raise NotImplementedError
 
     @abstractmethod
     def marcar_aviso_stock_notificado(self, producto_ids: Sequence[UUID]) -> None:
-        """Marca el aviso de stock bajo como notificado."""
         raise NotImplementedError
 
 
@@ -262,7 +237,6 @@ class PagoRepository(RepositoryBase[Pago], ABC):
 
     @abstractmethod
     def eliminar_por_pedido(self, pedido_id: UUID) -> None:
-        """Borra todos los intentos de pago de un pedido."""
         raise NotImplementedError
 
 
@@ -275,16 +249,11 @@ class SolicitudDisenoRepository(RepositoryBase[SolicitudDiseno], ABC):
 class DocumentoTributarioRepository(RepositoryBase[DocumentoTributario], ABC):
     @abstractmethod
     def get_by_pedido(self, pedido_id: UUID) -> DocumentoTributario | None:
-        """Documento emitido del pedido, si ya hay uno."""
         raise NotImplementedError
 
     @abstractmethod
     def get_by_clave_idempotencia(self, clave: str) -> DocumentoTributario | None:
-        """Documento reservado con esa clave de idempotencia.
 
-        Es lo que evita emitir dos veces el mismo pedido: la clave se deriva
-        del id del pedido, así que siempre es la misma.
-        """
         raise NotImplementedError
 
 
@@ -302,9 +271,6 @@ class ResenaDuplicadaError(Exception):
 class ResenaRepository(RepositoryBase[Resena], ABC):
     @abstractmethod
     def crear(self, resena: Resena) -> Resena:
-        """INSERTa la reseña y recalcula `productos.rating`/`resenas_count`
-        en la misma transacción. `ResenaDuplicadaError` si el triple ya existe.
-        """
         raise NotImplementedError
 
     @abstractmethod
@@ -313,7 +279,6 @@ class ResenaRepository(RepositoryBase[Resena], ABC):
 
     @abstractmethod
     def listar_por_producto(self, producto_id: UUID) -> list[ResenaPublica]:
-        """Resenas publicas de un producto, de la mas reciente a la mas vieja."""
         raise NotImplementedError
 
     @abstractmethod
@@ -324,14 +289,11 @@ class ResenaRepository(RepositoryBase[Resena], ABC):
 
     @abstractmethod
     def recalcular_stats_producto(self, producto_id: UUID) -> None:
-        """Re-sincroniza los stats denormalizados del producto (re-seed/reparación)."""
         raise NotImplementedError
 
 
 class LogAuditoriaRepository(ABC):
-    """Puerto de persistencia de eventos de auditoria (RNF-06)."""
 
     @abstractmethod
     def add(self, log: LogAuditoria) -> LogAuditoria:
-        """Persiste un evento de auditoria (RNF-06)."""
         raise NotImplementedError

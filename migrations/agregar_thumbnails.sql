@@ -29,7 +29,6 @@ END;
 /
 
 
--- producto_colores.imagen_thumb_*
 DECLARE
     v_count NUMBER;
 BEGIN

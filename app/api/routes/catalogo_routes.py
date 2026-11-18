@@ -16,8 +16,6 @@ catalogo_bp = Blueprint("catalogo", __name__)
 
 
 def _servicio_producto() -> GestionarProducto:
-    """Servicio de productos inyectado desde `create_app` (la capa API no
-    depende de `infrastructure`)."""
     return current_app.config["PRODUCTO_SERVICE"]
 
 
@@ -26,8 +24,6 @@ def _servicio_categoria() -> GestionarCategoria:
 
 
 def _conversor_imagen():
-    """Conversor de imágenes inyectado desde `create_app` (convierte RAW de
-    cámara a JPEG; la capa API no depende de `infrastructure`)."""
     return current_app.config["CONVERSOR_IMAGEN"]
 
 
@@ -45,29 +41,18 @@ def _a_publico_producto(producto) -> dict:
         "specs": producto.specs,
         "descuento": producto.descuento,
         "precio_original": producto.precio_original,
-        # Superficie pública de reseñas: promedio 1 decimal (o null si nadie
-        # reseñó) + contador. `usuario_id` NUNCA sale de la base.
         "rating": float(producto.rating) if producto.rating is not None else None,
         "resenas_count": producto.resenas_count or 0,
         "material": producto.material,
         "tamano": producto.tamano,
         "color": producto.color,
         "nuevo_lanzamiento": bool(producto.nuevo_lanzamiento),
-        # Umbral propio de "stock bajo" (None = usar el global STOCK_BAJO). El
-        # flag `stock_bajo` es derivado: basta leer stock vs umbral, asi el
-        # frontend no hardcodea el 3 y el admin puede ajustarlo por producto.
         "stock_minimo": producto.stock_minimo,
         "stock_bajo": bool(
             producto.stock
             <= (producto.stock_minimo if producto.stock_minimo is not None else STOCK_BAJO)
         ),
-        # Etiqueta de la card, derivada del flag en la frontera y NO persistida:
-        # la columna `badge` queda reservada para valores manuales (p.ej.
-        # "Best Seller") y asi conviven "Nuevo" y "Best Seller" sin pisarse.
-        # Si se guardara, apagar el flag dejaria el "Nuevo" pegado en la fila.
         "badge": "Nuevo" if producto.nuevo_lanzamiento else producto.badge,
-        # La home ordena "Lanzamientos" del mas nuevo al mas viejo, asi que la
-        # fecha de alta tiene que viajar en el JSON: la API ordena por nombre.
         "creado_en": producto.creado_en.isoformat() if producto.creado_en else None,
     }
 
@@ -91,30 +76,16 @@ def _a_publico_categoria(categoria) -> dict:
     }
 
 
-CACHE_IMAGENES_SEGUNDOS = 604800  # 7 dias
+CACHE_IMAGENES_SEGUNDOS = 604800
 
 
 def _enviar_imagen(imagen) -> Response:
-    """Sirve un BLOB de imagen como respuesta cacheable.
 
-    Siete dias de cache porque una foto de producto cambia muy pocas veces, y el
-    navegador deja de volver a bajarla en cada visita al catalogo. Al reemplazar
-    la foto se regenera el thumbnail en el mismo alta, asi que la unica
-    ventana de cache viejo es la que dura el nombre del archivo; si hace falta,
-    un CDN con purge resuelve eso sin tocar estos endpoints.
-    """
     respuesta = send_file(
         BytesIO(imagen.bytes),
         mimetype=imagen.content_type or "application/octet-stream",
         conditional=True,
     )
-    # El `Cache-Control` se setea sobre la respuesta: `send_file` no tiene
-    # parametros de cache, y ademas manda `no-cache` por defecto (Werkzeug no
-    # quiere que se cachee un stream sin nombre). Hay que sacarlo de encima,
-    # porque `no-cache` + `max-age` se contradicen: `no-cache` obliga al
-    # navegador a revalidar en cada visita, que es justo lo que se vino a
-    # evitar. `public` habilita el cache compartido (gateway/CDN): estas fotos
-    # no dependen de quien las pida.
     respuesta.cache_control.max_age = CACHE_IMAGENES_SEGUNDOS
     respuesta.cache_control.no_cache = False
     respuesta.cache_control.public = True
@@ -136,24 +107,9 @@ def listar_productos():
 
 @catalogo_bp.get("/productos/mas-vendidos")
 def mas_vendidos():
-    """Ranking de productos por unidades vendidas.
 
-    Publico, como el catalogo: lo consume la home ("Los mas vendidos de la
-    semana") y el panel de administracion. La ventana de venta va en `periodo`:
 
-    - `7d`, `30d`, `todo`: ventana movil desde el pago completado.
-    - `semana`: semana calendario (lunes a domingo, hora de Chile) con la regla
-      de negocio: si la semana actual tiene mas de 4 productos distintos
-      vendidos se muestra esa; si no, la semana anterior (si esa tambien tiene
-      mas de 4, se pasa al historico completo). En ese caso la respuesta agrega
-      `semana: {tipo, desde, hasta, productos_distintos_actual}`. Con tipo
-      `"historico"` no hay semana: se muestran los mejores vendidos de toda la
-      historia y `desde`/`hasta` son null.
 
-    El corte del top va en `limite`. Cada producto sale con los mismos campos
-    que el catalogo mas `unidades_vendidas` e `ingresos`, asi la tarjeta se
-    puede pintar sin adaptaciones.
-    """
     periodo = (request.args.get("periodo") or "todo").strip().lower()
     limite = request.args.get("limite", 10)
     servicio = _servicio_producto()
@@ -162,8 +118,6 @@ def mas_vendidos():
         if periodo == PERIODO_SEMANA:
             ranking = servicio.listar_mas_vendidos_semana(limite)
             vendidos = ranking.productos
-            # Con `"historico"` no hay semana: `desde`/`hasta` son None y el
-            # frontend vuelve al titulo normal de los mas vendidos.
             metadatos["semana"] = {
                 "tipo": ranking.tipo,
                 "desde": ranking.desde.isoformat() if ranking.desde else None,
@@ -199,7 +153,6 @@ def detalle_producto(producto_id):
 
 @catalogo_bp.get("/productos/<uuid:producto_id>/imagen")
 def imagen_producto(producto_id):
-    """Sirve la imagen almacenada como BLOB en la base de datos."""
     imagen = _servicio_producto().consultar_imagen(producto_id)
     if imagen is None:
         return jsonify(mensaje="Imagen no encontrada"), 404
@@ -208,13 +161,7 @@ def imagen_producto(producto_id):
 
 @catalogo_bp.get("/productos/<uuid:producto_id>/thumb")
 def thumb_producto(producto_id):
-    """Thumbnail del producto para la tarjeta del catalogo.
 
-    Se genera en la primera peticion y queda cacheado en la BD. Si no se puede
-    generar (foto ya chica, Pillow ausente, archivo ilegible) se sirve la
-    imagen original: es preferible descargar la foto grande que dejar la
-    tarjeta rota.
-    """
     servicio = _servicio_producto()
     imagen = servicio.obtener_thumb(producto_id)
     if imagen is None:
@@ -278,8 +225,6 @@ def actualizar_producto(producto_id):
             color=datos.get("color"),
             specs=datos.get("specs"),
             descuento=datos.get("descuento"),
-            # Sin `.get(...) or False`: tiene que distinguir "no vino el campo"
-            # (None = no tocar) de "vino en False" (apagar el lanzamiento).
             nuevo_lanzamiento=datos.get("nuevo_lanzamiento"),
             stock_minimo=(
                 int(datos["stock_minimo"])
@@ -343,7 +288,6 @@ def subir_imagen(producto_id):
 
 @catalogo_bp.get("/productos/<uuid:producto_id>/colores")
 def listar_colores(producto_id):
-    """Colores del producto. Lista vacia = producto de una sola foto."""
     if _servicio_producto().consultar(producto_id) is None:
         return jsonify(mensaje="Producto no encontrado"), 404
     colores = _servicio_producto().listar_colores(producto_id)
@@ -352,7 +296,6 @@ def listar_colores(producto_id):
 
 @catalogo_bp.get("/productos/colores/<uuid:color_id>/imagen")
 def imagen_color(color_id):
-    """Sirve la imagen de una variante de color como BLOB."""
     imagen = _servicio_producto().consultar_imagen_color(color_id)
     if imagen is None:
         return jsonify(mensaje="Imagen no encontrada"), 404
@@ -361,11 +304,7 @@ def imagen_color(color_id):
 
 @catalogo_bp.get("/productos/colores/<uuid:color_id>/thumb")
 def thumb_color(color_id):
-    """Thumbnail de un color para las miniaturas del selector de color.
 
-    Misma generacion perezosa y mismo fallback a la original que el thumbnail
-    del producto.
-    """
     servicio = _servicio_producto()
     imagen = servicio.obtener_thumb_color(color_id)
     if imagen is None:
@@ -379,11 +318,7 @@ def thumb_color(color_id):
 @requiere_sesion()
 @rol_requerido("admin")
 def guardar_color(producto_id):
-    """Crea o reemplaza un color del producto con su foto (multipart).
 
-    Campo `color`: nombre del color. Campo `imagen`: la foto (acepta RAW de
-    camara, se convierte a JPEG igual que la imagen principal).
-    """
     if "imagen" not in request.files:
         return jsonify(mensaje="Campo 'imagen' requerido"), 400
     archivo = request.files["imagen"]

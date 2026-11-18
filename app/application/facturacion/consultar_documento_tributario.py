@@ -1,8 +1,4 @@
-"""Consulta del documento electrónico de un pedido.
 
-Sirve para mostrar el estado de la emisión (folio, token, error) y para
-entregar el PDF del comprobante.
-"""
 
 from __future__ import annotations
 
@@ -17,5 +13,4 @@ class ConsultarDocumentoTributario:
         self._documentos = documentos
 
     def por_pedido(self, pedido_id: UUID) -> DocumentoTributario | None:
-        """Documento del pedido, o `None` si todavía no se emitió nada."""
         return self._documentos.get_by_pedido(pedido_id)

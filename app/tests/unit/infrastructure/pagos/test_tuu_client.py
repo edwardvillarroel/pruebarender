@@ -1,9 +1,4 @@
-"""Cliente TUU: sin `TUU_SECRET_KEY` no se firma ni se valida (fail-closed).
 
-El secreto embebido se elimino del codigo (OWASP A04): la key real viene del
-entorno. Estos tests blindan que un secreto vacio no se use para cobrar ni
-para aceptar callbacks (una firma HMAC con clave vacia es forjable).
-"""
 
 import hashlib
 import hmac
@@ -46,10 +41,8 @@ def test_crear_intento_sin_secret_key_falla_sin_llamar_a_la_pasarela():
 
 
 def test_verificar_firma_sin_secret_key_rechaza_todo():
-    """Un secreto vacio permitiria forjar la firma: se rechaza siempre."""
     cliente = TuuCliente(_config(""))
 
-    # Firma calculada con clave vacia (lo que un atacante podria producir).
     cadena = "x_amount1000x_referenceabc123"
     firma_forjada = hmac.new(b"", cadena.encode(), hashlib.sha256).hexdigest()
 

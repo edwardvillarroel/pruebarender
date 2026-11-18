@@ -1,9 +1,4 @@
-"""Contrato de las cotizaciones con la estimacion IA en la API admin.
 
-El panel de Cotizaciones del frontend lee las claves `*_ia`
-(`material_sugerido_ia`, `precio_estimado_ia`, ...). Estos tests fijan ese
-contrato tanto en el listado como en el detalle para que no vuelva a romperse.
-"""
 
 from decimal import Decimal
 from uuid import uuid4

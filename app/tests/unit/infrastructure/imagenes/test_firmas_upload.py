@@ -1,11 +1,4 @@
-"""Pruebas unitarias de las firmas HMAC de las URLs de cotización.
 
-`GET /api/uploads/<path>` dejó de ser público: cada ruta se publica con
-`?exp=&sig=` y el endpoint exige una firma vigente. Estos tests fijan el
-contrato de `firmar`/`verificar`: roundtrip, expiración, firma alterada,
-parámetros no numéricos, URLs absolutas que pasan sin firmar y la
-normalización de barras invertidas de las filas legacy.
-"""
 
 from __future__ import annotations
 
@@ -26,7 +19,6 @@ def ctx(app):
 
 
 def _firma_expirada(app, ruta: str, exp: int) -> tuple[str, str]:
-    """Firma manual con un `exp` arbitrario (para simular vencimiento)."""
     normalizada = ruta.replace("\\", "/")
     secreto = str(app.config["UPLOAD_SIGN_SECRET"])
     sig = hmac.new(
@@ -98,26 +90,19 @@ def test_backslashes_se_normalizan_al_firmar(ctx):
     partes = urlparse(firmada)
     args = parse_qs(partes.query)
 
-    # La fila legacy con `\` y la URL servida con `/` deben verificar igual.
     assert verificar("cotizaciones\\legacy.png", args["exp"][0], args["sig"][0]) is True
     assert verificar("cotizaciones/legacy.png", args["exp"][0], args["sig"][0]) is True
 
 
 def test_la_url_firmada_es_estable_dentro_de_la_ventana(ctx, monkeypatch):
-    """La misma ruta debe dar la MISMA URL: es lo que habilita el cache.
 
-    Antes el `exp` se recalculaba al segundo, así que cada listado publicaba
-    URLs nuevas para las mismas fotos y el navegador no podía reutilizar nada.
-    """
     import app.infrastructure.imagenes.firmas_upload as modulo
 
     monkeypatch.setattr(modulo.time, "time", lambda: 1_700_000_000)
     primera = firmar("cotizaciones/abc.png")
 
-    # Un minuto después, dentro de la misma ventana.
     monkeypatch.setattr(modulo.time, "time", lambda: 1_700_000_060)
     assert firmar("cotizaciones/abc.png") == primera
 
-    # Pasada la ventana, la URL cambia (la firma sigue siendo válida).
     monkeypatch.setattr(modulo.time, "time", lambda: 1_700_003_600)
     assert firmar("cotizaciones/abc.png") != primera

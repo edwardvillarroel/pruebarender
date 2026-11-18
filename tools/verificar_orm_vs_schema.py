@@ -1,11 +1,5 @@
-"""Compara los modelos ORM contra el schema real de Postgres.
 
-Los modelos se escribieron contra Oracle y nuncaTeneron `server_default`, asi
-que pueden referenciar columnas que no existen o faltar columnas que la BD si
-tiene. Este diff es el que detecta eso antes de que reviente en runtime.
 
-Uso: python tools/verificar_orm_vs_schema.py
-"""
 from __future__ import annotations
 
 import os
@@ -22,7 +16,6 @@ for line in (REPO / ".env").read_text(encoding="utf-8").splitlines():
 
 import psycopg2  # noqa: E402
 
-# Hay que importar TODOS los modelos para que queden registrados en db.metadata.
 from app.infrastructure.database.models import (  # noqa: E402,F401
     carrito_model,
     categoria_model,
@@ -68,12 +61,10 @@ for tabla in sorted(db.metadata.tables):
         problemas += 1
         continue
 
-    # el nombre logico de la columna (p.ej. specs_raw -> "specs")
     reales = {(c.name if not c.key else c.key) for c in orm.columns}
     logicos = {c.name.lower() for c in orm.columns}
     solo_orm = {k for k in reales if k.lower() not in cols_bd and k not in cols_bd}
     solo_bd = cols_bd - logicos - {r.lower() for r in reales}
-    # columnas con server_default en BD que el ORM no declara
     cur.execute(
         "SELECT column_name FROM information_schema.columns "
         "WHERE table_schema='public' AND table_name=%s AND column_default IS NOT NULL",

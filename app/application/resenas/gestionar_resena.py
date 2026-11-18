@@ -102,12 +102,10 @@ class GestionarResena:
         return self._resenas.listar_por_pedido(pedido_id)
 
     def listar_por_producto(self, producto_id: UUID) -> list[ResenaPublica]:
-        """Listado publico de resenas de un producto (sin control de sesion)."""
         return self._resenas.listar_por_producto(producto_id)
 
 
 def _estrellas_validas(estrellas) -> int:
-    """Entero 1-5. `bool` cuenta como inválido (es un `int` en Python)."""
     if isinstance(estrellas, bool) or not isinstance(estrellas, int):
         raise EstrellasInvalidasError("Las estrellas deben ser un entero de 1 a 5")
     if not 1 <= estrellas <= 5:

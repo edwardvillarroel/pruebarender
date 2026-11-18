@@ -1,13 +1,5 @@
-"""El RUT que llega del checkout tiene que ser válido antes de emitir.
 
-Un documento electrónico sin RUT receptor no lo acepta el SII, y uno con un
-RUT mal escrito es un comprobante emitido a nombre de quién sea.
 
-El caso especial es el consumidor final (`66666666-6`): es el RUT que el SII
-acepta para quien no tiene RUT, y no pasa el algoritmo de verificación. Por eso
-tiene su propio caso y no se puede "arreglar" con la función del dígito
-verificador.
-"""
 
 from __future__ import annotations
 
@@ -22,9 +14,6 @@ from app.application.common.facturacion import (
 )
 
 
-# --------------------------------------------------------------------------
-# normalizar_rut
-# --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -43,9 +32,6 @@ def test_normaliza_al_formato_del_sii(entrada, esperado):
     assert normalizar_rut(entrada) == esperado
 
 
-# --------------------------------------------------------------------------
-# es_rut_valido
-# --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -66,11 +52,11 @@ def test_acepta_ruts_validos(rut):
 @pytest.mark.parametrize(
     "rut",
     [
-        "12345678-9",  # dígito verificador equivocado
-        "1234567-9",  # dígito verificador equivocado (7 dígitos)
-        "123456-9",  # demasiado corto
-        "123456789-9",  # demasiado largo
-        "12345678",  # sin verificador
+        "12345678-9",
+        "1234567-9",
+        "123456-9",
+        "123456789-9",
+        "12345678",
         "abc-def",
         "",
         None,
@@ -81,15 +67,10 @@ def test_rechaza_ruts_invalidos(rut):
 
 
 def test_el_consumidor_final_no_pasa_el_digito_verificador_pero_es_valido():
-    """`66666666-6` es el RUT oficial del SII para "consumidor final"."""
     assert es_rut_valido(RUT_CONSUMIDOR_FINAL) is True
-    # Y el algoritmo de verificador no lo acepta: por eso tiene caso propio.
     assert es_rut_valido("66666666-6") and not es_rut_valido("66666666-5")
 
 
-# --------------------------------------------------------------------------
-# tipo_documento_de
-# --------------------------------------------------------------------------
 
 
 def test_tipo_documento_acepta_boleta_y_factura():
@@ -106,9 +87,6 @@ def test_tipo_documento_rechaza_lo_que_no_sea():
     assert tipo_documento_de(None) is None
 
 
-# --------------------------------------------------------------------------
-# extraer_datos_facturacion
-# --------------------------------------------------------------------------
 
 
 def test_extrae_los_datos_de_una_boleta():
@@ -131,7 +109,6 @@ def test_extrae_los_datos_de_una_boleta():
 
 
 def test_sin_rut_no_hay_documento():
-    """Sin RUT no se puede emitir: es el dato que el SII exige siempre."""
     assert extraer_datos_facturacion({"tipoDocumento": "boleta"}) is None
 
 
@@ -152,7 +129,6 @@ def test_sin_cliente_no_hay_documento():
 
 
 def test_el_tipo_ganado_por_el_pedido_tiene_precedencia():
-    """El pedido sabe qué documento pidió; el JSON solo lo confirma."""
     from app.domain.enums import TipoDocumentoTributario
 
     datos = extraer_datos_facturacion(

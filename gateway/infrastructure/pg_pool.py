@@ -1,15 +1,5 @@
-"""Pool de conexiones PostgreSQL del gateway.
 
-Reemplaza al pool de Oracle. Configuracion:
-  - `DATABASE_URL` / `PG_DSN` (URI completa, manda si esta). En Supabase suele
-    venir ya con `?sslmode=require`.
-  - o variables sueltas: POSTGRES_HOST / _PORT / _DB / _USER / _PASSWORD /
-    _SSLMODE.
 
-`psycopg2` no tiene equivalente de `pool_pre_ping` de SQLAlchemy, asi que se
-hace a mano: Supabase cierra las conexiones ociosas y sin esto el primer
-request tras un rato de inactividad revienta con "server closed the connection".
-"""
 
 from __future__ import annotations
 
@@ -20,9 +10,6 @@ import psycopg2
 import psycopg2.extras
 import psycopg2.pool
 
-# Sin esto psycopg2 no sabe adaptar objetos `uuid.UUID` y toda escritura con un
-# UUID falla con "can't adapt type 'UUID'". Registra tambien el camino inverso
-# (bytes -> uuid) para las lecturas.
 psycopg2.extras.register_uuid()
 
 _pool = None
@@ -32,7 +19,6 @@ _timeout = float(os.getenv("POSTGRES_POOL_TIMEOUT", "5"))
 
 
 def _dsn():
-    """Devuelve el DSN, o None si no hay configuracion de Postgres."""
     url = os.getenv("DATABASE_URL") or os.getenv("PG_DSN")
     if url:
         return url
@@ -50,7 +36,6 @@ def _dsn():
 
 
 def obtener_pool():
-    """Pool global, o None si Postgres no esta configurado (health/proxy)."""
     global _pool
     if _pool is None:
         dsn = _dsn()
@@ -68,7 +53,6 @@ def cerrar_pool():
 
 
 def _conectar_de_nuevo(pool, conexion):
-    """Reemplaza una conexion muerta por una nueva del pool."""
     pool.putconn(conexion, close=True)
     return pool.getconn()
 
@@ -86,7 +70,6 @@ def adquirir_conexion():
         if conexion.closed:
             conexion = _conectar_de_nuevo(pool, conexion)
         else:
-            # pre-ping: cheapest way to notice the server dropped an idle conn
             with conexion.cursor() as cur:
                 cur.execute("SELECT 1")
             conexion.rollback()

@@ -1,20 +1,7 @@
-"""El payload que se manda al proveedor tiene que estar EXACTO.
 
-Los dos formatos de documento (boleta 39 y factura 33) tienen esquemas
-distintos y el proveedor los valida con su propio XSD antes de mandarlos al
-SII: un campo de más o de menos y el documento se rechaza.
 
-Estos tests son la transcripción de las reglas del API:
 
-- **Boleta (39)**: las líneas van con el precio BRUTO, no lleva `TasaIVA`, el
-  medio de pago se llama `MedioPago` y el emisor lleva `CdgSIISucur` (que en
-  la factura no puede).
-- **Factura (33)**: las líneas van con el precio NETO, lleva `TasaIVA`, el
-  medio de pago se llama `FmaPago`, el emisor lleva `Acteco` y el receptor
-  tiene que declarar razón social, giro, dirección y comuna.
 
-Se prueban con un transporte HTTP falso: no sale nada a la red.
-"""
 
 from __future__ import annotations
 
@@ -71,7 +58,6 @@ def _cliente(handler) -> OpenFacturaCliente:
 
 
 def _capturado(handler):
-    """Devuelve (respuesta, cuerpo enviado, headers)."""
     capturado = {}
 
     def _envuelto(peticion: httpx.Request) -> httpx.Response:
@@ -95,9 +81,6 @@ def _respuesta_exitosa():
     )
 
 
-# --------------------------------------------------------------------------
-# La boleta (DTE 39)
-# --------------------------------------------------------------------------
 
 
 def test_la_boleta_va_con_precios_brutos_y_sin_tasa_de_iva():
@@ -127,15 +110,14 @@ def test_la_boleta_usa_medio_pago_e_ind_servicio():
     cliente.emitir(_solicitud(TipoDocumentoTributario.BOLETA))
 
     id_doc = capturado["cuerpo"]["dte"]["Encabezado"]["IdDoc"]
-    assert id_doc["MedioPago"] == 2  # tarjeta
+    assert id_doc["MedioPago"] == 2
     assert "FmaPago" not in id_doc
-    assert id_doc["IndServicio"] == 3  # venta de bienes
+    assert id_doc["IndServicio"] == 3
     assert id_doc["FchEmis"] == "2026-10-22"
-    assert id_doc["Folio"] == 0  # lo asigna el proveedor
+    assert id_doc["Folio"] == 0
 
 
 def test_la_boleta_no_manda_actividad_economica():
-    """`Acteco` es de la factura: en la boleta el proveedor lo rechaza."""
     _, capturado = _capturado(lambda p: _respuesta_exitosa())
     cliente = _cliente(_)
 
@@ -146,9 +128,6 @@ def test_la_boleta_no_manda_actividad_economica():
     assert emisor["CdgSIISucur"] == "81303347"
 
 
-# --------------------------------------------------------------------------
-# La factura (DTE 33)
-# --------------------------------------------------------------------------
 
 
 def test_la_factura_va_con_precios_netos_y_tasa_de_iva():
@@ -206,12 +185,7 @@ def test_la_factura_exige_los_datos_del_receptor():
 
 
 def test_las_lineas_de_la_factura_suman_el_neto_del_documento():
-    """La última línea absorbe el descuadre del redondeo.
 
-    Tres unidades de 60 bruto son 180: el neto unitario es 50 y el del
-    documento 151 (180/1.19 = 151.26). La suma de las líneas tiene que dar
-    151, no 150.
-    """
     _, capturado = _capturado(lambda p: _respuesta_exitosa())
     cliente = _cliente(_)
     lineas = [LineaDocumento(nombre="Llavero 3D", cantidad=3, precio_unitario=60)]
@@ -226,9 +200,6 @@ def test_las_lineas_de_la_factura_suman_el_neto_del_documento():
     assert sum(linea["MontoItem"] for linea in detalle) == 151
 
 
-# --------------------------------------------------------------------------
-# Idempotencia y errores
-# --------------------------------------------------------------------------
 
 
 def test_manda_la_clave_de_idempotencia():
@@ -242,10 +213,7 @@ def test_manda_la_clave_de_idempotencia():
 
 
 def test_cuando_el_proveedor_dice_ya_emitido_devuelve_el_token():
-    """`OF-06` no es un fallo: el documento existe y hay que recuperarlo.
 
-    El token viene en el detalle del error, y con él se puede bajar el PDF.
-    """
     def _handler(peticion):
         return httpx.Response(
             400,

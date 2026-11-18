@@ -1,11 +1,4 @@
-"""Caracterizacion del carrito: agrupacion por producto Y color.
 
-El caso que mas riesgo tiene en la migracion es el `color` NULL. En Oracle un
-indice unico NO considera NULL igual a NULL, asi que el mismo producto sin
-color podia repetirse en el carrito. En PostgreSQL hace falta `NULLS NOT
-DISTINCT` para reproducirlo. Estos tests fijan que hay exactamente UNA linea
-por (producto, color) con color NULL, que es lo que espera el negocio.
-"""
 
 from __future__ import annotations
 
@@ -29,9 +22,6 @@ def test_carreto_inexistente_se_crea_al_pedirlo(carrito, usuario, db_sesion):
     assert c.items == []
     assert c.usuario_id == str(usuario.id)
 
-    # La entidad de dominio no expone `id` (solo el modelo ORM), asi que el
-    # invariante real se verifica contra la base: pedirlo dos veces no puede
-    # crear un segundo carrito para el mismo usuario.
     carrito.obtener(str(usuario.id))
     filas = db_sesion.execute(
         db.text("SELECT count(*) FROM carrito WHERE usuario_id = :u"),
@@ -98,15 +88,7 @@ def test_color_vacio_o_espacios_normaliza_a_sin_color(carrito, usuario, producto
 
 
 def test_no_hay_dos_lineas_null_en_la_base(carrito, usuario, producto, db_sesion):
-    """Guarda dura: la BD no puede tener dos items del mismo producto con color NULL.
 
-    although la capa de aplicacion ya agrupa, esto verifica el indice unico de
-    la base, que es justamente donde Oracle y PostgreSQL se diferencian. En
-    Oracle un indice comun NO considera NULL igual a NULL; en PostgreSQL hace
-    falta `NULLS NOT DISTINCT` para reproducir la misma regla. Si ese indice
-    pierde el `NULLS NOT DISTINCT`, el INSERT de abajo entra y el carrito queda
-    con dos lineas del mismo producto sin color.
-    """
     import uuid as _uuid
     from sqlalchemy.exc import IntegrityError
 
@@ -188,8 +170,6 @@ def test_vaciar_deja_el_carrito_sin_items(carrito, usuario, producto):
 def test_carrito_esta_aislado_por_usuario(carrito, usuario, producto, db_sesion, centinela):
     from app.infrastructure.database.models.usuario_model import UsuarioModel
 
-    # El email debe llevar el prefijo r0- para que la limpieza automatica lo
-    # encuentre; si no, el test deja basura y falla el chequeo de residuos.
     otro = UsuarioModel(
         email=f"{centinela}-otro@caracterizacion.test",
         password_hash="r0",

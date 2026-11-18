@@ -21,10 +21,6 @@ function formatoPesos(valor) {
   return `$${Number(valor || 0).toLocaleString('es-CL')}`;
 }
 
-// Etiqueta corta del eje X: `YYYY-MM-DD` (fecha local de Chile que ya calcula el
-// backend) -> `DD/MM`. Se parsea a mano y no con `new Date(iso)`: el constructor
-// interpreta `YYYY-MM-DD` como medianoche UTC y, al mostrarlo en hora de Chile,
-// restaría un día.
 function formatoDiaMes(iso) {
   const partes = String(iso || '').slice(0, 10).split('-');
   if (partes.length !== 3) return '';
@@ -49,7 +45,6 @@ const COLOR_ESTADO = {
   cancelado: 'var(--red, #ef4444)',
 };
 
-// ---------- helpers de gráficos (SVG puro, sin librerías) ----------
 
 function Sparkline({ data, up }) {
   const w = 100, h = 28;
@@ -111,7 +106,6 @@ function VentasChart({ data }) {
   );
 }
 
-// ---------- panel base reutilizable ----------
 
 function Panel({ title, action, children }) {
   return (
@@ -128,13 +122,9 @@ function Panel({ title, action, children }) {
 }
 
 export default function Dashboard() {
-  // "Productos más vendidos" sale del ranking real del backend
-  // (`GET /api/productos/mas-vendidos`), no de una lista fija: el histórico
-  // completo, que es lo que interesa para decidir qué volver a producir.
   const [topProductos, setTopProductos] = useState([]);
   const [errorTopProductos, setErrorTopProductos] = useState(null);
 
-  // Reporte general de ventas y pedidos (backend admin-only).
   const [reporte, setReporte] = useState(null);
   const [cargandoReporte, setCargandoReporte] = useState(true);
   const [errorReporte, setErrorReporte] = useState(null);
@@ -193,9 +183,6 @@ export default function Dashboard() {
     },
   ];
 
-  // Cada punto es una semana (lunes a domingo, en hora de Chile). El eje X
-  // muestra la fecha de inicio de esa semana en DD/MM; el backend ya entrega
-  // `desde` como fecha local, así que la etiqueta coincide con los datos.
   const ventasSemana = (ventas.semanas || []).map(w => ({
     label: formatoDiaMes(w.desde),
     valor: Number(w.total) || 0,
@@ -233,7 +220,6 @@ export default function Dashboard() {
         </p>
       )}
 
-      {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18, marginBottom: 18 }}>
         {cargandoReporte ? (
           <p style={{ color: 'var(--text-dim)', gridColumn: '1 / -1', margin: 0 }}>Cargando…</p>
@@ -249,7 +235,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Fila principal: ventas + productos */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 18, marginBottom: 18 }}>
         <Panel title="Resumen de ventas">
           {cargandoReporte ? (
@@ -296,7 +281,6 @@ export default function Dashboard() {
         </Panel>
       </div>
 
-      {/* Fila secundaria: pedidos recientes + actividad reciente */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 18 }}>
         <Panel title="Pedidos recientes" action="Ver todo">
           {cargandoReporte ? (

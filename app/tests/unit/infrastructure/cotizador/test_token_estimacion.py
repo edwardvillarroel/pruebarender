@@ -1,4 +1,3 @@
-"""Token firmado de la estimacion IA: integridad y amarre a usuario/imagen/specs."""
 
 from uuid import uuid4
 

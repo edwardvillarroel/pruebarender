@@ -4,7 +4,6 @@ from app.domain.interfaces.repositories import SolicitudDisenoRepository
 
 
 class EvaluarSolicitud:
-    """Caso de uso: aprobar o rechazar una solicitud de diseño (admin)."""
 
     def __init__(self, repositorio: SolicitudDisenoRepository) -> None:
         self._repositorio = repositorio

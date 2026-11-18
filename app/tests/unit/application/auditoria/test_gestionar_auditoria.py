@@ -1,9 +1,4 @@
-"""Caso de uso de auditoria (OWASP Top 10 2025, A09 / RNF-06).
 
-`GestionAuditoria.registrar` arma el `LogAuditoria` y lo persiste por el
-puerto inyectado. Aca se blinda el contrato con el repositorio (`add`, no
-`guardar`) y la conversion del `X-User-Id` (string) a UUID.
-"""
 
 from unittest.mock import Mock
 from uuid import UUID
@@ -44,7 +39,6 @@ def test_registrar_sin_usuario_deja_usuario_id_en_none():
 
 
 def test_registrar_con_usuario_invalido_no_rompe():
-    """Un header corrupto no debe impedir registrar la accion."""
     repositorio = Mock()
 
     GestionAuditoria(repositorio).registrar(

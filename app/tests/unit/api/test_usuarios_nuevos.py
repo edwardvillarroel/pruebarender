@@ -1,10 +1,4 @@
-"""Tests del apartado de gestión de usuarios del panel de admin.
 
-Siguen el mismo patrón que test_usuarios_routes.py:
-- Uso de fixtures `app` y `client` de pytest-flask
-- Headers X-User-Id / X-User-Rol del gateway
-- Mock del servicio inyectado via app.config["USUARIOS_SERVICE"]
-"""
 
 from unittest.mock import Mock, patch
 import pytest
@@ -33,7 +27,6 @@ CABECERA_CLIENTE = {
 
 
 def _mock_servicio_vacio():
-    """Mock que simula un servicio vacío/sin usuarios."""
     servicio = Mock()
     servicio.listar.return_value = []
     servicio.crear.return_value = {
@@ -68,7 +61,6 @@ def _mock_servicio_vacio():
 
 
 def _mock_servicio_con_uno():
-    """Mock con un usuario y respuestas realistas."""
     servicio = Mock()
     usuario_id = "11111111-1111-1111-1111-111111111111"
     servicio.listar.return_value = [
@@ -118,19 +110,14 @@ def _mock_servicio_con_uno():
     return servicio
 
 
-# ---------------------------------------------------------------------------
-# Tests de acceso (frontera de confianza - mismo patrón que test_usuarios_routes.py)
-# ---------------------------------------------------------------------------
 
 
 def test_crear_requiere_sesion(client):
-    """POST /api/usuarios sin login -> 401."""
     respuesta = client.post("/api/usuarios", json={"nombre": "X", "email": "x@y.cl"})
     assert respuesta.status_code == 401
 
 
 def test_crear_rechaza_a_clientes(client):
-    """POST /api/usuarios con rol cliente -> 403."""
     respuesta = client.post(
         "/api/usuarios",
         json={"nombre": "X", "email": "x@y.cl"},
@@ -139,13 +126,9 @@ def test_crear_rechaza_a_clientes(client):
     assert respuesta.status_code == 403
 
 
-# ---------------------------------------------------------------------------
-# Tests de crear usuario
-# ---------------------------------------------------------------------------
 
 
 def test_crear_usuario_admin(client, app):
-    """POST /api/usuarios con datos válidos -> 201."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
 
     respuesta = client.post(
@@ -163,9 +146,7 @@ def test_crear_usuario_admin(client, app):
 
 
 def test_crear_usuario_correo_duplicado(client, app):
-    """POST /api/usuarios con correo en uso -> 409."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
-    # El route captura CorreoEnUso y retorna 409
     app.config["USUARIOS_SERVICE"].crear.side_effect = CorreoEnUso(
         "Ya existe una cuenta con ese correo electrónico"
     )
@@ -175,7 +156,7 @@ def test_crear_usuario_correo_duplicado(client, app):
         json={
             "nombre": "Otro",
             "apellido": "Tal",
-            "email": "maria@example.com",  # ya existe en el mock
+            "email": "maria@example.com",
             "password": "Contraseña123",
             "rol": "cliente",
         },
@@ -185,9 +166,7 @@ def test_crear_usuario_correo_duplicado(client, app):
 
 
 def test_crear_usuario_password_corta(client, app):
-    """POST /api/usuarios con contraseña muy corta -> 400."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
-    # El route captura DatosUsuarioInvalidos y retorna 400
     app.config["USUARIOS_SERVICE"].crear.side_effect = DatosUsuarioInvalidos(
         "La contraseña debe tener al menos 8 caracteres"
     )
@@ -198,7 +177,7 @@ def test_crear_usuario_password_corta(client, app):
             "nombre": "Sin",
             "apellido": "Pwd",
             "email": "sinpwd@example.com",
-            "password": "123",  # menor a 8
+            "password": "123",
             "rol": "cliente",
         },
         headers=CABECERA_ADMIN,
@@ -207,9 +186,7 @@ def test_crear_usuario_password_corta(client, app):
 
 
 def test_crear_usuario_sin_apellido_cliente(client, app):
-    """POST /api/usuarios rol cliente sin apellido -> 400 (regla de negocio)."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
-    # El route captura DatosUsuarioInvalidos y retorna 400
     app.config["USUARIOS_SERVICE"].crear.side_effect = DatosUsuarioInvalidos(
         "El apellido es obligatorio para un cliente"
     )
@@ -218,7 +195,7 @@ def test_crear_usuario_sin_apellido_cliente(client, app):
         "/api/usuarios",
         json={
             "nombre": "Cliente",
-            "apellido": "",  # obligatorio para cliente por CK_USUARIOS_APELLIDO
+            "apellido": "",
             "email": "cliente_sin_apellido@example.com",
             "password": "Contraseña123",
             "rol": "cliente",
@@ -228,13 +205,9 @@ def test_crear_usuario_sin_apellido_cliente(client, app):
     assert respuesta.status_code == 400
 
 
-# ---------------------------------------------------------------------------
-# Tests de cambiar rol
-# ---------------------------------------------------------------------------
 
 
 def test_cambiar_rol_admin_a_cliente(client, app):
-    """PATCH /api/usuarios/<id>/rol: admin -> cliente -> 200."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
 
     respuesta = client.patch(
@@ -246,7 +219,6 @@ def test_cambiar_rol_admin_a_cliente(client, app):
 
 
 def test_cambiar_rol_cliente_a_admin(client, app):
-    """PATCH /api/usuarios/<id>/rol: cliente -> admin -> 200."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
 
     respuesta = client.patch(
@@ -258,7 +230,6 @@ def test_cambiar_rol_cliente_a_admin(client, app):
 
 
 def test_cambiar_rol_mismo_rol_sin_cambiar(client, app):
-    """PATCH /api/usuarios/<id>/rol con mismo rol -> 200 (no hace nada)."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
 
     respuesta = client.patch(
@@ -270,12 +241,10 @@ def test_cambiar_rol_mismo_rol_sin_cambiar(client, app):
 
 
 def test_cambiar_rol_prohibido_quitar_ultimo_admin(client, app):
-    """PATCH /api/usuarios/<id>/rol: no permite quitarle el admin si es el último."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
     with patch.object(
         app.config["USUARIOS_SERVICE"], "contar_admins_activos", return_value=1
     ):
-        # El route captura OperacionNoPermitida y retorna 409
         app.config["USUARIOS_SERVICE"].cambiar_rol.side_effect = OperacionNoPermitida(
             "No puedes quitarte tu propio rol de administrador"
         )
@@ -288,13 +257,9 @@ def test_cambiar_rol_prohibido_quitar_ultimo_admin(client, app):
     assert respuesta.status_code == 409
 
 
-# ---------------------------------------------------------------------------
-# Tests de cambiar estado (bloqueo/desbloqueo)
-# ---------------------------------------------------------------------------
 
 
 def test_cambiar_estado_bloquear_admin(client, app):
-    """PATCH /api/usuarios/<id>/estado: bloquear admin -> 200."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
 
     respuesta = client.patch(
@@ -306,7 +271,6 @@ def test_cambiar_estado_bloquear_admin(client, app):
 
 
 def test_cambiar_estado_desbloquear(client, app):
-    """PATCH /api/usuarios/<id>/estado: desbloquear -> 200."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
 
     respuesta = client.patch(
@@ -318,12 +282,10 @@ def test_cambiar_estado_desbloquear(client, app):
 
 
 def test_cambiar_estado_prohibido_bloquear_ultimo_admin(client, app):
-    """PATCH /api/usuarios/<id>/estado: no permite bloquear si es el último admin."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
     with patch.object(
         app.config["USUARIOS_SERVICE"], "contar_admins_activos", return_value=1
     ):
-        # El route captura OperacionNoPermitida y retorna 409
         app.config["USUARIOS_SERVICE"].cambiar_estado.side_effect = OperacionNoPermitida(
             "Debe quedar al menos un administrador activo en el sistema"
         )
@@ -337,9 +299,7 @@ def test_cambiar_estado_prohibido_bloquear_ultimo_admin(client, app):
 
 
 def test_cambiar_estado_prohibido_bloquearse_propio(client, app):
-    """PATCH /api/usuarios/<id>/estado: no permite bloquear propia cuenta."""
     servicio = _mock_servicio_con_uno()
-    # El route lanza OperacionNoPermitida si el actor es el mismo usuario
     servicio.cambiar_estado.side_effect = OperacionNoPermitida(
         "No puedes bloquear tu propia cuenta"
     )
@@ -357,13 +317,9 @@ def test_cambiar_estado_prohibido_bloquearse_propio(client, app):
     assert respuesta.status_code == 409
 
 
-# ---------------------------------------------------------------------------
-# Tests de eliminar (soft delete)
-# ---------------------------------------------------------------------------
 
 
 def test_eliminar_usuario_admin(client, app):
-    """DELETE /api/usuarios/<id>: admin elimina usuario -> 200."""
     app.config["USUARIOS_SERVICE"] = _mock_servicio_con_uno()
 
     respuesta = client.delete(
@@ -374,9 +330,7 @@ def test_eliminar_usuario_admin(client, app):
 
 
 def test_eliminar_prohibido_autoeliminacion(client, app):
-    """DELETE /api/usuarios/<id>: no permite autoeliminación -> 409."""
     servicio = _mock_servicio_con_uno()
-    # El route lanza OperacionNoPermitida si el actor es el mismo usuario
     servicio.eliminar.side_effect = OperacionNoPermitida(
         "No puedes eliminar tu propia cuenta"
     )
@@ -390,17 +344,14 @@ def test_eliminar_prohibido_autoeliminacion(client, app):
             "X-Internal-Secret": "secreto-interno-test",
         },
     )
-    # Cuando el usuario intenta eliminarse a sí mismo, el route retorna 409
     assert respuesta.status_code == 409
 
 
 def test_eliminar_prohibido_ultimo_admin(client, app):
-    """DELETE /api/usuarios/<id>: no permite eliminar el último admin."""
     from unittest.mock import patch
 
     servicio = _mock_servicio_con_uno()
     with patch.object(servicio, "contar_admins_activos", return_value=1):
-        # El route captura OperacionNoPermitida y retorna 409
         servicio.eliminar.side_effect = OperacionNoPermitida(
             "Debe quedar al menos un administrador activo en el sistema"
         )
@@ -414,5 +365,4 @@ def test_eliminar_prohibido_ultimo_admin(client, app):
                 "X-Internal-Secret": "secreto-interno-test",
             },
         )
-    # Cuando intenta eliminar el último admin, el route retorna 409
     assert respuesta.status_code == 409

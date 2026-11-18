@@ -32,7 +32,6 @@ export default function ProductCard({ producto, index = 0 }) {
         const resp = await productoApi.listarColores(producto.id)
         colores = resp.colores || []
       } catch (e) {
-        // Sin saber los colores no se agrega a ciegas: va al detalle a elegir.
         navigate('/producto/' + producto.id)
         return
       }
@@ -54,7 +53,6 @@ export default function ProductCard({ producto, index = 0 }) {
     }
   }
 
-  // El admin no compra desde la tienda: su botón se comporta como agotado.
   const bloqueado = producto.sinStock || isAdmin
 
   return (

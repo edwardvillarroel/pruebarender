@@ -1,24 +1,6 @@
-"""Purga de cotizaciones vencidas y sus archivos de imagen (A.8.10).
 
-La política pública declara 12 meses de retención para cotizaciones no
-concretadas. Este servicio:
 
-1. Borra las filas de `solicitudes_diseno` anteriores al plazo que NO tienen
-   pedido asociado (`pedidos.cotizacion_id`); las concretadas no se tocan.
-2. Elimina el archivo de cada fila borrada: el local (solo rutas relativas
-   relativas; `None` y URLs `http(s)://` se ignoran; un archivo ya inexistente
-   no es error) y, si Supabase Storage está configurado (F4), también el objeto
-   en el bucket (best-effort: un fallo avisa y no aborta la purga).
-3. Limpia los huérfanos de `uploads/cotizaciones/`: archivos con `mtime` más
-   viejo que el plazo y sin fila restante que los referencie.
-4. Limpia los huérfanos del bucket (F4): objetos bajo `cotizaciones/` con
-   `created_at` más viejo que el plazo y sin fila restante que los
-   referencie. Conservador: sin fecha legible no se toca nada.
 
-Se invoca desde el cron semanal (`POST /api/admin/cotizaciones/purgar`) y
-desde el CLI `scripts/purgar_cotizaciones.py`. `dry_run=True` solo cuenta:
-no borra ni filas, ni archivos locales, ni objetos del bucket.
-"""
 
 from __future__ import annotations
 
@@ -38,7 +20,6 @@ class PurgadorCotizaciones:
         self._almacen_param = almacen
 
     def ejecutar(self, edad_dias: int = 365, dry_run: bool = False) -> dict:
-        """Aplica la retención y devuelve conteos de lo borrado (o por borrar)."""
         cutoff = utcnow() - timedelta(days=edad_dias)
         vencidas = self.repo.listar_vencidas(cutoff)
         ids = [v.id for v in vencidas]
@@ -100,7 +81,6 @@ class PurgadorCotizaciones:
         return resultado
 
     def eliminar_solicitud(self, entidad) -> None:
-        """Borra una fila puntual y su archivo (borrado manual del admin)."""
         almacen = self._almacen()
         bucket_ruta = self._ruta_bucket(entidad.imagen)
         if almacen is not None and bucket_ruta is not None:
@@ -112,12 +92,7 @@ class PurgadorCotizaciones:
         self.repo.eliminar([entidad.id])
 
     def _borrar_miniatura(self, almacen, ruta, dry_run: bool = False) -> None:
-        """Borra la miniatura derivada de una imagen (best-effort).
 
-        `miniaturas/cotizaciones/` queda fuera del listado de huérfanos del
-        bucket (que solo mira `cotizaciones/`), así que se borra junto con su
-        original para que no se acumule basura.
-        """
         if dry_run:
             return
         from app.infrastructure.imagenes.miniaturas_cotizacion import ruta_miniatura
@@ -130,7 +105,6 @@ class PurgadorCotizaciones:
         base = self._carpeta().resolve()
         archivo = base / destino
         try:
-            # Anti path-traversal: la miniatura derivada vive dentro de uploads.
             archivo.resolve().relative_to(base)
         except (OSError, ValueError):
             return
@@ -138,7 +112,6 @@ class PurgadorCotizaciones:
             self._borrar(archivo)
 
     def _almacen(self):
-        """Almacen de Supabase o `None` si no está configurado (best-effort)."""
         if self._almacen_param is not None:
             return self._almacen_param
         try:
@@ -159,7 +132,6 @@ class PurgadorCotizaciones:
         return Path(current_app.config.get("UPLOAD_FOLDER") or Config.UPLOAD_FOLDER)
 
     def _archivo_local(self, ruta) -> Path | None:
-        """Ruta en disco solo para rutas relativas locales; `None`/http no aplican."""
         if not ruta or not isinstance(ruta, str):
             return None
         if ruta.startswith(("http://", "https://")):
@@ -170,7 +142,6 @@ class PurgadorCotizaciones:
         base = self._carpeta().resolve()
         destino = base / normalizada
         try:
-            # Anti path-traversal: la ruta de la fila debe quedar dentro de uploads.
             destino.resolve().relative_to(base)
         except ValueError:
             return None
@@ -178,12 +149,7 @@ class PurgadorCotizaciones:
 
     @staticmethod
     def _ruta_bucket(ruta) -> str | None:
-        """Ruta relativa aplicable al bucket; `None` para http/absolutas/raras.
 
-        Igual criterio que `_archivo_local` pero sin tocar disco: una fila
-        relativa puede no tener archivo local (disco efímero) y aun así tener
-        su objeto en el bucket que hay que borrar.
-        """
         if not ruta or not isinstance(ruta, str):
             return None
         normalizada = ruta.replace("\\", "/")
@@ -194,7 +160,6 @@ class PurgadorCotizaciones:
         return normalizada
 
     def _referencias(self) -> set[str]:
-        """Rutas relativas que referencian filas vigentes (para huérfanos)."""
         referencias = set()
         for entidad in self.repo.listar_todos():
             ruta = self._ruta_bucket(entidad.imagen)
@@ -220,7 +185,7 @@ class PurgadorCotizaciones:
                 continue
             try:
                 if archivo.stat().st_mtime >= corte_ts:
-                    continue  # demasiado reciente para el plazo
+                    continue
             except OSError:
                 continue
             huerfanos += 1
@@ -231,12 +196,7 @@ class PurgadorCotizaciones:
     def _limpiar_huerfanos_bucket(
         self, cutoff, tocadas: set[str], dry_run: bool, referencias: set[str]
     ) -> int:
-        """Objetos del bucket sin fila que los referencie y pasados el plazo.
 
-        Best-effort y conservador: si el listado falla devuelve 0 con warning,
-        y un objeto sin `created_at` legible NO se borra (preferible dejar basura
-        a borrar algo vivo).
-        """
         almacen = self._almacen()
         if almacen is None or not almacen.configurado:
             return 0
@@ -269,14 +229,12 @@ class PurgadorCotizaciones:
         try:
             archivo.unlink()
         except OSError:
-            # Disco efímero o permisos: la purga no debe abortar por un archivo.
             current_app.logger.warning(
                 "[purge-cotizaciones] no se pudo borrar %s", archivo
             )
 
 
 def _fecha_storage(valor):
-    """`created_at` de Supabase (ISO 8601) a datetime aware; `None` si es ilegible."""
     if not valor or not isinstance(valor, str):
         return None
     try:

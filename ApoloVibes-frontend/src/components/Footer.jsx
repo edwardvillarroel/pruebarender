@@ -98,7 +98,6 @@ export default function Footer() {
       )
       if (!estaEnCheckout) return
 
-      // Bloquear links (salvo los que abren un modal legal)
       const enlace = target.closest('a')
       if (enlace) {
         const href = enlace.getAttribute('href')
@@ -111,12 +110,10 @@ export default function Footer() {
         }
       }
 
-      // Bloquear botones dentro del footer que navegan
       const footer = target.closest('footer')
       if (footer) {
         const boton = target.closest('button')
         if (boton) {
-          // Permitir abrir modales legales
           if (esControlLegal(boton)) {
             return
           }

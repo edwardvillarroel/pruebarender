@@ -8,7 +8,6 @@ function numero(valor) {
   return Number(valor || 0).toLocaleString('es-CL')
 }
 
-// ---------- tarjeta de resumen ----------
 
 function TarjetaResumen({ icon: Icon, label, valor, detalle, color }) {
   return (
@@ -25,7 +24,6 @@ function TarjetaResumen({ icon: Icon, label, valor, detalle, color }) {
   )
 }
 
-// ---------- celda numerica ----------
 
 function CeldaNumero({ valor, color, icon: Icon, titulo }) {
   return (
@@ -41,7 +39,6 @@ function CeldaNumero({ valor, color, icon: Icon, titulo }) {
   )
 }
 
-// ---------- badge de estado ----------
 
 function BadgeEstado({ activo }) {
   const estiloActiva = {
@@ -71,7 +68,6 @@ function BadgeEstado({ activo }) {
   )
 }
 
-// ---------- modal alta usuario ----------
 
 function ModalAltaUsuario({ abierto, onCerrar, onGuardar, guardando, error }) {
   const [form, setForm] = useState({
@@ -191,7 +187,6 @@ function ModalAltaUsuario({ abierto, onCerrar, onGuardar, guardando, error }) {
   )
 }
 
-// ---------- componente principal ----------
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([])

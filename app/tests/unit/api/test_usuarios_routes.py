@@ -1,8 +1,4 @@
-"""Tests del listado de usuarios del panel admin (`GET /api/usuarios`).
 
-Se cubren los guard de acceso (misma frontera de confianza que el resto del
-panel: headers del gateway) y el shape del payload que consume el frontend.
-"""
 
 from unittest.mock import Mock
 

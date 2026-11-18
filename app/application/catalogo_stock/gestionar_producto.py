@@ -16,17 +16,9 @@ from app.domain.time import ZONA_CHILE, hoy_chile, utcnow
 
 IVA_PORCENTAJE = 19
 
-# Ventanas de venta que acepta el ranking de "mas vendidos". El valor es la
-# cantidad de dias hacia atras desde el pago completado; None = historico
-# completo. Son pocas y explicitas a proposito: un "30 dias" escrito de otra
-# forma tiene que ser un error visible, no un historico silencioso.
 PERIODOS_MAS_VENDIDOS = {"7d": 7, "30d": 30, "todo": None}
 LIMITE_MAS_VENDIDOS_MAX = 50
 
-# Ranking semanal con fallback: si la semana en curso no alcanza este numero de
-# productos distintos vendidos, se muestra la semana anterior; si la anterior
-# tampoco, se muestra el historico completo de productos mas vendidos. La semana
-# es calendario (lunes a domingo) en hora de Chile, igual que `hoy_chile()`.
 PERIODO_SEMANA = "semana"
 DIAS_SEMANA = 7
 UMBRAL_PRODUCTOS_SEMANA = 4
@@ -34,15 +26,7 @@ UMBRAL_PRODUCTOS_SEMANA = 4
 
 @dataclass(frozen=True)
 class RankingSemana:
-    """Resultado del ranking semanal y de donde salio.
 
-    `tipo` es `"actual"`, `"anterior"` o `"historico"`: el frontend lo usa para
-    no mentir en el titulo cuando la semana elegida no es la actual. Con
-    `"anterior"` el titulo pasa a ser el de la semana pasada; con `"historico"`
-    (ni la actual ni la anterior alcanzaron el umbral) se muestran los mejores
-    vendidos de toda la historia y el titulo vuelve a ser el de los mas
-    vendidos de la semana.
-    """
 
     productos: list[ProductoVendido]
     tipo: str
@@ -52,16 +36,11 @@ class RankingSemana:
 
 
 def _lunes_de(fecha: date) -> date:
-    """Lunes de la semana calendario a la que pertenece `fecha`."""
     return fecha - timedelta(days=fecha.weekday())
 
 
 def _ventana_semana(lunes: date) -> tuple[datetime, datetime]:
-    """Ventana `[lunes 00:00, lunes siguiente 00:00)` en hora de Chile.
 
-    Los limites se devuelven en UTC con `tzinfo` para poder compararlos con
-    `pagos.creado_en` (un `timestamptz` que psycopg2 entrega aware).
-    """
     inicio_local = datetime.combine(lunes, time.min, tzinfo=ZONA_CHILE)
     fin_local = datetime.combine(
         lunes + timedelta(days=DIAS_SEMANA), time.min, tzinfo=ZONA_CHILE
@@ -70,12 +49,7 @@ def _ventana_semana(lunes: date) -> tuple[datetime, datetime]:
 
 
 def _acotar_limite(limite: Any) -> int:
-    """Normaliza el limite: entero entre 1 y `LIMITE_MAS_VENDIDOS_MAX`.
 
-    La ruta pasa el query param crudo, asi que un valor no numerico usa el
-    default en vez de ser un error; el tope evita que `limite=100000` arrastre
-    el catalogo entero a memoria.
-    """
     try:
         valor = int(limite)
     except (TypeError, ValueError):
@@ -84,32 +58,20 @@ def _acotar_limite(limite: Any) -> int:
 
 
 def _aplicar_descuento(precio: int, descuento: int | None) -> int:
-    """Precio final restando el descuento sobre el precio base.
 
-    El descuento BAJA lo que paga el cliente: `precio * (1 - descuento/100)`.
-    Se usa aritmetica de enteros (como `_aplicar_iva`) para evitar errores de
-    punto flotante: `ceil(11900 * 90/100)` con floats daria 10711, no 10710.
-    """
     if not descuento or descuento >= 100:
         return precio
     return (precio * (100 - descuento) + 99) // 100
 
 
 def _aplicar_iva(precio_neto: int) -> int:
-    """Precio final con IVA incluido, redondeado hacia arriba a pesos enteros."""
     if precio_neto <= 0:
         return precio_neto
     return (precio_neto * (100 + IVA_PORCENTAJE) + 99) // 100
 
 
 class GestionarProducto:
-    """Caso de uso: CRUD de productos del catálogo.
 
-    `generador_thumb` es la funcion de infraestructura que reduce una foto a un
-    thumbnail (Pillow). Se recibe inyectada porque `application` no puede
-    importar `infrastructure`; si es `None` no hay thumbnails y las rutas
-    sirven siempre la imagen original.
-    """
 
     def __init__(
         self,
@@ -148,18 +110,8 @@ class GestionarProducto:
         return self._repositorio.get_imagen_by_id(producto_id)
 
     def obtener_thumb(self, producto_id: UUID) -> ImagenProducto | None:
-        """Thumbnail del producto, generandolo la primera vez.
 
-        El catalogo pedia 43 MB para 18 productos porque cada tarjeta
-        descargaba la foto completa. Aqui se devuelve la version reducida: si ya
-        esta cacheada se lee de la BD, y si no se genera desde el original y se
-        guarda para las proximas peticiones.
 
-        Devuelve `None` cuando el producto no tiene foto, cuando no hay
-        generador (Pillow ausente), cuando Pillow no puede decodificar la foto o
-        cuando la original ya es chica. En todos esos casos la ruta debe servir
-        la imagen original.
-        """
         thumb = self._repositorio.get_thumb_by_id(producto_id)
         if thumb is not None:
             return thumb
@@ -180,7 +132,6 @@ class GestionarProducto:
         return thumb
 
     def obtener_thumb_color(self, color_id: UUID) -> ImagenProducto | None:
-        """Thumbnail de un color, con la misma generacion perezosa y cache."""
         thumb = self._repositorio.get_color_thumb_by_id(color_id)
         if thumb is not None:
             return thumb
@@ -204,21 +155,11 @@ class GestionarProducto:
         return self._repositorio.list_activos()
 
     def listar_con_foto_de_color(self) -> list[Producto]:
-        """Catalogo para el listado, con una foto garantizada por producto.
 
-        Un producto puede no tener foto principal y tener solo fotos de color
-        (por ejemplo al crearlo con variantes y sin foto general). En ese caso
-        se completa con la del primer color para que la tarjeta no quede vacia,
-        junto con su thumbnail si ya fue generado.
-        """
         return self._completar_fotos(self._repositorio.list_activos())
 
     def _completar_fotos(self, productos: list[Producto]) -> list[Producto]:
-        """Rellena con la foto del primer color los productos que no tienen foto.
 
-        Se usa tanto por el catalogo como por el ranking de mas vendidos: las
-        dos listas alimentan tarjetas y una sin foto se ve rota.
-        """
         sin_foto = [p for p in productos if not p.imagen]
         if not sin_foto:
             return productos
@@ -230,24 +171,14 @@ class GestionarProducto:
             foto = por_producto.get(producto.id)
             if foto:
                 producto.imagen = foto.imagen_url
-                # Solo si ese color ya tiene thumbnail cacheado: la URL se
-                # expone para que la tarjeta no baje la foto completa.
                 producto.imagen_thumb = foto.imagen_thumb_url
         return productos
 
     def listar_mas_vendidos(
         self, periodo: str = "todo", limite: int = 10
     ) -> list[ProductoVendido]:
-        """Ranking de productos por unidades vendidas.
 
-        `periodo` acota la ventana de venta ("7d", "30d" o "todo") y `limite`
-        es cuantos productos devuelve. Un periodo desconocido es un error de
-        contrato y no algo que se ignore en silencio: un typo en el frontend
-        devolveria el historico completo creyendo que pidio la semana.
 
-        La semana calendario con fallback no pasa por aca: ver
-        `listar_mas_vendidos_semana`.
-        """
         clave = (periodo or "todo").strip().lower()
         if clave not in PERIODOS_MAS_VENDIDOS:
             raise ValueError(f"Periodo no valido: {periodo}")
@@ -261,24 +192,10 @@ class GestionarProducto:
         return vendidos
 
     def listar_mas_vendidos_semana(self, limite: int = 10) -> RankingSemana:
-        """Ranking de la semana actual, con fallback a la anterior y al historico.
 
-        Regla de negocio en cascada: si la semana en curso tiene **mas de**
-        `UMBRAL_PRODUCTOS_SEMANA` productos distintos vendidos, se muestra esa
-        semana; si tiene ese numero o menos, se muestra la semana anterior, pero
-        solo si esa también alcanza el umbral; si la anterior tampoco alcanza,
-        se muestra el ranking historico de productos mas vendidos.
 
-        Se cuentan productos distintos, no unidades: diez unidades del mismo
-        producto cuentan como uno.
 
-        La semana es calendario, de lunes a domingo en hora de Chile
-        (`ZONA_CHILE`): un servidor en UTC no puede decidir el corte de semana
-        con su propia fecha.
 
-        Con `"historico"` no hay ventana: `desde`/`hasta` son `None` y el
-        repositorio lista los mejores vendidos de todo el historico.
-        """
         limite = _acotar_limite(limite)
         lunes_actual = _lunes_de(hoy_chile())
         inicio_actual, fin_actual = _ventana_semana(lunes_actual)
@@ -300,8 +217,6 @@ class GestionarProducto:
                 tipo = "anterior"
                 desde, hasta = inicio_anterior, fin_anterior
             else:
-                # Ni la actual ni la anterior alcanzaron el umbral: no hay una
-                # semana con productos suficientes, caemos al historico completo.
                 tipo = "historico"
                 desde = hasta = None
 
@@ -345,11 +260,6 @@ class GestionarProducto:
         if dto.descuento is not None:
             producto.descuento = dto.descuento
         if dto.precio is not None or dto.descuento is not None:
-            # El precio que se guarda es la base (final con IVA). Con
-            # descuento, lo que paga el cliente BAJA y `precio_original`
-            # guarda la base como "antes de la oferta". Si llega solo el
-            # descuento, la base se recupera de `precio_original` (nunca del
-            # precio ya rebajado, o el descuento se aplicaria dos veces).
             base = dto.precio if dto.precio is not None else (
                 producto.precio_original or producto.precio
             )
@@ -359,8 +269,6 @@ class GestionarProducto:
             else:
                 producto.precio = base
                 producto.precio_original = None
-        # `is not None` y no truthy: apagar un lanzamiento manda `False`, y con
-        # un if truthy el producto quedaria marcado para siempre.
         if dto.nuevo_lanzamiento is not None:
             producto.nuevo_lanzamiento = dto.nuevo_lanzamiento
         if dto.stock_minimo is not None:
@@ -374,14 +282,7 @@ class GestionarProducto:
         self._repositorio.delete(producto)
 
     def guardar_imagen(self, producto_id: UUID, imagen: ImagenProducto) -> None:
-        """Guarda la foto del producto y genera su thumbnail en el mismo acto.
 
-        El repositorio invalida el thumbnail cacheado al reemplazar la foto
-        (la vieja ya no corresponde). Aprovechar que los bytes de la nueva foto
-        estan ahi para generarlo ahora evita que el primer `GET /thumb` que
-        llegue pague el trabajo de Pillow en la respuesta: la tarjeta del
-        catalogo ya sale con su `imagen_thumb` desde el primer listado.
-        """
         self._repositorio.guardar_imagen(producto_id, imagen)
         self._regenerar_thumb(producto_id, imagen, self._repositorio.guardar_thumb)
 
@@ -391,14 +292,7 @@ class GestionarProducto:
         imagen: ImagenProducto,
         guardar: Callable[[UUID, ImagenProducto], None],
     ) -> None:
-        """Genera y persiste el thumbnail de la foto que se acaba de guardar.
 
-        `guardar` es inyectado para no repetir el codigo entre producto y
-        color, cuyos metodos del repositorio se llaman distinto. Un `None` del
-        generador no es un error (foto ya chica, Pillow ausente, archivo
-        ilegible): en ese caso no se guarda nada y las rutas siguen cayendo a la
-        imagen original.
-        """
         if self._generador_thumb is None or not imagen.bytes:
             return
 
@@ -412,7 +306,6 @@ class GestionarProducto:
         )
 
     def listar_colores(self, producto_id: UUID) -> list[ColorProducto]:
-        """Colores del producto. Lista vacia = producto de una sola foto."""
         return self._repositorio.list_colores(producto_id)
 
     def consultar_color(self, color_id: UUID) -> ColorProducto | None:
@@ -424,12 +317,7 @@ class GestionarProducto:
     def guardar_color(
         self, producto_id: UUID, nombre: str, imagen: ImagenProducto
     ) -> ColorProducto:
-        """Crea o reemplaza un color del producto con su foto.
 
-        Igual que la foto principal, el thumbnail se genera en el acto: el
-        selector de color lo muestra en swatches de 24px y asi no espera a que
-        alguien pida `GET /productos/colores/<id>/thumb`.
-        """
         producto = self._repositorio.get_by_id(producto_id)
         if producto is None:
             raise ValueError("Producto no encontrado")

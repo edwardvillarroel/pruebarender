@@ -22,7 +22,6 @@ class UsuarioRepository(RepositoryBase):
     def get_by_email(self, email: str) -> UsuarioModel | None:
         return self.model.query.filter_by(email=email).first()
 
-    # ---------------------------- escritura del panel ----------------------------
 
     def buscar_por_id(self, usuario_id: UUID) -> Usuario | None:
         return _a_entidad(db.session.get(self.model, usuario_id))
@@ -46,11 +45,7 @@ class UsuarioRepository(RepositoryBase):
         return _a_entidad(modelo)
 
     def actualizar(self, usuario: Usuario) -> Usuario:
-        """Persiste solo los campos que gestiona el panel (rol/estado/borrado).
 
-        Se relee la fila dentro de la sesion para no pisar `password_hash`,
-        `mfa_*` ni el resto de columnas que el panel no toca.
-        """
         modelo = db.session.get(self.model, usuario.id)
         if modelo is None:
             raise ValueError("Usuario no encontrado")
@@ -73,12 +68,7 @@ class UsuarioRepository(RepositoryBase):
         )
 
     def correo_en_uso(self, email: str) -> bool:
-        """Compara sin distinguir mayusculas porque el login tambien lo hace.
 
-        Incluye cuentas con soft delete: el correo sigue reservado por el
-        historial (pedidos, cotizaciones) y la restriccion UNIQUE de la base
-        no distingue estados.
-        """
         normalizado = (email or "").strip().lower()
         return (
             db.session.query(UsuarioModel.id)
@@ -87,20 +77,9 @@ class UsuarioRepository(RepositoryBase):
             is not None
         )
 
-    # ---------------------------- listado del panel ----------------------------
 
     def listar_con_metricas(self) -> list[UsuarioMetricas]:
-        """Usuarios con sus compras y cotizaciones, agregadas en la base.
 
-        Dos subconsultas independientes (compras y cotizaciones) unidas por
-        `LEFT JOIN` a `usuarios`: asi un usuario sin pedidos ni cotizaciones
-        aparece igual, con todo en 0, y no se multiplican las filas (unir los
-        detalles de pedido con las cotizaciones directamente duplicaria ambos
-        lados).
-        """
-        # Mismo criterio que el resto del sistema para "compra": pago completado.
-        # Va como EXISTS para no duplicar unidades si el pedido tiene varios
-        # intentos de pago (autorizado y luego completado).
         pago_completado = (
             select(literal(1))
             .select_from(PagoModel)
@@ -114,7 +93,6 @@ class UsuarioRepository(RepositoryBase):
                 func.count(func.distinct(PedidoModel.id)).label("pedidos"),
             )
             .join(DetallePedidoModel, DetallePedidoModel.pedido_id == PedidoModel.id)
-            # Un pedido cancelado no cuenta como compra aunque conserve el pago.
             .where(PedidoModel.estado != EstadoPedido.CANCELADO.value)
             .where(pago_completado.exists())
             .group_by(PedidoModel.usuario_id)
@@ -146,8 +124,6 @@ class UsuarioRepository(RepositoryBase):
             )
             .outerjoin(compras, compras.c.usuario_id == UsuarioModel.id)
             .outerjoin(cotizaciones, cotizaciones.c.usuario_id == UsuarioModel.id)
-            # El panel muestra solo cuentas vivas: el soft delete las saca del
-            # listado sin romper las FKs de pedidos ni cotizaciones.
             .where(UsuarioModel.eliminado_en.is_(None))
             .order_by(UsuarioModel.nombre, UsuarioModel.apellido, UsuarioModel.email)
         ).all()
@@ -156,7 +132,6 @@ class UsuarioRepository(RepositoryBase):
 
 
 def _texto_rol(rol: Any) -> str:
-    """`Rol` (enum) o texto -> valor que acepta la columna `rol`."""
     return rol.value if isinstance(rol, Rol) else str(rol)
 
 

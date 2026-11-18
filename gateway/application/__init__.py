@@ -1,1 +1,0 @@
-"""Casos de uso del gateway: iniciar_sesion, rotar_refresh, cerrar_sesion."""

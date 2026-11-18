@@ -21,7 +21,6 @@ export function ThemeProvider({ children }) {
     try {
       localStorage.setItem(THEME_KEY, theme)
     } catch {
-      // ignore storage errors
     }
   }, [theme])
 

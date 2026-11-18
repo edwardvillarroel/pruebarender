@@ -60,7 +60,6 @@ def _parrafo(
 
 
 def _caja_panel(contenido_html: str) -> str:
-    """Bloque gris redondeado para mensajes destacados sin botón."""
     return (
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
         'border="0" '
@@ -100,13 +99,7 @@ def _medidas(cotizacion: CotizacionCorreo) -> str:
 
 
 def _descripcion_usuario(descripcion: str | None) -> str:
-    """Devuelve solo el texto que escribió el usuario.
 
-    Las solicitudes antiguas guardaban el resumen completo dentro de
-    `descripcion` ("Tamaño: ...", "Cantidad: ...", "Detalles: ..."). Cuando
-    detectamos ese formato devolvemos únicamente la línea de "Detalles" para
-    no repetir datos que ya tienen su propia fila en el correo.
-    """
     texto = "" if descripcion is None else str(descripcion).strip()
     if not texto:
         return ""
@@ -172,7 +165,6 @@ def _totales_texto(pedido: PedidoCorreo) -> str:
 
 
 def comprobante_pedido(pedido: PedidoCorreo, frontend_url: str | None = None) -> Correo:
-    """Comprobante que recibe el cliente cuando se confirma su pago."""
     asunto = f"Comprobante de tu pedido #{pedido.numero} — ApoloVibes"
 
     cuerpo_html = (
@@ -230,7 +222,6 @@ def comprobante_pedido(pedido: PedidoCorreo, frontend_url: str | None = None) ->
 def admin_pedido_pagado(
     pedido: PedidoCorreo, frontend_url: str | None = None
 ) -> Correo:
-    """Aviso interno cuando se confirma el pago de un pedido."""
     asunto = (
         f"Nuevo pedido pagado #{pedido.numero} — {formatear_pesos(pedido.total)}"
     )
@@ -286,7 +277,6 @@ def admin_pedido_pagado(
 def admin_nueva_cotizacion(
     cotizacion: CotizacionCorreo, frontend_url: str | None = None
 ) -> Correo:
-    """Aviso interno cuando ingresa una solicitud de diseño."""
     asunto = f"Nueva cotización #{cotizacion.numero} — {cotizacion.nombre}"
     enlace = f"{_base(frontend_url)}/admin/cotizaciones"
     precio = (
@@ -350,7 +340,6 @@ def admin_nueva_cotizacion(
 def admin_stock_bajo(
     productos: list[ProductoCorreo], frontend_url: str | None = None
 ) -> Correo:
-    """Aviso interno cuando uno o más productos quedan en stock bajo."""
     cantidad = len(productos)
     sustantivo = "producto" if cantidad == 1 else "productos"
     asunto = f"Stock bajo en ApoloVibes ({cantidad} {sustantivo})"
@@ -387,7 +376,6 @@ def admin_stock_bajo(
 def cotizacion_aprobada(
     cotizacion: CotizacionCorreo, precio: int | None, frontend_url: str | None
 ) -> Correo:
-    """Correo al cliente cuando su cotización pasa a aprobada."""
     asunto = f"Tu cotización #{cotizacion.numero} fue aprobada"
     enlace = _enlace_cotizaciones(frontend_url)
     monto = precio if precio is not None else cotizacion.precio
@@ -454,7 +442,6 @@ def cotizacion_aprobada(
 def cotizacion_rechazada(
     cotizacion: CotizacionCorreo, frontend_url: str | None = None
 ) -> Correo:
-    """Correo al cliente cuando su cotización pasa a rechazada."""
     asunto = f"Tu cotización #{cotizacion.numero} fue rechazada"
 
     cuerpo_html = (
@@ -487,11 +474,7 @@ def cotizacion_rechazada(
 
 
 def codigo_verificacion(codigo: str, minutos: int = 5) -> Correo:
-    """Código de un solo uso para el gateway.
 
-    `minutos` debe coincidir con el TTL real del código (registro 10 min,
-    recuperación 5 min) para que el correo no prometa otra vigencia.
-    """
     asunto = "Tu código de verificación — ApoloVibes"
     vigencia = f"Este código tiene una vigencia de {minutos} minutos."
 
@@ -532,7 +515,6 @@ def codigo_verificacion(codigo: str, minutos: int = 5) -> Correo:
 
 
 def alerta_seguridad(detalle: str) -> Correo:
-    """Aviso de inicio de sesión para el gateway."""
     asunto = "Alerta de seguridad — ApoloVibes"
 
     enlace = f"{base_url()}/"

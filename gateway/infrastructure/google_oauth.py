@@ -1,13 +1,5 @@
-"""OAuth 2.0 de Google (Authorization Code Flow) con Authlib.
 
-Flujo resuelto por el gateway (nunca se expone GOOGLE_CLIENT_SECRET al navegador):
-  1. `generar_url_autorizacion()`  -> el frontend redirige el navegador aquí.
-  2. Google redirige de vuelta a `GOOGLE_REDIRECT_URI` con `code` y `state`.
-  3. `intercambiar_codigo(code, state)` -> valida `state`, canjea el code por
-     tokens y devuelve un perfil {sub, email, email_verified, nombre, apellido}.
 
-El `state` es un token firmado (HMAC, expira en 5 min) para mitigar CSRF.
-"""
 import base64
 import hashlib
 import hmac
@@ -41,7 +33,6 @@ def _firmar(valor: str) -> str:
 
 
 def crear_state() -> str:
-    """State firmado: nonce + timestamp. Se valida en `verificar_state`."""
     nonce = secrets.token_urlsafe(16)
     timestamp = str(int(time.time()))
     valor = f"{nonce}|{timestamp}"
@@ -49,7 +40,6 @@ def crear_state() -> str:
 
 
 def verificar_state(state: str) -> bool:
-    """Valida firma y expiración del state."""
     try:
         valor, firma = (state or "").split(".", 1)
         if not hmac.compare_digest(_firmar(valor), firma):
@@ -75,12 +65,7 @@ def generar_url_autorizacion() -> str:
 
 
 def intercambiar_codigo(code: str, state: str) -> dict:
-    """Canjea el `code` por el perfil de Google.
 
-    Devuelve {sub, email, email_verified, nombre, apellido}.
-    Lanza GoogleOAuthError si algo falla; si Google no verifica el correo,
-    el error es considerado NO permitido (no se crea cuenta).
-    """
     if not configurado_google():
         raise GoogleOAuthError("Google OAuth no está configurado (faltan GOOGLE_* en .env)")
     if not code:

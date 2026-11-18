@@ -1,7 +1,4 @@
 
-// En produccion el front (V2NET) corre en otro origen que la API (Render en
-// subdominio): la URL del backend/gateway via VITE_API_URL (ej. https://api.tudominio.com).
-// En dev local se mantiene el mismo-origen '/api' (Vite proxy -> gateway :3000).
 const BASE_URL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api'
 const AUTH_STORAGE_KEY = 'apolovibes_auth'
 const EXCLUDE_RETRY = ['/auth/login', '/auth/refresh', '/auth/logout', '/auth/mfa/verificar', '/auth/mfa/activar', '/auth/mfa/desactivar', '/auth/cambiar-contrasena']
@@ -202,12 +199,12 @@ export const api = {
         credentials: 'include',
         headers: authHeaders(),
       })
-    } catch { /* best-effort */ }
+    } catch {  }
     localStorage.removeItem(AUTH_STORAGE_KEY)
   },
 }
  
-const COTIZADOR_URL = BASE_URL  // en prod: origina a la API del gateway en Render; el cotizador viaja por <API>/api/cotizar
+const COTIZADOR_URL = BASE_URL
 
 export const apiCotizador = {
   estimar: (formData) => conErrorAmigable(

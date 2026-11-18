@@ -72,7 +72,6 @@ export default function ResenasSeccion({ producto, resenas, cargando, error }) {
                 </div>
             ) : (
                 <>
-                    {/* Resumen */}
                     <div style={{
                         background: '#FFFFFF', border: '1px solid var(--line)', borderRadius: 14,
                         padding: '24px 28px', marginBottom: 28,
@@ -90,7 +89,6 @@ export default function ResenasSeccion({ producto, resenas, cargando, error }) {
                             </div>
                         </div>
 
-                        {/* Barras de calificaciones */}
                         <div style={{ flex: '1 1 280px', maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 8 }}>
                             {[5, 4, 3, 2, 1].map((n) => {
                                 const pct = total ? (distribucion[n] / total) * 100 : 0
@@ -111,7 +109,6 @@ export default function ResenasSeccion({ producto, resenas, cargando, error }) {
                         </div>
                     </div>
 
-                    {/* Filtros */}
                     <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--surface-2)', marginBottom: 10 }}>
                         Filtrar reseñas por:
                     </div>
@@ -152,7 +149,6 @@ export default function ResenasSeccion({ producto, resenas, cargando, error }) {
                         {filtradas.length} de {total} reseña{total === 1 ? '' : 's'}
                     </p>
 
-                    {/* Lista */}
                     <div>
                         {mostradas.map((r) => (
                             <article key={r.id} style={{ borderTop: '1px solid var(--line)', padding: '18px 0' }}>

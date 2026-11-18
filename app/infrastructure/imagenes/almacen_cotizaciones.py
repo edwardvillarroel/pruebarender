@@ -1,17 +1,5 @@
-"""Escritura de las imágenes de cotización: disco local y Supabase Storage.
 
-`guardar_imagen_cotizacion` (F1/base) escribe en `uploads/cotizaciones/`.
-`guardar_imagen_cotizacion_supabase` (F4) sube al bucket cuando la config de
-Supabase está completa y DEGRADA a escritura local ante cualquier falla, con
-el mismo contrato: devuelve `cotizaciones/<uuid><ext>`, la ruta relativa que
-guarda `solicitudes_diseno.imagen` (formato fijo: no cambia).
 
-Ambas escriben también la miniatura de la imagen en el momento de la subida.
-Es el único punto donde los bytes ya están en memoria y ya se decodificaron
-para validarlos: generarla acá evita que la primera visita al listado dispare
-una descarga completa del original por cada foto. Si la miniatura no se puede
-generar o guardar, no pasa nada: el serving la genera de forma perezosa.
-"""
 
 from __future__ import annotations
 
@@ -35,17 +23,7 @@ def guardar_imagen_cotizacion(contenido: bytes, extension: str, carpeta_base) ->
 def guardar_imagen_cotizacion_supabase(
     contenido: bytes, extension: str, carpeta_base
 ) -> str:
-    """Mismo contrato que `guardar_imagen_cotizacion`, con Supabase Storage.
 
-    - Supabase NO configurado (URL/clave/cubeta vacías): idéntico a siempre,
-      escribe en disco local.
-    - Configurado: sube el bytes al bucket bajo la ruta relativa y la devuelve;
-      NO escribe en disco.
-    - Cualquier falla de la nube (red, permisos, bucket caído): `warning` y
-      fallback a disco con el MISMO nombre, para que una cotización nunca falle
-      por Supabase y, si la subida quedó a medias, disco y bucket apunten al
-      mismo archivo.
-    """
     from app.infrastructure.storage.supabase_storage import (
         almacen_desde_config,
         tipo_mime,
@@ -86,9 +64,6 @@ def _escribir_local(carpeta: Path, nombre: str, contenido: bytes) -> None:
         f.write(contenido)
 
 
-# Solo se intenta la miniatura para formatos que Pillow sabe leer. Los modelos
-# 3D (`.glb`) comparten los mismos escritores de almacenamiento pero no tienen
-# miniatura posible.
 _EXTENSIONES_IMAGEN = frozenset(
     {".png", ".jpg", ".jpeg", ".jpe", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
 )
@@ -99,7 +74,6 @@ def _es_imagen(ruta: str) -> bool:
 
 
 def _escribir_miniatura_local(contenido: bytes, ruta: str, carpeta_base) -> None:
-    """Escribe la miniatura junto al original; best-effort, nunca lanza."""
     if not _es_imagen(ruta):
         return
     from app.infrastructure.imagenes.miniaturas_cotizacion import (
@@ -118,14 +92,12 @@ def _escribir_miniatura_local(contenido: bytes, ruta: str, carpeta_base) -> None
         archivo.parent.mkdir(parents=True, exist_ok=True)
         archivo.write_bytes(miniatura)
     except OSError:
-        # Disco efímero, permisos o path raro: la via perezosa la regenera.
         logger.warning(
             "[cotizaciones] no se pudo escribir la miniatura de %s", ruta
         )
 
 
 def _subir_miniatura(almacen, contenido: bytes, ruta: str) -> None:
-    """Sube la miniatura al bucket; best-effort, nunca lanza."""
     if not _es_imagen(ruta):
         return
     from app.infrastructure.imagenes.miniaturas_cotizacion import (
@@ -140,5 +112,4 @@ def _subir_miniatura(almacen, contenido: bytes, ruta: str) -> None:
     miniatura = crear_miniatura(contenido)
     if miniatura is None:
         return
-    # Si falla, `subir` ya avisa y devuelve `False`: el serving la regenera.
     almacen.subir(destino, miniatura, MIME_MINIATURA)

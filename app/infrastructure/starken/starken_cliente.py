@@ -1,22 +1,6 @@
-"""Cliente REST de seguimiento Starken (portal de desarrolladores).
 
-Implementa la interfaz `StarkenSeguimientoCliente` del dominio. Toda la
-comunicación HTTP con el proveedor queda en infraestructura; la capa de
-aplicación solo conoce `SeguimientoStarken`/`EventoSeguimiento`.
 
-Credenciales (nunca hardcodeadas) se leen de la configuración:
-  STARKEN_API_URL       base del API (default https://gateway.starken.cl)
-  STARKEN_API_KEY       API key de la cuenta de la PYME
-  STARKEN_SEGUIMIENTO_RUTA  ruta relativa a la orden de flete
-                           (default /orden-flete/of/ + codigo)
-  STARKEN_TIMEOUT       timeout en segundos
 
-Si no hay `STARKEN_API_KEY`, el cliente queda "desconectado" y `consultar()`
-devuelve None: el seguimiento se muestra como no disponible sin romper el
-flujo de pedidos. El contrato exacto de json se valida caso por caso con la
-cuenta de Starken; el parser es tolerante y busca los campos por varios
-nombres alternativos.
-"""
 
 from __future__ import annotations
 
@@ -34,7 +18,6 @@ from app.domain.time import utcnow
 
 
 class StarkenCliente(StarkenSeguimientoCliente):
-    """Cliente real de la API de seguimiento de Starken."""
 
     def __init__(self, config: dict[str, Any]) -> None:
         self._api_url = str(config.get("STARKEN_API_URL", "https://gateway.starken.cl")).rstrip("/")

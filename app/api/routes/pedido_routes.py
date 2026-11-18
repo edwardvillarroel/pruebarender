@@ -282,7 +282,6 @@ def eliminar_pedido(pedido_id: UUID):
 @requiere_sesion()
 @auditar("cancelar_pedido")
 def cancelar_pedido(pedido_id: UUID):
-    """El cliente cancela su propio pedido, hasta que entre en produccion."""
     try:
         pedido = _servicio_cambiar_estado().cancelar(pedido_id, _usuario_uuid())
     except PedidoNoEncontradoError as exc:
@@ -299,7 +298,6 @@ def cancelar_pedido(pedido_id: UUID):
 @rol_requerido("admin")
 @auditar("avisar_cancelacion_cliente")
 def avisar_cancelacion_cliente(pedido_id: UUID):
-    """El admin confirma que Tuu acepto la anulacion: enciende el badge."""
     try:
         pedido = _servicio_notificar_cancelacion().informar_cliente(pedido_id)
     except AvisoPedidoNoEncontradoError as exc:
@@ -317,7 +315,6 @@ def avisar_cancelacion_cliente(pedido_id: UUID):
 @pedido_bp.post("/pedidos/<uuid:pedido_id>/aviso-cancelacion/visto")
 @requiere_sesion()
 def marcar_aviso_cancelacion_visto(pedido_id: UUID):
-    """El cliente abre el aviso: el badge se apaga (idempotente)."""
     pedido = _servicio_consulta().por_id(pedido_id)
     if pedido is None:
         return _error("Pedido no encontrado", 404)
@@ -425,7 +422,6 @@ def consultar_seguimiento(pedido_id: UUID):
 @pedido_bp.get("/pedidos/<uuid:pedido_id>/documento")
 @requiere_sesion()
 def consultar_documento(pedido_id: UUID):
-    """Datos del comprobante electrónico del pedido (folio, montos, estado)."""
     pedido = _servicio_consulta().por_id(pedido_id)
     if pedido is None:
         return _error("Pedido no encontrado", 404)
@@ -440,7 +436,6 @@ def consultar_documento(pedido_id: UUID):
 @pedido_bp.get("/pedidos/<uuid:pedido_id>/documento/pdf")
 @requiere_sesion()
 def descargar_documento_pdf(pedido_id: UUID):
-    """PDF del comprobante, tal como lo devolvió el proveedor."""
     pedido = _servicio_consulta().por_id(pedido_id)
     if pedido is None:
         return _error("Pedido no encontrado", 404)

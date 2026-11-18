@@ -1,8 +1,4 @@
-"""Cliente HTTP del proveedor LLM.
 
-Punto de integración aislado para poder aplicar rate limiting específico
-(RNF-02) y reutilizar el proveedor elegido.
-"""
 
 
 class LLMClient:
@@ -11,7 +7,6 @@ class LLMClient:
         self._api_key = api_key
 
     def generar_modelo_3d(self, imagen_path: str) -> dict:
-        # TODO: POST a proveedor LLM (image-to-3d)
         raise NotImplementedError
 
     def consultar_estado(self, task_id: str) -> dict:

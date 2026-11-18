@@ -39,18 +39,12 @@ class PedidoDeOtroUsuarioError(PermissionError):
 
 
 class CambiarEstadoPedido:
-    """Caso de uso: el admin mueve un pedido de estado."""
 
     def __init__(self, pedidos: PedidoRepository) -> None:
         self._pedidos = pedidos
 
     def cancelar(self, pedido_id: UUID, usuario_id: UUID) -> Pedido:
-        """Cancelacion pedida por el propio cliente.
 
-        Misma regla de estado que el admin (hasta `en_produccion`), pero con
-        dueño: el cliente solo cancela lo suyo. La transicion la decide
-        `ejecutar`, no esta entrada, para que la regla viva en un solo lugar.
-        """
         pedido = self._pedidos.get_by_id(pedido_id)
         if pedido is None:
             raise PedidoNoEncontradoError("Pedido no encontrado")

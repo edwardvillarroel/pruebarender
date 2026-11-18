@@ -1,14 +1,5 @@
-"""El adaptador de Resend: qué hace con credenciales y qué hace sin ellas.
 
-El contrato que importa es el modo simulación. El backend tiene que poder
-arrancar y pagar en desarrollo sin que nadie haya configurado Resend, así que sin
-credenciales el comprobante se imprime en la consola y no se lanza nada.
 
-`httpx.post` se monkeypatchea en vez de usar `respx` o un servidor local: no
-está la dependencia en `requirements.txt` y agregar una librería para probar una
-llamada HTTP no vale el costo. Lo que se prueba es el payload que armamos y los
-avisos que decidimos mandar.
-"""
 
 from __future__ import annotations
 
@@ -43,7 +34,6 @@ class _RespuestaFalsa:
 
 
 class _HttpxFalso:
-    """Captura el POST en vez de salir a la red."""
 
     def __init__(self, respuestas=None, error: Exception | None = None):
         self.llamadas: list[dict] = []
@@ -102,7 +92,6 @@ def _solicitud(**cambios) -> SolicitudDiseno:
 
 @pytest.fixture(autouse=True)
 def _sin_esperas(monkeypatch):
-    """Saca el `time.sleep` del reintento: los tests no esperan de verdad."""
     import shared.correo.cliente as modulo
 
     monkeypatch.setattr(modulo.time, "sleep", lambda _segundos: None)
@@ -116,12 +105,10 @@ def _http(monkeypatch, **kwargs) -> _HttpxFalso:
     return http
 
 
-# --- Modo simulación: sin credenciales no se rompe el flujo ----------------
 
 
 @pytest.mark.parametrize("faltante", ["RESEND_API_KEY", "EMAIL_FROM"])
 def test_sin_una_credencial_no_se_envia_nada(monkeypatch, faltante):
-    """Cada credencial es obligatoria: con una sola faltante, modo simulación."""
     http = _http(monkeypatch)
     config = dict(CREDENCIALES)
     del config[faltante]
@@ -134,7 +121,6 @@ def test_sin_una_credencial_no_se_envia_nada(monkeypatch, faltante):
 
 
 def test_sin_credenciales_imprime_el_comprobante_en_consola(capsys):
-    """El modo simulación tiene que ser útil: el contenido a la vista."""
     pedido = _pedido()
 
     ResendCorreo({}).enviar_comprobante_pedido(
@@ -151,7 +137,6 @@ def test_sin_credenciales_imprime_el_comprobante_en_consola(capsys):
 
 
 def test_el_modo_simulacion_no_imprime_la_direccion_de_envio(capsys):
-    """`direccion_envio` es el JSON crudo del cliente: no va a un log."""
     pedido = _pedido()
     pedido.direccion_envio = '{"nombre":"Ana","direccion":"Av. Siempre Viva 742"}'
 
@@ -168,7 +153,6 @@ def test_configurado_depende_de_las_dos_credenciales():
     assert ResendCorreo(CREDENCIALES).configurado is True
 
 
-# --- Con credenciales: el payload es lo que hay que revisar ----------------
 
 
 def test_envia_el_payload_esperado_por_resend(monkeypatch):
@@ -194,7 +178,6 @@ def test_envia_el_payload_esperado_por_resend(monkeypatch):
 
 
 def test_el_snapshot_del_nombre_va_al_comprobante(monkeypatch):
-    """El comprobante dice lo que se compró ese día, no el nombre actual."""
     http = _http(monkeypatch)
 
     ResendCorreo(CREDENCIALES).enviar_comprobante_pedido(
@@ -205,7 +188,6 @@ def test_el_snapshot_del_nombre_va_al_comprobante(monkeypatch):
     assert "Llavero calavera" in html
 
 
-# --- Que dice el comprobante: el estado es el del PAGO ----------------------
 
 
 def _payload(monkeypatch, pedido=None, estado_pago="completado") -> dict:
@@ -262,7 +244,6 @@ def test_los_descuentos_viajan_formateados_y_vacios_si_no_hay(monkeypatch):
     assert "- $" not in sin_descuentos["html"]
 
 
-# --- Reintento: una insistencia, y solo cuando sirve -------------------------
 
 
 def test_reintenta_una_vez_un_error_de_red(monkeypatch):
@@ -350,7 +331,6 @@ def test_despues_del_reintento_igual_falla_por_el_pago_no_se_cae(monkeypatch):
     assert len(http.llamadas) == 2, "el reintento es UNO, no un bucle"
 
 
-# --- Errores: se propagan como ErrorEnvioCorreo, no como http ----------------
 
 
 def test_respuesta_de_error_de_resend_se_traduce(monkeypatch):
@@ -378,7 +358,6 @@ def test_respuesta_de_error_de_resend_se_traduce(monkeypatch):
     assert "re_test" not in mensaje, "la API key nunca puede aparecer en un error"
 
 
-# --- Avisos internos y de cotizaciones --------------------------------------
 
 
 def test_aviso_de_pedido_pagado_va_al_admin(monkeypatch):
@@ -508,7 +487,6 @@ def test_cotizacion_sin_email_no_envia(monkeypatch):
     assert http.llamadas == []
 
 
-# --- El contrato -----------------------------------------------------------
 
 
 def test_es_un_servicio_correo():

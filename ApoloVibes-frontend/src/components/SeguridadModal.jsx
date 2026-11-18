@@ -60,13 +60,11 @@ const seccionStyle = {
 export default function SeguridadModal({ onClose }) {
     const { user, actualizarUsuario } = useAuth()
 
-    // ---- Cambio de contraseña ----
     const [passForm, setPassForm] = useState({ actual: '', nueva: '', confirmar: '' })
     const [mostrarPass, setMostrarPass] = useState({ actual: false, nueva: false, confirmar: false })
     const [mensajePass, setMensajePass] = useState({ ok: '', error: '' })
     const [cargandoPass, setCargandoPass] = useState(false)
 
-    // ---- MFA ----
     const [pasoMfa, setPasoMfa] = useState('idle')
     const [qrData, setQrData] = useState('')
     const [secreto, setSecreto] = useState('')
@@ -238,7 +236,6 @@ export default function SeguridadModal({ onClose }) {
                     .modal-scroll { scrollbar-gutter: stable; }
                 `}</style>
 
-                {/* Header fijo */}
                 <div style={{
                     flexShrink: 0,
                     display: 'flex', flexDirection: 'column',
@@ -252,7 +249,6 @@ export default function SeguridadModal({ onClose }) {
                     </h2>
                 </div>
 
-                {/* Cuerpo scrolleable */}
                 <div className="modal-scroll" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
                     <div style={{ padding: '20px 32px 28px' }}>
                         {!tienePassword && (
@@ -267,7 +263,6 @@ export default function SeguridadModal({ onClose }) {
                             </div>
                         )}
 
-                        {/* --- Cambio de contraseña (solo cuentas con contraseña local) --- */}
                         {tienePassword && (
                             <div style={seccionStyle}>
                                 <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 12px' }}>
@@ -276,7 +271,6 @@ export default function SeguridadModal({ onClose }) {
                                 <form onSubmit={cambiarPassword}>
                                     {inputPass('actual', 'Contraseña actual', <KeyRound size={16} />)}
                                     {inputPass('nueva', 'Nueva contraseña', <KeyRound size={16} />)}
-                                    {/* Requisitos de contraseña segura + medidor en vivo */}
                                     <div style={{ marginTop: 2, background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px', marginBottom: 6 }}>
                                         <div style={{ display: 'grid', gap: 3 }}>
                                             {fortaleza.reqs.map(r => (
@@ -318,7 +312,6 @@ export default function SeguridadModal({ onClose }) {
                             </div>
                         )}
 
-                        {/* --- MFA --- */}
                         <div style={seccionStyle}>
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: 'var(--text)', margin: '0 0 4px' }}>
                                 <ShieldCheck size={16} /> Autenticación de dos factores

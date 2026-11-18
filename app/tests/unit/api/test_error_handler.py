@@ -1,24 +1,9 @@
-"""Contrato de errores de la API (OWASP Top 10 2025, A10 / A02).
 
-Los handlers de error estandar del backend (`app/api/middleware/error_handler`)
-deben responder siempre con el contrato acordado con el frontend:
-`{ "mensaje": string }` — sin stack traces, sin detalles internos.
 
-- 400: solicitud inválida.
-- 401: no autenticado.
-- 403: no autorizado.
-- 404: recurso no encontrado.
-- 429: demasiadas solicitudes.
-- 500: error interno (genérico).
-- NotImplementedError: endpoint pendiente (501).
-"""
 
 from flask import abort
 
 
-# ---------------------------------------------------------------------------
-# 404
-# ---------------------------------------------------------------------------
 
 
 def test_error_no_encontrado_retorna_mensaje(app, client):
@@ -27,9 +12,6 @@ def test_error_no_encontrado_retorna_mensaje(app, client):
     assert respuesta.get_json()["mensaje"] == "Recurso no encontrado"
 
 
-# ---------------------------------------------------------------------------
-# 400 (solicitud inválida)
-# ---------------------------------------------------------------------------
 
 
 def test_error_solicitud_invalida_retorna_mensaje(app, client):
@@ -42,9 +24,6 @@ def test_error_solicitud_invalida_retorna_mensaje(app, client):
     assert respuesta.get_json()["mensaje"] == "Solicitud inválida"
 
 
-# ---------------------------------------------------------------------------
-# 501 (NotImplementedError)
-# ---------------------------------------------------------------------------
 
 
 def test_error_endpoint_no_implementado_retorna_mensaje(app, client):
@@ -53,13 +32,9 @@ def test_error_endpoint_no_implementado_retorna_mensaje(app, client):
     assert respuesta.get_json()["mensaje"] == "Endpoint no implementado"
 
 
-# ---------------------------------------------------------------------------
-# 500 (error no manejado -> respuesta generica)
-# ---------------------------------------------------------------------------
 
 
 def test_error_excepcion_no_manejada_retorna_500_generico(app, client):
-    # Sin TESTING/PROPAGATE_EXCEPTIONS el error cae al handler 500 del backend.
     app.config["TESTING"] = False
     app.config["PROPAGATE_EXCEPTIONS"] = False
 

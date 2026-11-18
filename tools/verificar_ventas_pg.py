@@ -1,14 +1,5 @@
-"""Prueba de ESCRITURA contra PostgreSQL: ciclo completo de venta local.
 
-Aqui esta el riesgo real de la migracion, no en los GET. El descuento de stock
-de `venta_local_repository.registrar_venta` es un `UPDATE ... WHERE stock >=
-cantidad` con guarda por `rowcount`: si ese rowcount no llega bien desde
-psycopg2, el guard no dispara y se puede vender stock inexistente (oversell) o
-rechazar ventas validas.
 
-Cubre: abrir sesion -> vender (descuenta) -> oversell (409 y NO descuenta) ->
-cerrar (reporte con totales) -> limpiar.
-"""
 from __future__ import annotations
 
 import os
@@ -49,7 +40,6 @@ def stock_de(pid):
         return int(m.stock) if m else None
 
 
-# --- datos reales de la data migrada ---
 with app.app_context():
     admin = UsuarioModel.query.filter_by(rol="admin", activo=True).first()
     producto = (

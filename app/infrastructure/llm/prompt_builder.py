@@ -1,8 +1,4 @@
-"""Construcción de prompts seguros para el proveedor LLM.
 
-Prompt del sistema fijo + solo campos ya sanitizados. Nunca se interpolan
-inputs crudos sin pasar por validar_prompt.
-"""
 
 PROMPT_SISTEMA = (
     "Eres un asistente especializado en impresión 3D. Analiza la imagen y "

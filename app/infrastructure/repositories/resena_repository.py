@@ -31,13 +31,7 @@ class ResenaRepository(ResenaRepositoryInterface):
         return [_a_entidad(m) for m in consulta.all()]
 
     def crear(self, entidad: Resena) -> Resena:
-        """INSERT + recálculo de stats en la MISMA transacción.
 
-        El `flush` previo al UPDATE hace que el promedio ya incluya la reseña
-        nueva; si el `commit` revienta por el `UNIQUE` (doble submit o dos
-        pestañas), el rollback deshace también el UPDATE: nunca queda un
-        `rating` inflado sin la fila que lo justifica.
-        """
         try:
             db.session.add(_a_modelo(entidad))
             db.session.flush()
@@ -45,9 +39,6 @@ class ResenaRepository(ResenaRepositoryInterface):
             db.session.commit()
         except IntegrityError:
             db.session.rollback()
-            # Mismo idiom que `PagoRepository.add`: si el triple ya existía es
-            # el duplicado de negocio; cualquier otro fallo de integridad se
-            # propaga tal cual (una mentira en el 409 es peor que un 500).
             if (
                 self.obtener(
                     entidad.usuario_id, entidad.pedido_id, entidad.producto_id
@@ -61,10 +52,6 @@ class ResenaRepository(ResenaRepositoryInterface):
         return entidad
 
     def add(self, entidad: Resena) -> Resena:
-        """Contrato de `RepositoryBase` (insertar). Las reseñas pasan por
-        `crear`, que inserta Y recalcula los stats, así que `add` delega: un
-        INSERT sin recálculo dejaría `rating`/`resenas_count` desincronizados.
-        """
         return self.crear(entidad)
 
     def listar_por_pedido(self, pedido_id: UUID) -> list[Resena]:
@@ -76,7 +63,6 @@ class ResenaRepository(ResenaRepositoryInterface):
         return [_a_entidad(m) for m in modelos]
 
     def listar_por_producto(self, producto_id: UUID) -> list[ResenaPublica]:
-        """JOIN con `usuarios` para armar el nombre a mostrar sin exponer el id."""
         filas = db.session.execute(
             select(self.model, UsuarioModel)
             .join(UsuarioModel, UsuarioModel.id == self.model.usuario_id)
@@ -98,11 +84,7 @@ class ResenaRepository(ResenaRepositoryInterface):
         return _a_entidad(modelo) if modelo else None
 
     def recalcular_stats_producto(self, producto_id: UUID) -> None:
-        """Re-sincroniza `rating`/`resenas_count` desde las filas de `resenas`.
 
-        Camino de reparación (re-seed); el recálculo en vivo ya corre dentro
-        de `crear`.
-        """
         self._recalcular_stats(producto_id)
         db.session.commit()
 
@@ -158,12 +140,7 @@ def _a_modelo(entidad: Resena) -> ResenaModel:
 
 
 def _nombre_a_mostrar(nombre: str | None, apellido: str | None) -> str:
-    """`"Nombre A."` con inicial del apellido; cae a `nombre` o a `"Cliente"`.
 
-    `nombre`/`apellido` son columnas NOT NULL, pero pueden venir vacias (p. ej.
-    cuentas creadas por otro medio): aca se les da una salida decente en la
-    vista publica en vez de exponer un nombre en blanco.
-    """
     nombre = (nombre or "").strip()
     apellido = (apellido or "").strip()
     if not nombre:

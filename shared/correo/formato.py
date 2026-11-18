@@ -23,7 +23,6 @@ COLOR_BORDER = "#e5e7eb"
 COLOR_GREEN = "#1fa855"
 COLOR_RED = "#df1a0c"
 
-# Color del borde del círculo por ícono: siempre coincide con el glifo.
 ICONO_COLORES = {
     "check": COLOR_GREEN,
     "campana": COLOR_ACCENT,
@@ -73,7 +72,6 @@ def base_url(frontend_url: str | None = None) -> str:
 
 
 def logo_html(frontend_url: str | None = None) -> str:
-    """Bloque de marca del encabezado: wordmark y tagline."""
     return (
         '<table role="presentation" cellpadding="0" cellspacing="0" '
         'border="0" style="border-collapse:collapse;">'
@@ -96,7 +94,6 @@ def logo_html(frontend_url: str | None = None) -> str:
 
 
 def icono_html(nombre: str, frontend_url: str | None = None) -> str:
-    """Círculo blanco con el ícono del correo; el borde usa el color del glifo."""
     color = ICONO_COLORES.get(nombre, COLOR_ACCENT)
     imagen = f"{base_url(frontend_url)}/media/correo-icono-{nombre}.png"
     return (
@@ -246,7 +243,6 @@ def tabla_items(items, frontend_url: str | None = None) -> str:
 
 
 def seccion(titulo: str) -> str:
-    """Etiqueta en negrita que separa bloques dentro del cuerpo."""
     return (
         '<div style="margin:18px 0 8px;font-family:Arial,Helvetica,sans-serif;'
         f'font-size:13px;line-height:1.4;font-weight:bold;color:{COLOR_TEXT};">'
@@ -255,7 +251,6 @@ def seccion(titulo: str) -> str:
 
 
 def tabla_stock(productos, frontend_url: str | None = None) -> str:
-    """Lista de productos con su stock, con miniatura de cubo."""
     productos = list(productos)
     if not productos:
         return ""

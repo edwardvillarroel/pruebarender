@@ -1,11 +1,5 @@
-"""`_a_publico_pedido` debe exponer la foto de cada línea del pedido.
 
-La imagen la resuelve `PedidoRepository` al leer (una ruta de BLOB, no los
-bytes) y la ruta solo la reenvía tal cual. Sin este campo el frontend no tiene
-de dónde sacar la miniatura y cae al icono genérico del modal de MisPedidos.
 
-No necesita base: es una función pura sobre el `pedido`.
-"""
 
 from __future__ import annotations
 
@@ -15,7 +9,6 @@ _RUTA_COLOR = "/api/productos/colores/00000000-0000-0000-0000-0000000000aa/image
 
 
 class _DetalleFalso:
-    """Solo lo que `_a_publico_pedido` llega a mirar de un detalle."""
 
     def __init__(self, imagen):
         self.producto_id = "00000000-0000-0000-0000-000000000010"

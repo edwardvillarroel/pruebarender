@@ -73,7 +73,6 @@ function ContenidoNotFound() {
     </div>
   )
 }
-// Variante de pantalla completa: se usa como fallback de ErrorBoundary.
 function PantallaCompletaNotFound() {
   return (
     <div

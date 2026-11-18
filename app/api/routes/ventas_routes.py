@@ -10,13 +10,10 @@ venta_bp = Blueprint("ventas", __name__)
 
 
 def _servicio() -> GestionarVentaLocal:
-    """Servicio de venta local inyectado desde el punto de composición
-    (`create_app`), para que esta capa no dependa de `infrastructure`."""
     return current_app.config["VENTA_SERVICE"]
 
 
 def _usuario_uuid() -> UUID:
-    """Convierte el X-User-Id (str) del gateway a UUID para el caso de uso."""
     return UUID(usuario_actual())
 
 
@@ -53,7 +50,6 @@ def _a_publico_venta(venta) -> dict:
 
 
 def _a_publico_reporte(sesion, ventas) -> dict:
-    """Reporte con los campos de la sesión al nivel raíz (contrato del frontend)."""
     total_efectivo = sum(
         v.total for v in ventas if v.medio_pago == MedioPago.EFECTIVO.value
     )
@@ -73,8 +69,6 @@ def _error(mensaje: str, codigo: int):
 
 
 def _traducir_error(exc: ValueError):
-    """Traduce un ValueError del caso de uso: 409 para conflictos de negocio
-    (stock, sesión cerrada) y 400 para errores de validación."""
     mensaje = str(exc)
     if "stock" in mensaje or "cerrada" in mensaje:
         return _error(mensaje, 409)

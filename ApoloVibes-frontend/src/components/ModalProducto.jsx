@@ -386,7 +386,6 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                     .modal-scroll { scrollbar-gutter: stable; }
                 `}</style>
 
-                {/* Header fijo (fuera del scroll) */}
                 <div style={{
                     flexShrink: 0,
                     display: 'flex', flexDirection: 'column',
@@ -403,10 +402,8 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                     </h2>
                 </div>
 
-                {/* Cuerpo scrolleable (solo el contenido, entre header y footer) */}
                 <div className="modal-scroll" style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
                     <form id="form-producto" onSubmit={handleSubmit} style={{ padding: '22px 36px 24px' }}>
-                        {/* Fila 1: categoria + nombre */}
                         <div style={grid2}>
                             <div style={fieldGroup}>
                                 <label style={labelStyle}>Categoría *</label>
@@ -423,7 +420,6 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                             </div>
                         </div>
 
-                        {/* Fila 2: precio + descuento + stock */}
                         <div style={grid3}>
                             <div style={fieldGroup}>
                                 <label style={labelStyle}>{esEdicion ? 'Precio base (CLP) *' : 'Precio neto (CLP) *'}</label>
@@ -464,7 +460,6 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                             </p>
                         )}
 
-                        {/* Fila 3: material + color */}
                         <div style={grid2}>
                             <div style={fieldGroup}>
                                 <label style={labelStyle}>Material</label>
@@ -486,7 +481,6 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                             </div>
                         </div>
 
-                        {/* Fila 4: tamaño */}
                         <div style={fieldGroup}>
                             <label style={labelStyle}>Tamaño</label>
                             <input value={form.tamano} onChange={set('tamano')} placeholder="ej: 10cm x 8cm" style={inputStyle} />
@@ -694,9 +688,6 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                             </div>
                         </div>
 
-                        {/* Switch de lanzamiento. Va al final del form para que el
-                            bloque de colores y fotos, que es lo mas largo, no quede
-                            corrido hacia abajo. */}
                         <div style={{ ...fieldGroup, marginTop: 18, marginBottom: 0 }}>
                             <button
                                 type="button"
@@ -711,8 +702,6 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                                     transition: 'border-color .2s',
                                 }}
                             >
-                                {/* Track del switch. `aria-hidden` porque el estado
-                                    ya lo anuncia el aria-checked del boton. */}
                                 <span
                                     aria-hidden="true"
                                     style={{
@@ -743,7 +732,6 @@ export default function ModalProducto({ producto, categorias, onClose, onGuardad
                     </form>
                 </div>
 
-                {/* Footer fijo (fuera del scroll) */}
                 <div style={{
                     flexShrink: 0,
                     padding: '14px 36px',

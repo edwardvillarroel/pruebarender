@@ -1,9 +1,4 @@
-"""Modelos ORM de la venta local.
 
-Tablas `sesiones_venta`, `ventas_local` y `venta_local_items`. Las claves son
-UUIDs en RAW(16) (`db.Uuid`) y las fechas usan `db.DateTime(timezone=True)` como el resto de
-los modelos de infraestructura.
-"""
 
 import uuid
 from datetime import datetime

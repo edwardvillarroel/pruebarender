@@ -1,20 +1,6 @@
-"""Caracterizacion del pago con pasarela y, sobre todo, del descuento de stock.
 
-El invariante que estos tests congelan es que la confirmacion de un pago NUNCA
-puede vender stock que no existe, y que el descuento de un pedido es
-todo-o-nada. Son las dos cosas que un leer-modificar-escribir en Python rompe:
-dos pagos concurrentes leen el mismo stock y los dos lo descuentan, y un pedido
-con varios productos descuenta el primero y falla en el segundo dejando stock
-derivando para un pedido que la pasarela va a rechazar.
 
-`test_descontar_stock_es_atomico_entre_hilos` es el que importa: no simula la
-carrera, la provoca. Dos hilos con su propia sesion y su propio contexto de app
-disputan la ultima unidad; exactamente uno puede ganar. Si el descuento volviera
-a ser "leer, comparar en Python, escribir", los dos pasarian y el test falla.
 
-Nota sobre `match=`: fragmentos cortos y ASCII a proposito, para que el test se
-rompa por un cambio real de comportamiento y no por el encoding del archivo.
-"""
 
 from __future__ import annotations
 
@@ -32,7 +18,6 @@ from app.infrastructure.repositories.producto_repository import ProductoReposito
 
 
 class _PasarelaFalsa:
-    """Pasarela que no hace nada: estos tests no ejercitan la pasarela."""
 
     def crear_intento(self, solicitud):
         raise AssertionError("no se deberia abrir un intento en estos tests")
@@ -43,12 +28,7 @@ class _PasarelaFalsa:
 
 @pytest.fixture
 def descuento_stock():
-    """ProcesarPago armado solo para el descuento de stock.
 
-    `_descontar_stock` es el unico punto donde el pago muta stock y no toca la
-    pasarela ni los repos de pedido/pago/carrito, asi que no hace falta
-    cablearlos y el test queda centrado en la invariante de stock.
-    """
 
     def _instancia() -> ProcesarPago:
         return ProcesarPago(
@@ -63,10 +43,7 @@ def descuento_stock():
 
 
 def _pedido_con(*pares) -> Pedido:
-    """Pedido en memoria con los `(producto_id, cantidad)` indicados.
 
-    No hace falta persistirlo: `_descontar_stock` solo recorre `pedido.detalles`.
-    """
     pedido = Pedido(usuario_id=uuid.uuid4())
     for producto_id, cantidad in pares:
         pedido.detalles.append(
@@ -81,14 +58,12 @@ def _pedido_con(*pares) -> Pedido:
 
 
 def _stock(producto_id) -> int:
-    """Stock leido fresco de la base, no de la sesion cacheada de SQLAlchemy."""
     return db.session.execute(
         db.text("SELECT stock FROM productos WHERE id = :i"), {"i": producto_id}
     ).scalar_one()
 
 
 def _aviso(producto_id) -> bool:
-    """`aviso_stock_enviado` leido fresco de la base."""
     return db.session.execute(
         db.text("SELECT aviso_stock_enviado FROM productos WHERE id = :i"),
         {"i": producto_id},
@@ -109,18 +84,13 @@ def test_no_se_puede_confirmar_si_no_alcanza(descuento_stock, producto):
 
 
 def test_stock_queda_exacto_en_cero(descuento_stock, producto):
-    """Vender la ultima unidad deja 0, nunca negativo."""
     p = producto(stock=1)
     descuento_stock()._descontar_stock(_pedido_con((p.id, 1)))
     assert _stock(p.id) == 0
 
 
 def test_descuento_es_todo_o_nada_por_pedido(descuento_stock, producto):
-    """Si un producto del pedido no alcanza, no se descuenta ninguno.
 
-    El primero tiene stock de sobra y el segundo no. Un descuento item por item
-    dejaria al primero descontado para un pedido que despues se rechaza.
-    """
     con_stock = producto(stock=10, nombre="r0-primero-con-stock")
     sin_stock = producto(stock=0, nombre="r0-segundo-sin-stock")
 
@@ -137,7 +107,6 @@ def test_descuento_es_todo_o_nada_por_pedido(descuento_stock, producto):
 
 
 def test_cantidad_cero_o_negativa_no_aumenta_stock(descuento_stock, producto):
-    """Un payload con cantidad negativa no puede convertirse en stock gratis."""
     p = producto(stock=5)
     with pytest.raises(ValueError):
         descuento_stock()._descontar_stock(_pedido_con((p.id, -3)))
@@ -145,13 +114,7 @@ def test_cantidad_cero_o_negativa_no_aumenta_stock(descuento_stock, producto):
 
 
 def test_descontar_stock_es_atomico_entre_hilos(app, categoria, centinela):
-    """La carrera real: dos pagos disputan la ultima unidad.
 
-    Cada hilo corre su propio contexto de app y su propia sesion, que es como
-    se comportan dos peticiones simultaneas en produccion. La barrera los obliga
-    a intentar el descuento al mismo tiempo, en vez de que uno termine antes de
-    que el otro empiece.
-    """
     with app.app_context():
         nuevo = ProductoModel(
             categoria_id=categoria.id,
@@ -161,8 +124,6 @@ def test_descontar_stock_es_atomico_entre_hilos(app, categoria, centinela):
         )
         db.session.add(nuevo)
         db.session.commit()
-        # El id se copia antes de soltar la sesion: despues el objeto ORM queda
-        # desasociado y leer `nuevo.id` revienta con DetachedInstanceError.
         producto_id = nuevo.id
         db.session.remove()
 
@@ -195,12 +156,6 @@ def test_descontar_stock_es_atomico_entre_hilos(app, categoria, centinela):
         )
 
 
-# --- Deteccion del cruce de "stock bajo" -------------------------------------
-#
-# `aviso_stock_enviado` se enciende cuando el descuento cruza hacia abajo el
-# umbral (stock_minimo propio o el global STOCK_BAJO=3). Se detecta en el mismo
-# UPDATE del descuento: el SET evalúa el stock viejo de la fila, así la condicion
-# "antes > umbral y ahora <= umbral" describe exactamente lo que va a quedar.
 
 
 def test_descontar_por_debajo_del_umbral_global_marca_el_aviso(descuento_stock, producto):
@@ -220,7 +175,6 @@ def test_descontar_sin_cruzar_el_umbral_no_marca_el_aviso(descuento_stock, produ
 
 
 def test_si_ya_estaba_bajo_el_aviso_no_se_vuelve_a_marcar(descuento_stock, producto):
-    """El aviso se dispara en el CRUCE, no en cada descuento bajo el umbral."""
     p = producto(stock=2)
     descuento_stock()._descontar_stock(_pedido_con((p.id, 1)))
     assert _stock(p.id) == 1
@@ -241,7 +195,6 @@ def test_el_stock_minimo_propio_desplaza_al_global(descuento_stock, producto):
 def test_el_aviso_se_marca_una_sola_vez_y_no_se_apaga_con_descuentos_posteriores(
     descuento_stock, producto
 ):
-    """El flag es por cruce: un descuento bajo el umbral lo enciende una sola vez."""
     p = producto(stock=10, stock_minimo=3)
     descuento_stock()._descontar_stock(_pedido_con((p.id, 1)))
     assert _aviso(p.id) is False

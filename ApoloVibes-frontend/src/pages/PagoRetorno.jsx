@@ -9,7 +9,6 @@ const estiloImagen = { display: 'block', width: 200, height: 200, objectFit: 'co
 const RESULTADOS_FALLIDOS = ['failed', 'aborted', 'cancelled']
 
 function estadoSegunPasarela(resultado) {
-  //if (resultado === 'completed') return 'completado'
   if (RESULTADOS_FALLIDOS.includes(resultado)) return 'fallido'
   return 'verificando'
 }
@@ -20,7 +19,6 @@ export default function PagoRetorno() {
 
   const resultadoPasarela = (params.get('x_result') || '').toLowerCase()
 
-  // --- DETECCIÓN COTIZACIÓN ---
   const referencia = params.get('x_reference') || params.get('referencia') || ''
   const cotizacionIdLocal = typeof window !== 'undefined' ? localStorage.getItem('pago_cotizacion_en_curso') : null
   const deteccionCotizacion = 

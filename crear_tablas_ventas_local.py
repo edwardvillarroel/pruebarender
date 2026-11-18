@@ -1,12 +1,5 @@
-"""Script one-off: crea SOLO las tablas de venta local si no existen.
 
-Uso: `.venv\\Scripts\\python.exe crear_tablas_ventas_local.py` (desde la raíz
-del repo, con la BD apuntada por `.env`).
 
-Nota: se usa SQL crudo con RAW(16) para las claves UUID, igual que el
-resto del esquema manual del repo. `create_all` no sirve aquí porque
-`UuidRaw` compila a BLOB en Oracle y Oracle no permite FK BLOB -> RAW(16).
-"""
 
 from sqlalchemy import text
 

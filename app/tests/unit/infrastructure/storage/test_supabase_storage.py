@@ -1,10 +1,4 @@
-"""Pruebas unitarias del adaptador de Supabase Storage (F4).
 
-El seam de red es `AlmacenSupabaseStorage._request`: aca se stubbea y la suite
-nunca toca la red. Fijan el contrato del adaptador: parseo de `signedURL`
-(relativa y absoluta), ruta y `contentType` de la subida, existencia, borrado,
-listado y que nada de esto lance hacia el caller (best-effort con warning).
-"""
 
 from __future__ import annotations
 
@@ -18,7 +12,6 @@ from app.infrastructure.storage.supabase_storage import (
 
 
 class _Respuesta:
-    """Doble liviano de `requests.Response`."""
 
     def __init__(self, status_code: int = 200, json_datos=None, texto: str = ""):
         self.status_code = status_code
@@ -46,7 +39,6 @@ def _almacen() -> AlmacenSupabaseStorage:
 
 
 def _stub(monkeypatch, almacen, respuesta_o_error):
-    """Reemplaza `_request` en `almacen` y devuelve la lista de llamadas."""
     llamadas = []
 
     def _request(metodo, ruta, **kwargs):
@@ -61,9 +53,6 @@ def _stub(monkeypatch, almacen, respuesta_o_error):
     return llamadas
 
 
-# --------------------------------------------------------------------------
-# URL firmada
-# --------------------------------------------------------------------------
 
 
 def test_url_firmada_parsea_signed_url_relativa(monkeypatch):
@@ -124,9 +113,6 @@ def test_url_firmada_sin_red_caida_devuelve_none(monkeypatch):
     assert almacen.url_firmada("cotizaciones/abc.png") is None
 
 
-# --------------------------------------------------------------------------
-# Subida
-# --------------------------------------------------------------------------
 
 
 def test_subir_usa_ruta_bucket_content_type_y_auth(monkeypatch):
@@ -141,7 +127,6 @@ def test_subir_usa_ruta_bucket_content_type_y_auth(monkeypatch):
     assert ruta == "/object/Cotizaciones/cotizaciones/abc.png"
     assert kwargs["headers"]["Content-Type"] == "image/png"
     assert kwargs["headers"]["x-upsert"] == "true"
-    # La clave SOLO viaja en los headers del seam (apikey + Bearer).
     assert kwargs["data"] == b"PNG"
 
 
@@ -176,9 +161,6 @@ def test_sin_configurar_no_toca_la_red(monkeypatch):
     assert almacen.listar("cotizaciones/") == []
 
 
-# --------------------------------------------------------------------------
-# Existencia y borrado
-# --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -217,9 +199,6 @@ def test_eliminar_red_caida_devuelve_false_sin_lanzar(monkeypatch):
     assert almacen.eliminar("cotizaciones/abc.png") is False
 
 
-# --------------------------------------------------------------------------
-# Listado
-# --------------------------------------------------------------------------
 
 
 def test_listar_devuelve_los_objetos_con_created_at(monkeypatch):
@@ -244,9 +223,6 @@ def test_listar_error_http_devuelve_vacio(monkeypatch):
     assert almacen.listar("cotizaciones/") == []
 
 
-# --------------------------------------------------------------------------
-# Fábrica desde configuración
-# --------------------------------------------------------------------------
 
 
 def test_almacen_desde_config_completo_devuelve_almacen():
@@ -260,7 +236,7 @@ def test_almacen_desde_config_completo_devuelve_almacen():
     )
 
     assert almacen is not None
-    assert almacen.url == "https://otro.supabase.co"  # barra final normalizada
+    assert almacen.url == "https://otro.supabase.co"
     assert almacen.cubeta == "Cotizaciones"
     assert almacen.ttl == 120
 
@@ -281,9 +257,6 @@ def test_almacen_desde_config_incompleto_devuelve_none(faltante):
     assert almacen_desde_config(config) is None
 
 
-# --------------------------------------------------------------------------
-# Content-Type por extensión
-# --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(

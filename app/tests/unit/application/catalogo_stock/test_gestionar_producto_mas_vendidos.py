@@ -1,20 +1,6 @@
-"""Pruebas del ranking de productos mas vendidos.
 
-El caso de uso es dueño de dos reglas que no se pueden dejar en manos de la
-ruta ni del repositorio:
 
-1. La ventana de venta ("7d", "30d", "todo") se traduce a una cota inferior de
-   tiempo. Un periodo desconocido es un error de contrato: ignorarlo en
-   silencio devolveria el historico completo donde el frontend pidio la
-   semana, y el titulo "Los mas vendidos de la semana" mentiria.
-2. El limite se acota. Sin tope, un `limite=100000` arrastra el catalogo
-   entero a memoria.
 
-Ademas, la variante semanal aplica la regla de negocio en cascada: si la semana
-en curso tiene mas de 4 productos distintos vendidos se muestra esa; si no, se
-muestra la anterior; y si la anterior tampoco tiene mas de 4, se muestra el
-historico completo de productos mas vendidos.
-"""
 
 from datetime import datetime, time, timedelta, timezone
 from unittest.mock import Mock
@@ -49,11 +35,9 @@ def _dias_que_transcurren(desde) -> float:
     return (utcnow() - desde).total_seconds() / 86400
 
 
-# --- Ventana de venta --------------------------------------------------------
 
 
 def test_el_periodo_todo_no_pone_cota_inferior():
-    """El historico completo no acota por fecha."""
     servicio, repositorio = _servicio()
 
     servicio.listar_mas_vendidos("todo", 10)
@@ -82,7 +66,6 @@ def test_el_periodo_de_un_mes_acota_a_treinta_dias():
 
 
 def test_un_periodo_desconocido_es_un_error_y_no_el_historico():
-    """Un typo no puede devolver el historico completo en silencio."""
     servicio, _ = _servicio()
 
     with pytest.raises(ValueError):
@@ -107,11 +90,9 @@ def test_sin_periodo_se_toma_el_historico():
     assert desde is None
 
 
-# --- Limite ------------------------------------------------------------------
 
 
 def test_el_limite_se_acota_al_maximo():
-    """Sin tope, un `limite=100000` arrastra el catalogo entero a memoria."""
     servicio, repositorio = _servicio()
 
     servicio.listar_mas_vendidos("todo", 100000)
@@ -130,7 +111,6 @@ def test_un_limite_cero_o_negativo_se_pone_en_uno():
 
 
 def test_un_limite_que_no_es_numero_usa_el_default():
-    """La ruta pasa el query param crudo: si no es un numero, no es un error."""
     servicio, repositorio = _servicio()
 
     servicio.listar_mas_vendidos("todo", "diez")
@@ -139,11 +119,9 @@ def test_un_limite_que_no_es_numero_usa_el_default():
     assert limite == 10
 
 
-# --- Contenido del ranking ----------------------------------------------------
 
 
 def test_devuelve_los_vendidos_tal_como_los_dio_el_repositorio():
-    """El orden del ranking lo fija la agregacion del repositorio."""
     vendidos = [
         ProductoVendido(producto=_producto(nombre="Primero"), unidades=9, ingresos=9000),
         ProductoVendido(producto=_producto(nombre="Segundo"), unidades=4, ingresos=4000),
@@ -156,8 +134,6 @@ def test_devuelve_los_vendidos_tal_como_los_dio_el_repositorio():
 
 
 def test_un_producto_sin_foto_usa_la_foto_de_su_primer_color():
-    """Las tarjetas del ranking se pintan como las del catalogo: sin foto se
-    ven rotas."""
     producto = _producto(imagen=None)
     vendidos = [ProductoVendido(producto=producto, unidades=2, ingresos=2000)]
     servicio, repositorio = _servicio(vendidos)
@@ -185,11 +161,6 @@ def test_un_producto_con_foto_no_consulta_los_colores():
     repositorio.primera_imagen_color_por_producto.assert_not_called()
 
 
-# --- Ranking semanal con fallback -------------------------------------------
-#
-# La regla es sobre productos DISTINTOS, no unidades: 10 unidades del mismo
-# producto cuentan como uno. La semana es calendario (lunes a domingo) en hora
-# de Chile, y el corte se evalua con la fecha local, no con la del servidor.
 
 
 def _ventana_chile(lunes):
@@ -206,12 +177,7 @@ def _semana_actual_y_anterior():
 
 
 def _servicio_semana(distintos: int, vendidos=None, anteriores: int = 0):
-    """Servicio con la regla semanal mockeada.
 
-    `distintos` es la cantidad de productos distintos vendidos en la semana
-    actual y `anteriores` en la anterior. La ventana se evalua por su tupla
-    exacta, asi el side effect distingue actual de anterior.
-    """
     servicio, repositorio = _servicio(vendidos)
     lunes_actual, (inicio_actual, fin_actual), (_, fin_anterior) = (
         _semana_actual_y_anterior()
@@ -241,8 +207,6 @@ def test_con_mas_de_cuatro_productos_distintos_usa_la_semana_actual():
 
 
 def test_con_exactamente_cuatro_productos_distintos_usa_la_semana_anterior():
-    """El umbral es "mas de 4": cuatro todavia no alcanza, asi que si la
-    anterior tiene suficientes productos se muestra esa."""
     _, _, (inicio_anterior, fin_anterior) = _semana_actual_y_anterior()
     servicio, repositorio = _servicio_semana(UMBRAL_PRODUCTOS_SEMANA, anteriores=5)
 
@@ -255,8 +219,6 @@ def test_con_exactamente_cuatro_productos_distintos_usa_la_semana_anterior():
 
 
 def test_sin_ventas_en_todas_las_semanas_parece_el_historico():
-    """Sin ventas ni en la actual ni en la anterior no hay nada que elegir de
-    una semana: el ranking de historico viene vacio."""
     servicio, repositorio = _servicio_semana(0, anteriores=0)
 
     resultado = servicio.listar_mas_vendidos_semana(10)
@@ -268,8 +230,6 @@ def test_sin_ventas_en_todas_las_semanas_parece_el_historico():
 
 
 def test_con_semana_anterior_tambien_con_pocos_productos_usa_el_historico():
-    """Si la semana anterior no alcanza el umbral, se cae al historico: los
-    mejores productos vendidos de toda la historia."""
     servicio, repositorio = _servicio_semana(2, anteriores=3)
     vendidos = [
         ProductoVendido(producto=_producto(nombre="Historico"), unidades=8, ingresos=8000)
@@ -278,7 +238,6 @@ def test_con_semana_anterior_tambien_con_pocos_productos_usa_el_historico():
 
     resultado = servicio.listar_mas_vendidos_semana(10)
 
-    # El historico no tiene ventana: se lista el ranking completo ordenado.
     repositorio.listar_mas_vendidos_en_ventana.assert_not_called()
     repositorio.listar_mas_vendidos.assert_called_once_with(None, 10)
     assert resultado.tipo == "historico"
@@ -289,8 +248,6 @@ def test_con_semana_anterior_tambien_con_pocos_productos_usa_el_historico():
 
 
 def test_las_semanas_actual_y_anterior_no_se_solapan():
-    """La ventana anterior termina justo cuando empieza la actual: sin la cota
-    superior, la semana pasada se comeria los pagos de esta."""
     _, (inicio_actual, _), (_, fin_anterior) = _semana_actual_y_anterior()
 
     assert fin_anterior == inicio_actual

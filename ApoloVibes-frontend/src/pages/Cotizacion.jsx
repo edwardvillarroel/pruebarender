@@ -328,7 +328,6 @@ export default function Cotizacion() {
       </p>
 
       <form noValidate onSubmit={enviarSolicitud}>
-        {/* ─── Paso 1: Imagen + validación de seguridad ─── */}
 
         <Paso titulo="Sube tu imagen" completo={paso1Completo} bloqueado={false}>
           {!archivo ? (
@@ -367,7 +366,6 @@ export default function Cotizacion() {
           ) : (
             <div className="grid-2" style={{ marginBottom: 16 }}>
 
-              {/* Imagen original */}
               <div className="cot-ref">
                 <p
                   style={{
@@ -416,10 +414,8 @@ export default function Cotizacion() {
                 </div>
               </div>
 
-              {/* Progreso + validación de seguridad */}
               <div>
 
-                {/* Barra de progreso*/}
                 {(validandoImagen ||
                   progreso.status === 'completed' ||
                   progreso.status === 'failed') && (
@@ -430,7 +426,6 @@ export default function Cotizacion() {
                     />
                   )}
 
-                {/* Validación de seguridad*/}
                 <div>
                   <p
                     style={{
@@ -472,7 +467,6 @@ export default function Cotizacion() {
           </p>
         )}
 
-        {/* ─── Paso 2: Datos de contacto ─── */}
         <Paso
           titulo="Tus datos"
           completo={paso2Completo}
@@ -555,14 +549,12 @@ export default function Cotizacion() {
           </div>
         </Paso>
 
-        {/* ─── Paso 3: Descripción ─── */}
         <Paso
           titulo="Descripción de la pieza"
           completo={paso3Completo}
           bloqueado={!paso2Completo}
           textoBloqueo="Completa tus datos de contacto para continuar."
         >
-          {/*tamaño */}
           <label htmlFor="cot-alto">Tamaño aproximado</label>
           <div
             className="cotizacion-medidas"
@@ -590,7 +582,6 @@ export default function Cotizacion() {
           </div>
           {errorDe('tamano') && <p role="alert" style={estiloError}>{errorDe('tamano')}</p>}
 
-          {/*cantidad*/}
           <div className="cotizacion-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
             <div>
               <label htmlFor="cot-cantidad">Cantidad</label>
@@ -611,7 +602,6 @@ export default function Cotizacion() {
             </div>
           </div>
 
-          {/*Color */}
           <label style={{ display: 'block', marginTop: 14 }}>Color</label>
           <div role="group" aria-label="Color" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {COLORES.map(c => {
@@ -646,7 +636,6 @@ export default function Cotizacion() {
           )}
           {errorDe('color') && <p role="alert" style={estiloError}>{errorDe('color')}</p>}
 
-          {/*Detalle opcionales */}
           <label htmlFor="cot-descripcion" style={{ display: 'flex', marginTop: 14 }}>
             Detalles adicionales (opcional)
           </label>

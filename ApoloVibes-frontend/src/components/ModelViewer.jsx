@@ -31,7 +31,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
     const container = containerRef.current
     let disposed = false
 
-    // ── Setup ──
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x0a0a0a)
     sceneRef.current = scene
@@ -54,7 +53,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
     container.appendChild(renderer.domElement)
     rendererRef.current = renderer
 
-    // ── Lights ──
     scene.add(new THREE.AmbientLight(0xffffff, 0.5))
     const dirLight = new THREE.DirectionalLight(0xffffff, 1)
     dirLight.position.set(5, 5, 5)
@@ -64,7 +62,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
     fillLight.position.set(-3, 3, -3)
     scene.add(fillLight)
 
-    // ── Controls ──
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.enableDamping = true
     controls.dampingFactor = 0.08
@@ -76,7 +73,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
     controls.target.set(0, 0.5, 0)
     controlsRef.current = controls
 
-    // ── Ground shadow ──
     const groundGeo = new THREE.PlaneGeometry(10, 10)
     const groundMat = new THREE.ShadowMaterial({ opacity: 0.3 })
     const ground = new THREE.Mesh(groundGeo, groundMat)
@@ -85,7 +81,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
     ground.receiveShadow = true
     scene.add(ground)
 
-    // ── Load model ──
     const loader = new GLTFLoader()
     loader.load(
       modelUrl,
@@ -93,7 +88,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
         if (disposed) return
         const model = gltf.scene
 
-        // Centrar y escalar
         const box = new THREE.Box3().setFromObject(model)
         const size = box.getSize(new THREE.Vector3())
         const center = box.getCenter(new THREE.Vector3())
@@ -120,7 +114,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
       }
     )
 
-    // ── Render loop ──
     function animate() {
       if (disposed) return
       frameRef.current = requestAnimationFrame(animate)
@@ -129,7 +122,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
     }
     animate()
 
-    // ── Resize ──
     function onResize() {
       if (!container || disposed) return
       const w = container.clientWidth
@@ -140,7 +132,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
     }
     window.addEventListener('resize', onResize)
 
-    // ── Cleanup ──
     return () => {
       disposed = true
       cancelAnimationFrame(frameRef.current)
@@ -166,7 +157,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
     }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
-      {/* Loading overlay */}
       {state === 'loading' && (
         <div style={{
           position: 'absolute', inset: 0,
@@ -186,7 +176,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
         </div>
       )}
 
-      {/* Error overlay */}
       {state === 'error' && (
         <div style={{
           position: 'absolute', inset: 0,
@@ -219,7 +208,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
         </div>
       )}
 
-      {/* Badge */}
       {state === 'ready' && (
         <div style={{
           position: 'absolute', top: 12, left: 12,
@@ -237,7 +225,6 @@ export default function ModelViewer({ modelUrl, height = 400, onError }) {
         </div>
       )}
 
-      {/* Controls hint */}
       {state === 'ready' && (
         <div style={{
           position: 'absolute', bottom: 12, left: '50%',

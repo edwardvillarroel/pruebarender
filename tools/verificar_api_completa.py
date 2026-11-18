@@ -1,12 +1,5 @@
-"""Smoke test de TODAS las rutas contra PostgreSQL.
 
-Objetivo: encontrar 500s. Una ruta que Andaba en Oracle y ahora revienta es
-justo lo que R3/R4 rompio sin que se notara. Se hit'ean todas las rutas con IDs
-reales sacados de la data migrada, con sesion simulada via headers del gateway.
 
-Rutas que ya raisean NotImplementedError en el repo (cotizaciones, ai/) se
-esperan en 501: no son regresion.
-"""
 from __future__ import annotations
 
 import os
@@ -95,8 +88,6 @@ check("GET /api/productos", probar("GET", "/api/productos", roles["cliente"]))
 check("GET /api/categorias", probar("GET", "/api/categorias", roles["cliente"]))
 check("GET /api/productos/<id>", probar("GET", f"/api/productos/{ids['producto']}", roles["cliente"]))
 check("GET /api/productos/<id>/colores", probar("GET", f"/api/productos/{ids['producto']}/colores", roles["cliente"]))
-# imagen/thumb se prueban con un producto que SI tenga BLOB: la API responde 404
-# para los que no tienen, y eso es comportamiento correcto, no una regresion.
 check("GET /api/productos/<id>/imagen (con BLOB)",
       probar("GET", f"/api/productos/{ids['con_foto']}/imagen", roles["cliente"]))
 check("GET /api/productos/<id>/thumb (con BLOB)",
@@ -104,7 +95,6 @@ check("GET /api/productos/<id>/thumb (con BLOB)",
 
 print("\ncarrito (cliente)")
 check("GET /api/cart", probar("GET", "/api/cart", roles["cliente"]))
-# POST con payload vacio debe dar 400 de validacion, no 500
 check("POST /api/cart/items sin payload -> 400",
       probar("POST", "/api/cart/items", roles["cliente"]), esperar=400)
 
@@ -113,8 +103,6 @@ check("GET /api/pedidos", probar("GET", "/api/pedidos", roles["cliente"]))
 check("GET /api/pedidos/admin", probar("GET", "/api/pedidos/admin", roles["admin"]))
 if ids["pedido"]:
     check("GET /api/pedidos/<id>", probar("GET", f"/api/pedidos/{ids['pedido']}", roles["admin"]))
-    # El pedido migrado no tiene codigo de seguimiento: 400 es la respuesta
-    # correcta del caso de uso, no una regresion de la migracion.
     r = probar("GET", f"/api/pedidos/{ids['pedido']}/seguimiento", roles["admin"])
     cuerpo = (r.get_json() or {})
     if "código de seguimiento" in str(cuerpo.get("mensaje", "")):
@@ -125,9 +113,6 @@ else:
     print("  [skip] no hay pedidos migrados")
 
 print("\nventas locales (admin)")
-# Estas rutas son POST. Se hit'ean contra un UUID inexistente para probar que
-# la ruta resuelve y llega al repositorio (400 "Sesion no encontrada" del caso
-# de uso) SIN crear data de prueba.
 check("GET /api/ventas/sesiones/actual", probar("GET", "/api/ventas/sesiones/actual", roles["admin"]))
 check("POST /api/ventas/sesiones/<uuid>/ventas (uuid inexistente)",
       probar("POST", f"/api/ventas/sesiones/{ids['inexistente']}/ventas", roles["admin"]),

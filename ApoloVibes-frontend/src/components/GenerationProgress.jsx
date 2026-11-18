@@ -30,7 +30,6 @@ export default function GenerationProgress({ status = 'idle', percent = 0, messa
       padding: 20,
       marginTop: 16,
     }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <div style={{
           width: 36, height: 36, borderRadius: 20,
@@ -62,7 +61,6 @@ export default function GenerationProgress({ status = 'idle', percent = 0, messa
         </span>
       </div>
 
-      {/* Progress bar */}
       <div style={{
         width: '100%',
         height: 6,
@@ -84,7 +82,6 @@ export default function GenerationProgress({ status = 'idle', percent = 0, messa
         }} />
       </div>
 
-      {/* Steps */}
       <div style={{ display: 'flex', gap: 8 }}>
         {STEPS.map((step, i) => {
           const stepIndex = STEPS.findIndex(s => s.key === status)

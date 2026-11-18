@@ -1,25 +1,9 @@
-"""Cliente de OpenFactura (Haulmer) para emitir documentos electrónicos.
 
-Es el único módulo que conoce el formato de la API. El resto del sistema solo
-ve el puerto `EmisorTributario`.
 
-Contrato usado (verificado contra `dev-api.haulmer.com`):
 
-- `POST /v2/dte/document` con `apikey` y `Idempotency-Key`.
-  Cuerpo: `{"response": [...], "dte": {"Encabezado": {...}, "Detalle": [...]}}`.
-  Respuesta 200: `TOKEN`, `FOLIO`, `RESOLUCION`, `TIMBRE`, `XML`, `LOGO`, `PDF`
-  (los tres últimos en base64).
-  Error: `{"error": {"message", "code", "details": [{"field", "issue"}]}}`.
 
-- La idempotencia es real: repetir la misma `Idempotency-Key` responde
-  `OF-06` con el token del documento YA emitido, que sirve para recuperarlo.
 
-- `GET /v2/dte/document/{TOKEN}/pdf` devuelve `{"pdf": <base64>, "folio": <int>}`.
 
-Los dos formatos tienen esquemas distintos y el proveedor los valida con su
-propio XSD, así que el payload se arma distinto según el tipo de documento
-(ver `_payload_boleta` y `_payload_factura`).
-"""
 
 from __future__ import annotations
 
@@ -49,11 +33,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class DatosEmisor:
-    """Datos del emisor que exige el SII.
 
-    Vienen de la configuración: son los de la organización certificada, no se
-    pueden inventar en el código.
-    """
 
     rut: str
     razon_social: str
@@ -65,7 +45,6 @@ class DatosEmisor:
 
 
 class OpenFacturaCliente(EmisorTributario):
-    """Emite documentos electrónicos en la API de OpenFactura."""
 
     def __init__(
         self, config: dict, transporte: httpx.BaseTransport | None = None
@@ -75,7 +54,6 @@ class OpenFacturaCliente(EmisorTributario):
             config.get("OPENFACTURA_API_URL") or "https://api.haulmer.com"
         ).rstrip("/")
         self._timeout = float(config.get("OPENFACTURA_TIMEOUT") or 30)
-        # El transporte se puede inyectar para probar el cliente sin red.
         self._transporte = transporte
         self._emisor = DatosEmisor(
             rut=str(config.get("EMISOR_RUT") or "").strip(),
@@ -91,7 +69,6 @@ class OpenFacturaCliente(EmisorTributario):
 
     @property
     def configurado(self) -> bool:
-        """Si hay lo mínimo para emitir: key y datos del emisor."""
         return bool(self._api_key) and bool(self._emisor.rut)
 
     @property
@@ -139,7 +116,6 @@ class OpenFacturaCliente(EmisorTributario):
             folio=int(folio), pdf=_decodificar_pdf(pdf) if pdf else None
         )
 
-    # --- construcción del payload -------------------------------------------
 
     def _construir_payload(
         self, solicitud: SolicitudDocumentoTributario
@@ -149,12 +125,7 @@ class OpenFacturaCliente(EmisorTributario):
         return self._payload_boleta(solicitud)
 
     def _payload_boleta(self, solicitud: SolicitudDocumentoTributario) -> dict:
-        """Boleta electrónica (DTE 39).
 
-        Las líneas van con el precio BRUTO: es el formato de boleta del SII y
-        el proveedor deriva el neto del total. No lleva `TasaIVA` y el medio
-        de pago se llama `MedioPago`.
-        """
         neto, iva = calcular_montos(solicitud.monto_total)
         emisor = self._emisor
         receptor: dict = {"RUTRecep": solicitud.receptor.rut}
@@ -171,10 +142,8 @@ class OpenFacturaCliente(EmisorTributario):
                 "Encabezado": {
                     "IdDoc": {
                         "TipoDTE": solicitud.tipo.codigo_dte,
-                        # 0 = el proveedor asigna el folio del CAF.
                         "Folio": 0,
                         "FchEmis": solicitud.fecha_emision.isoformat(),
-                        # 3 = venta de bienes (la tienda vende productos).
                         "IndServicio": 3,
                         "MedioPago": int(solicitud.medio_pago),
                     },
@@ -208,12 +177,7 @@ class OpenFacturaCliente(EmisorTributario):
         }
 
     def _payload_factura(self, solicitud: SolicitudDocumentoTributario) -> dict:
-        """Factura electrónica (DTE 33).
 
-        Las líneas van con el precio NETO y el documento lleva `TasaIVA`. El
-        receptor de una factura tiene que declarar razón social, giro,
-        dirección y comuna: son obligatorios.
-        """
         neto, iva = calcular_montos(solicitud.monto_total)
         emisor = self._emisor
         receptor = {
@@ -231,8 +195,6 @@ class OpenFacturaCliente(EmisorTributario):
             precios_netos[indice] * linea.cantidad
             for indice, linea in enumerate(solicitud.lineas)
         ]
-        # La última línea absorbe el descuadre del redondeo para que las
-        # líneas sumen exactamente el neto del documento.
         montos_netos = ajustar_ultima_linea(montos_netos, neto)
 
         detalle = []
@@ -241,8 +203,6 @@ class OpenFacturaCliente(EmisorTributario):
         ):
             cantidad = linea.cantidad or 1
             if cantidad > 1 and monto_neto != precio_neto * cantidad:
-                # El descuadre no se puede repartir entre las unidades: el
-                # precio unitario queda y el ajuste va en el monto de la línea.
                 precio_unitario = precio_neto
             else:
                 precio_unitario = monto_neto // cantidad
@@ -288,7 +248,6 @@ class OpenFacturaCliente(EmisorTributario):
             },
         }
 
-    # --- transporte ---------------------------------------------------------
 
     def _post(self, ruta: str, payload: dict, idempotency_key: str) -> dict:
         try:
@@ -344,9 +303,6 @@ class OpenFacturaCliente(EmisorTributario):
             mensaje = str(error["message"])
         detalles = error.get("details") or []
         if codigo == "OF-06":
-            # "Este DTE ya fue emitido (Idempotency-Key)": el documento existe
-            # y el token viene en el detalle. No es un fallo: es el documento
-            # que se pidió, y el token sirve para recuperarlo.
             ya_emitido = True
             token = _token_de_detalles(detalles)
             if token:

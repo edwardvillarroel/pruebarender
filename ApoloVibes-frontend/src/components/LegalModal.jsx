@@ -324,7 +324,6 @@ function ContenidoLegal({ titulo, actualizacion, texto, onClose }) {
           .modal-scroll { scrollbar-gutter: stable; }
         `}</style>
 
-        {/* Header */}
         <div style={{
           flexShrink: 0,
           display: 'flex', flexDirection: 'column',
@@ -352,7 +351,6 @@ function ContenidoLegal({ titulo, actualizacion, texto, onClose }) {
           </button>
         </div>
 
-        {/* Body */}
         <div
           className="modal-scroll"
           style={{
@@ -364,7 +362,6 @@ function ContenidoLegal({ titulo, actualizacion, texto, onClose }) {
           {texto}
         </div>
 
-        {/* Footer */}
         <div style={{
           padding: '16px 24px', borderTop: '1px solid var(--line)',
           display: 'flex', justifyContent: 'flex-end',

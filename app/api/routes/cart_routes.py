@@ -13,24 +13,15 @@ cart_bp = Blueprint("carrito", __name__)
 
 
 def _servicio() -> GestionarCarrito:
-    """Servicio de carrito inyectado desde el punto de composición
-    (`create_app`), para que esta capa no dependa de `infrastructure`."""
     return current_app.config["CARRITO_SERVICE"]
 
 
 def _usuario_id() -> str:
-    """Identidad del usuario dueño del carrito: el X-User-Id del gateway.
 
-    El carrito se persiste por usuario real (FK `carrito.usuario_id` →
-    `usuarios.id`), por eso todos los endpoints exigen sesión (requiere_sesion).
-    """
     return usuario_actual()
 
 
 def _datos_json() -> dict:
-    """Punto único de entrada para el input de cada endpoint.
-    # TODO: input validation / sanitización aquí (fase de hardening).
-    """
     return request.get_json(silent=True) or {}
 
 
@@ -43,11 +34,6 @@ def _a_publico(carrito) -> dict:
                 "producto_id": item.producto_id,
                 "cantidad": item.cantidad,
                 "color": item.color,
-                # Foto de la linea: la del color elegido si tiene, la del
-                # producto si no. El carrito, el checkout y el navbar la
-                # renderizan con `{item.imagen && <img src={item.imagen}/>}`, y
-                # sin este campo no tienen de donde sacarla: el carrito solo
-                # conoce `producto_id` y el NOMBRE del color.
                 "imagen": item.imagen,
             }
             for item in carrito.items
@@ -74,9 +60,6 @@ def agregar_producto():
     except (TypeError, ValueError):
         return _error("producto_id debe ser un UUID válido", 400)
 
-    # El color llega del cliente: si no es texto la capa de dominio no puede
-    # normalizarlo (llama .strip()), asi que se rechaza aca en vez de reventar
-    # con un 500 mas adelante.
     color = datos.get("color")
     if color is not None and not isinstance(color, str):
         return _error("color debe ser un texto", 400)
@@ -90,7 +73,6 @@ def agregar_producto():
     except ValueError as exc:
         return _error(str(exc), 400)
     except IntegrityError as exc:
-        # FK `carrito_items.producto_id` -> `productos.id`: el producto no existe.
         if "FK_CARRITO_ITEM_PRODUCTO" in str(exc.orig):
             return _error("El producto no existe en el catálogo", 404)
         raise

@@ -8,12 +8,7 @@ from app.domain.time import utcnow
 
 @dataclass
 class DatosFacturacion:
-    """Datos del receptor del documento tributario.
 
-    Son los que el cliente cautó en el checkout (`tipoDocumento`, `rut`,
-    `razonSocial`, `giro`, dirección y comuna). Para una boleta basta el RUT:
-    el SII no exige razón social ni giro. Para una factura (DTE 33) sí.
-    """
 
     tipo: TipoDocumentoTributario
     rut: str
@@ -26,12 +21,7 @@ class DatosFacturacion:
 
 @dataclass
 class LineaDocumento:
-    """Una línea del documento: producto, cantidad y precio unitario.
 
-    El precio es BRUTO (IVA incluido), que es como están los precios en el
-    catálogo. El desglose a neto e IVA lo hace el cálculo fiscal según el
-    tipo de documento.
-    """
 
     nombre: str
     cantidad: int
@@ -44,12 +34,7 @@ class LineaDocumento:
 
 @dataclass
 class DocumentoTributario:
-    """Un documento electrónico emitido (o en proceso de emitirse).
 
-    Es el registro de lo que se emitió: guarda el folio del SII, el token del
-    proveedor y el PDF, de modo que el comprobante se pueda volver a entregar
-    aunque el proveedor deje de servirlo.
-    """
 
     tipo: TipoDocumentoTributario
     clave_idempotencia: str

@@ -1,5 +1,4 @@
-﻿"""Las plantillas generan el asunto y el contenido que prometemos."""
-
+﻿
 from __future__ import annotations
 
 from datetime import datetime, timezone

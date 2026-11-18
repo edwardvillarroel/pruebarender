@@ -1,15 +1,5 @@
-"""Caracterizacion de la venta local y, sobre todo, de la semantica de stock.
 
-Estos casos son los que hoy cubria `prueba_stock.py`. El invariante importante
-es que el stock NUNCA queda negativo: el descuento se hace con un
-`UPDATE ... WHERE stock >= cantidad` atomico en la misma transaccion que
-persiste la venta, no con un leer-modificar-escribir en Python (que seria una
-lost update bajo concurrencia).
 
-Nota sobre `match=`: se usan fragmentos cortos y ASCII a proposito. Comparar
-frases completas con acentos hace que el test se rompa por temas de encoding
-del archivo antes que por un cambio real de comportamiento.
-"""
 
 from __future__ import annotations
 
@@ -29,7 +19,6 @@ def venta_local(db_sesion, usuario):
 
 
 def _stock(producto) -> int:
-    """Lee el stock fresco desde la base, sin la sesion cacheada de SQLAlchemy."""
     return db.session.execute(
         db.text("SELECT stock FROM productos WHERE id = :i"), {"i": producto.id}
     ).scalar_one()
@@ -72,7 +61,6 @@ def test_stock_en_cero_no_permite_venta(venta_local, usuario, producto):
 def test_reabastecimiento_permite_vender_despues_de_agotarse(
     venta_local, usuario, producto, db_sesion
 ):
-    """Reabastecer tiene que reabrir la posibilidad de vender."""
     p = producto(stock=1, precio=1000)
     s = venta_local.abrir_sesion("Feria de prueba", usuario.id)
 
@@ -95,10 +83,7 @@ def test_reabastecimiento_permite_vender_despues_de_agotarse(
 def test_venta_parcial_por_items_no_deja_stock_negativo(
     venta_local, usuario, producto
 ):
-    """Si un item falla, el descuento de los anteriores tampoco queda aplicado.
 
-    Es la garantia de atomicidad de la transaccion de `registrar_venta`.
-    """
     p_ok = producto(stock=10, precio=1000, nombre="r0-ok")
     p_falta = producto(stock=1, precio=1000, nombre="r0-falta")
     s = venta_local.abrir_sesion("Feria de prueba", usuario.id)
@@ -169,7 +154,6 @@ def test_producto_inexistente_se_rechaza(venta_local, usuario):
 
 
 def test_creado_en_viene_con_zona_horaria(venta_local, usuario, producto):
-    """Timestamps UTC-aware: un datetime naive rompe al compararlo o serializarlo."""
     p = producto(stock=5)
     s = venta_local.abrir_sesion("Feria de prueba", usuario.id)
     venta = venta_local.registrar_venta(s.id, "efectivo", [(p.id, 1)], usuario.id)

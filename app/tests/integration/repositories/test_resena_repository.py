@@ -1,12 +1,4 @@
-"""Integración del repositorio de reseñas contra `postgres_test`.
 
-El repositorio es el dueño del `UNIQUE (usuario_id, pedido_id, producto_id)`
-y del recálculo denormalizado de `productos.rating`/`resenas_count` dentro de
-la MISMA transacción del INSERT. Estos tests fijan esos dos invariantes contra
-la base real: el índice existe y la violación se traduce a
-`ResenaDuplicadaError` (sin dejar la sesión rota), y el promedio con 1 decimal
-queda persistido en `productos`, no solo calculado en memoria.
-"""
 
 from __future__ import annotations
 
@@ -30,8 +22,6 @@ def repo():
 
 
 def _pedido_con_producto(usuario, prod, estado: str = "entregado") -> UUID:
-    """Pedido real con el producto en sus detalles: la FK de `resenas.pedido_id`
-    exige la fila, y los tests siguientes cuelgan reseñas de acá."""
     pedido = PedidoModel(
         usuario_id=usuario.id,
         total=5000,
@@ -56,9 +46,6 @@ def _resena(usuario_id, pedido_id, producto_id, estrellas: int) -> Resena:
 
 
 def _stats_producto(producto_id) -> tuple[float | None, int]:
-    """`rating` y `resenas_count` leídos con SQL crudo: la sesión de
-    SQLAlchemy puede tener cacheado el valor viejo y el test pasaría sin
-    comprobar nada."""
     rating, cantidad = db.session.execute(
         db.text("SELECT rating, resenas_count FROM productos WHERE id = :i"),
         {"i": producto_id},
@@ -92,9 +79,6 @@ def test_insertar_resena_queda_persistida_y_recalcula_stats(repo, usuario, produ
 def test_el_triple_unico_se_traduce_a_duplicada_sin_inflar_stats(
     repo, usuario, producto
 ):
-    """La violación del índice UNIQUE (doble submit, doble pestaña) tiene que
-    llegar como `ResenaDuplicadaError` y con el rollback deshecho: ni la
-    reseña original cambia ni el `rating` queda inflado por el intento."""
     prod = producto()
     pedido_id = _pedido_con_producto(usuario, prod)
     repo.crear(_resena(usuario.id, pedido_id, prod.id, 4))
@@ -115,15 +99,10 @@ def test_el_triple_unico_se_traduce_a_duplicada_sin_inflar_stats(
     assert _stats_producto(prod.id) == (4.0, 1), (
         "el intento duplicado infló los stats del producto"
     )
-    # La sesión quedó utilizable tras el rollback: si no, el siguiente query
-    # revienta con "current transaction is aborted".
     assert _resenas_del_pedido(pedido_id) == 1
 
 
 def test_stats_con_una_y_dos_resenas_promedio_un_decimal(repo, usuario, producto):
-    """R5: el promedio se recalcula por PRODUCTO (no por pedido). El mismo
-    cliente comprando el mismo producto en dos pedidos distintos genera dos
-    reseñas válidas (el triple las diferencia); 4 y luego 5 → 4.5 con count 2."""
     prod = producto()
 
     pedido_1 = _pedido_con_producto(usuario, prod)

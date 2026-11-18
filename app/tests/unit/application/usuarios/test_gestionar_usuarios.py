@@ -1,10 +1,4 @@
-"""Pruebas del listado de usuarios del panel de administracion.
 
-El caso de uso solo transforma el modelo de lectura del repositorio en el DTO
-que consume el frontend. Lo que se protege aca es el contrato: los nombres de
-las metricas y que no se filtren datos sensibles del usuario (hash de
-contrasena, secreto MFA, etc.).
-"""
 
 from unittest.mock import Mock
 from uuid import uuid4
@@ -75,7 +69,6 @@ def test_no_expone_datos_sensibles():
     assert "password_hash" not in fila
     assert "mfa_secret" not in fila
     assert "google_sub" not in fila
-    # Sin apellido, el nombre completo no arrastra espacios.
     assert fila["nombre_completo"] == "Ana"
 
 

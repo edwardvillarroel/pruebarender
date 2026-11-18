@@ -1,13 +1,5 @@
-"""Auditoría de acciones sensibles (RNF-06).
 
-Decorador para endpoints cuyas acciones deben quedar registradas
-(en LogAuditoria). Ej: crear pedido, procesar pago, aprobar cotización.
 
-El decorador registra la accion sobre el endpoint y, al ejecutar la funcion
-envuelta, persiste el evento via el caso de uso inyectado
-(`AUDITORIA_SERVICE` en config). La capa de api no conoce el ORM: el
-escritorio vive en application/infrastructure.
-"""
 
 from functools import wraps
 from typing import Callable
@@ -33,7 +25,6 @@ def auditar(accion: str):
 
 
 def _registrar(accion: str) -> None:
-    """Persiste el evento de auditoria despues de ejecutar la accion."""
     if not has_request_context():
         return
     servicio = current_app.config.get("AUDITORIA_SERVICE")

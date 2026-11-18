@@ -47,27 +47,16 @@ _FRONTEND_URL = "http://localhost:5173"
 
 
 def _frontend():
-    # Sin barra final: si FRONTEND_URL viene como "https://sitio.cl/", el
-    # redirect termina en "https://sitio.cl//?login=google".
     url = current_app.config.get("FRONTEND_URL") or _FRONTEND_URL
     return url.rstrip("/")
 
 
 def _redirigir_al_front(**parametros):
-    """Redirige al frontend con los parámetros bien codificados en la query.
 
-    Antes se armaba `"...?login=google&error=" + urlencode({"e": mensaje})`, que
-    producía `error=e=Estado+de+OAuth...`: el frontend recibía un valor con el
-    prefijo `e=` y nunca mostraba el motivo real (siempre el texto genérico).
-    """
     return redirect(f"{_frontend()}?{urlencode(parametros)}")
 
 
 def _ip_cliente():
-    # Detras del proxy de Render, request.remote_addr es la IP del proxy: sin
-    # esto todas las sesiones y los logs de seguridad quedan con la misma IP.
-    # Se toma la ULTIMA IP de X-Forwarded-For (la que agrega el proxy), igual
-    # que el rate limiter. La columna es varchar(45), por eso se recorta.
     reenviada = request.headers.get("X-Forwarded-For", "")
     if reenviada:
         ultima = reenviada.split(",")[-1].strip()
@@ -85,11 +74,7 @@ def _samesite_cookie():
 
 
 def _aplicar_cookie_refresh(respuesta, refresh_token):
-    """Unico lugar que define los atributos de la cookie de sesion.
 
-    Antes el callback de Google repetia el set_cookie a mano; cualquier cambio
-    en las opciones habia que hacerlo en dos lugares y se desincronizaban.
-    """
     respuesta.set_cookie(
         COOKIE_REFRESH,
         value=refresh_token,
@@ -129,7 +114,7 @@ def _sete_cookie_mfa(respuesta, ticket):
         secure=current_app.config.get("COOKIE_SECURE", True),
         samesite=_samesite_cookie(),
         path="/api/auth",
-        max_age=300,  # 5 min, igual que la validez del ticket
+        max_age=300,
     )
     return respuesta
 
@@ -156,7 +141,6 @@ def _jti_del_cookie():
 
 
 def _captcha_valido(datos):
-    """Valida el captcha solo si la cuenta ya exige uno o si hay keys configuradas."""
     token = datos.get("captcha_token") or ""
     return recaptcha.verificar_token(token)
 
@@ -175,7 +159,6 @@ def login():
     if not email or not password:
         return jsonify(mensaje="Correo y contraseña son obligatorios"), 400
 
-    # CAPTCHA a partir del 3er fallo previo: sin token válido no se procesa.
     if requiere_captcha_para_login(email) and not _captcha_valido(datos):
         return jsonify(
             mensaje="Credenciales incorrectas", captcha_requerido=True
@@ -316,8 +299,6 @@ def crear_codigo_verificacion():
         return jsonify(mensaje="Ya existe una cuenta con ese correo electrónico"), 409
     except CodigoNoEnviado:
         return jsonify(mensaje="No se pudo enviar el correo de verificación. Intenta de nuevo"), 502
-    # El código NO se devuelve ni se muestra: viaja solo por correo (o a la
-    # consola del servidor en modo simulación).
     return jsonify(mensaje="Código de verificación enviado a tu correo")
 
 
@@ -363,8 +344,6 @@ def crear_codigo_recuperacion():
         return jsonify(mensaje=str(e)), 400
     except CodigoNoEnviado:
         return jsonify(mensaje="No se pudo enviar el correo de verificación. Intenta de nuevo"), 502
-    # El código NO se devuelve ni se muestra: viaja solo por correo (o a la
-    # consola del servidor en modo simulación). `expira_en` va al countdown.
     return jsonify(mensaje="Código de recuperación enviado a tu correo", expira_en=expira_en.isoformat())
 
 
@@ -470,7 +449,6 @@ def perfil():
     return jsonify(user=user)
 
 
-# --- Google OAuth ---
 
 @auth_bp.get("/auth/google/url")
 @limiter.limit("10 per minute")
@@ -484,13 +462,7 @@ def google_url():
 
 @auth_bp.get("/auth/google/callback")
 def google_callback():
-    """Google redirige el navegador aquí con ?code&state.
 
-    Al éxito, setea la cookie de refresh y redirige al frontend con `login=google`
-    para que éste complete la sesión vía /auth/refresh (sin exponer el JWT en la URL).
-    Si el usuario tiene MFA, redirige con `login=google&mfa=1` y el ticket viaja
-    en un fragmento firmado en la URL (expira en 5 min).
-    """
     code = request.args.get("code", "")
     state = request.args.get("state", "")
     try:
@@ -511,7 +483,6 @@ def google_callback():
             fabrica_tokens=servicio_tokens,
         )
     except MfaRequerido as e:
-        # MFA pendiente: el ticket viaja en cookie httpOnly para el segundo factor.
         respuesta = _redirigir_al_front(login="google", mfa=1)
         return _sete_cookie_mfa(respuesta, e.mfa_ticket)
     except (DatosInvalidos, CredencialesInvalidas) as e:

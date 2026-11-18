@@ -55,11 +55,7 @@ class CuponRepository:
         return self._a_entidad(modelo)
 
     def liberar(self, cupon: Cupon, usuario_id: UUID) -> Cupon:
-        """Devuelve un cupón usado por un pedido cuyo pago nunca se completó.
 
-        Solo se libera si el cupón lo consumió el mismo usuario: si lo usó otro,
-        el cupón no es de este pedido y no se toca.
-        """
         modelo = db.session.get(CuponModel, cupon.id)
         if modelo is None:
             raise ValueError("Cupón no encontrado")

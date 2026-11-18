@@ -20,6 +20,4 @@ class UsuarioModel(db.Model):
     mfa_secret = db.Column(db.String(64))
     mfa_activo = db.Column(db.Boolean, nullable=False, default=False)
     creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
-    # Soft delete: NULL = cuenta viva. La fila se conserva porque pedidos,
-    # cotizaciones y resenas la referencian con FK.
     eliminado_en = db.Column(db.DateTime(timezone=True))

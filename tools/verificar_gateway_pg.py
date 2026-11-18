@@ -1,9 +1,4 @@
-"""Prueba funcional del gateway contra PostgreSQL.
 
-Ejercita los repositorios de verdad (no mocks): es la unica forma de saber que
-el `ON CONFLICT` hace upsert de verdad y que los UUID/booleanos viajan bien.
-Con Oraclello compilaba igual: fallaba en runtime.
-"""
 from __future__ import annotations
 
 import os
@@ -14,7 +9,6 @@ import uuid as uuidlib
 REPO = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-# Antes de que nada cargue el .env: el destino es la base local migrada.
 os.environ["DATABASE_URL"] = os.environ.get(
     "GATEWAY_TEST_DSN", "postgresql://app:app@localhost:5432/print3d_dev"
 )
@@ -44,7 +38,7 @@ def sql(q, params=()):
 
 print("1. DDL idempotente")
 ddl.crear_tablas()
-ddl.crear_tablas()  # segunda vez no debe explotar
+ddl.crear_tablas()
 check("crear_tablas() corre dos veces sin error", True)
 
 print("\n2. usuarios")
@@ -97,7 +91,6 @@ check("3 upserts dejan UNA sola fila", b is not None and b["fallos"] == 3,
 n = sql("SELECT count(*) FROM bloqueos_login WHERE LOWER(clave)=LOWER(%s)", (email,))[0][0]
 check("  y no se duplicaron filas en la tabla", n == 1, f"filas={n}")
 
-# el MERGE comparaba LOWER(clave)=LOWER(clave): el match es case-insensitive
 R.limpiar_bloqueo(email, "email")
 R.guardar_o_actualizar_bloqueo(email, "email", 1, 0, None)
 R.guardar_o_actualizar_bloqueo(email.upper(), "email", 7, 0, None)

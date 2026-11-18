@@ -21,16 +21,12 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     def health():
         return jsonify(status="ok"), 200
 
-    # Los origenes se comparan de forma exacta: un espacio despues de la coma
-    # ("https://a.cl, https://b.cl") hacia que el segundo origen nunca matcheara.
     origenes = [
         origen.strip()
         for origen in os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
         if origen.strip()
     ]
     if "*" in origenes:
-        # Con supports_credentials=True el wildcard es invalido: el navegador
-        # rechaza la respuesta. Se descarta en vez de romper todo el CORS.
         _log.warning(
             "CORS_ORIGINS contiene '*'; se ignora porque las cookies exigen origen exacto."
         )
@@ -41,11 +37,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     @app.after_request
     def _cabeceras_seguridad(respuesta):
-        # OWASP A02: cabeceras de seguridad. X-Frame-Options siempre (la SPA no
-        # se anida); HSTS/nosniff/Referrer-Policy solo cuando la cookie va Secure
-        # (produccion/HTTPS). En dev (http) el navegador descartaria la HSTS.
         respuesta.headers["X-Frame-Options"] = "DENY"
-        # Respuestas de API (JWT/cuerpo) no deben quedar en cache.
         if (respuesta.content_type or "").startswith("application/json"):
             respuesta.headers["Cache-Control"] = "no-store"
         if app.config.get("COOKIE_SECURE", True):
@@ -62,11 +54,6 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     _montar_frontend_produccion(app)
 
-    # B4: fallo ruidoso sin base de datos. Antes esto se tragaba la excepcion y
-    # el gateway arrancaba igual, de modo que un `.env` sin DSN se manifestaba
-    # mucho despues como un 500 en /auth/login y no como un problema de arranque.
-    # Ahora `pg_pool` levanta RuntimeError con el mensaje concreto si falta la
-    # configuracion, y los errores de conexion/DDL se propagan.
     from gateway.infrastructure.ddl import crear_tablas
 
     try:
@@ -82,14 +69,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
 
 def _ruta_dist_absoluta(app: Flask) -> Path | None:
-    """Resuelve FRONTEND_DIST a una ruta ABSOLUTA valida, o None.
 
-    `send_from_directory` resuelve el directorio contra `app.root_path`, asi
-    que un valor relativo (el de render.yaml) buscaba los archivos dentro de
-    `gateway/` y devolia 404 para todo el SPA. Ademas sin la guardia de vacio,
-    `Path("").resolve()` seria el CWD (un directorio valido) y se montaria el
-    repo entero.
-    """
     valor = str(app.config.get("FRONTEND_DIST", "")).strip()
     if not valor:
         return None
@@ -100,13 +80,7 @@ def _ruta_dist_absoluta(app: Flask) -> Path | None:
 
 
 def _montar_frontend_produccion(app: Flask) -> None:
-    """Sirve el build de React (ApoloVibes-frontend/dist) desde el gateway.
 
-    Frontend y API quedan en el MISMO origen, asi `const BASE_URL = '/api'`
-    del frontend funciona sin CORS. Como el build de Vite usa un `base`
-    distinto de "/", tambien lo sirve bajo ese prefijo (FRONTEND_BASE_URL).
-    Las rutas /api/* se las lleva el proxy (proxy_bp) y jamas llegan aqui.
-    """
     dist = _ruta_dist_absoluta(app)
     if dist is None:
         return

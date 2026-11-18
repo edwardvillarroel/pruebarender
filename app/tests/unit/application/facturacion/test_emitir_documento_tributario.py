@@ -1,18 +1,6 @@
-"""El caso de uso de emisión: una fila por pedido, un documento por venta.
 
-Lo que se prueba acá es el CYCLE DE VIDA, que es donde está el riesgo real:
 
-- La clave de idempotencia sale del id del pedido, así que siempre es la
-  misma y el proveedor nunca emite dos veces la misma venta.
-- Si el documento ya está emitido, no se vuelve a llamar al proveedor.
-- Si el proveedor dice "ya lo emití" (`OF-06`), el documento se RECUPERA en
-  vez de darse por fallido: el pago fue y el comprobante existe.
-- Si el proveedor falla de verdad, el documento queda en estado `error` con el
-  motivo, y el error sube: el pago no se reverse por un problema de
-  facturación.
 
-Los dobles son de memoria: no tocan la base ni la red.
-"""
 
 from __future__ import annotations
 
@@ -36,9 +24,6 @@ from app.domain.interfaces.facturacion import (
 )
 
 
-# --------------------------------------------------------------------------
-# Dobles
-# --------------------------------------------------------------------------
 
 
 class PedidosEnMemoria:
@@ -132,9 +117,6 @@ def _servicio(pedido: Pedido | None = None, emisor: EmisorFalso | None = None):
     return servicio, documentos, emisor
 
 
-# --------------------------------------------------------------------------
-# Tests
-# --------------------------------------------------------------------------
 
 
 def test_emite_el_documento_del_pedido():
@@ -155,7 +137,6 @@ def test_emite_el_documento_del_pedido():
 
 
 def test_la_clave_de_idempotencia_sale_del_pedido():
-    """La misma venta tiene que producir la misma clave, siempre."""
     pedido = _pedido({"tipoDocumento": "boleta", "rut": "12345678-5"})
     servicio, _, emisor = _servicio(pedido)
 
@@ -176,7 +157,6 @@ def test_no_emite_dos_veces_el_mismo_pedido():
 
 
 def test_sin_rut_no_emite_nada():
-    """Sin RUT no hay documento: se devuelve `None` y no se toca el proveedor."""
     pedido = _pedido({"tipoDocumento": "boleta"})
     servicio, _, emisor = _servicio(pedido)
 
@@ -194,10 +174,7 @@ def test_sin_tipo_de_documento_no_emite_nada():
 
 
 def test_una_factura_sin_los_datos_que_exige_el_sii_no_se_emite():
-    """La factura exige razón social, giro, dirección y comuna.
 
-    No es un detalle del formulario: sin ellos el SII rechaza el documento.
-    """
     pedido = _pedido({"tipoDocumento": "factura", "rut": "12345678-5"})
     pedido.tipo_documento = TipoDocumentoTributario.FACTURA
     servicio, _, emisor = _servicio(pedido)
@@ -233,7 +210,6 @@ def test_una_factura_completa_se_emite():
 
 
 def test_cuando_el_proveedor_dice_ya_emitido_se_recupera_el_documento():
-    """`OF-06` con token: el documento existe, no hay que darlo por fallido."""
     error = ErrorEmisionTributaria(
         "Este DTE ya fue emitido", codigo="OF-06", token="z" * 64, ya_emitido=True
     )
@@ -262,7 +238,6 @@ def test_cuando_el_proveedor_falla_el_documento_queda_en_error():
 
 
 def test_reintenta_una_emision_que_habia_fallado():
-    """Un documento en error se vuelve a pedir: el pago sigue en pie."""
     pedido = _pedido({"tipoDocumento": "boleta", "rut": "12345678-5"})
     documentos = DocumentosEnMemoria()
     emisor = EmisorFalso(
@@ -281,11 +256,7 @@ def test_reintenta_una_emision_que_habia_fallado():
 
 
 def test_el_envio_cobrado_va_como_una_linea_mas():
-    """Las líneas del documento tienen que sumar el total cobrado.
 
-    El costo de envío se cobra aparte del precio de los productos: si no
-    fuera una línea, el comprobante no cuadraría con el cobro.
-    """
     pedido = _pedido(
         {"tipoDocumento": "boleta", "rut": "12345678-5"}, total=1000, entrega="envio"
     )

@@ -1,12 +1,4 @@
-"""Rutas de reseñas (estrellas 1-5) por pedido.
 
-`POST /api/pedidos/<id>/resenas` solo del dueño y solo con el pedido
-`entregado`; `GET` para la precarga del modal, disponible también para admin
-(mismo criterio que `_es_dueno` en `pedido_routes`). El frontend decide qué
-mostrar según el status HTTP, así que cada código tiene un significado fijo:
-400 datos · 403 no dueño · 404 pedido o producto · 409 no entregado o ya
-reseñado.
-"""
 
 from __future__ import annotations
 
@@ -31,8 +23,6 @@ resenas_bp = Blueprint("resenas", __name__)
 
 
 def _servicio_resena() -> GestionarResena:
-    """Servicio inyectado desde `create_app` (la capa API no depende de
-    `infrastructure`)."""
     return current_app.config["RESENA_SERVICE"]
 
 
@@ -121,7 +111,6 @@ def listar_resenas_pedido(pedido_id: UUID):
 
 @resenas_bp.get("/productos/<uuid:producto_id>/resenas")
 def listar_resenas_producto(producto_id: UUID):
-    # 404 si el producto no existe; si existe, lista (posiblemente vacia).
     if current_app.config["PRODUCTO_SERVICE"].consultar(producto_id) is None:
         return _error("Producto no encontrado", 404)
     resenas = _servicio_resena().listar_por_producto(producto_id)

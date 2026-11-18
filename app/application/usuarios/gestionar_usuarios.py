@@ -1,13 +1,5 @@
-"""Gestion de usuarios del panel de administracion.
 
-Incluye el listado con metricas (solo lectura) y las acciones de alta,
-eliminacion logica, cambio de rol y bloqueo/desbloqueo.
 
-Las contrasenas se hashean con la misma funcion que usa el gateway
-(`app.infrastructure.security.passwords.crear_hash`, bcrypt) y las reglas de
-longitud son las mismas que las de `gateway/application/auth.py`: si cambian
-alla, hay que cambiarlas aca.
-"""
 
 from __future__ import annotations
 
@@ -41,12 +33,7 @@ class OperacionNoPermitida(Exception):
 
 
 class GestionarUsuarios:
-    """Casos de uso del apartado Usuarios del panel de administracion.
 
-    El repositorio agrega las metricas en SQL; aca solo se arman los DTO que
-    consume el frontend, sin exponer datos sensibles (hash de contrasena, MFA,
-    google_sub).
-    """
 
     def __init__(
         self,
@@ -56,19 +43,13 @@ class GestionarUsuarios:
         self._usuarios = usuarios
         self._hasher = hasher
 
-    # ------------------------------ lectura ------------------------------
 
     def listar(self) -> list[dict[str, Any]]:
         return [self._a_publico_metricas(u) for u in self._usuarios.listar_con_metricas()]
 
-    # ------------------------------ alta ------------------------------
 
     def crear(self, datos: dict[str, Any], actor_id: str | None = None) -> dict[str, Any]:
-        """Crea un usuario con contrasena local y rol inicial.
 
-        El correo se guarda en minusculas (igual que el login del gateway) y la
-        contrasena se valida con las mismas reglas que el registro publico.
-        """
         email = _texto(datos.get("email")).lower()
         nombre = _texto(datos.get("nombre"))
         apellido = _texto(datos.get("apellido"))
@@ -83,7 +64,6 @@ class GestionarUsuarios:
         if rol not in ROLES_VALIDOS:
             raise DatosUsuarioInvalidos("El rol debe ser «admin» o «cliente»")
         if rol == Rol.CLIENTE.value and not apellido:
-            # La base exige apellido para los clientes (CK_USUARIOS_APELLIDO).
             raise DatosUsuarioInvalidos("El apellido es obligatorio para un cliente")
         _validar_password(password)
 
@@ -101,7 +81,6 @@ class GestionarUsuarios:
         creado = self._usuarios.crear(usuario)
         return self._a_publico(creado)
 
-    # ------------------------------ permisos ------------------------------
 
     def cambiar_rol(
         self, usuario_id: UUID, rol: str, actor_id: str | None
@@ -127,16 +106,11 @@ class GestionarUsuarios:
         usuario.rol = Rol(nuevo_rol)
         return self._a_publico(self._usuarios.actualizar(usuario))
 
-    # ------------------------------ bloqueo ------------------------------
 
     def cambiar_estado(
         self, usuario_id: UUID, activo: bool, actor_id: str | None
     ) -> dict[str, Any]:
-        """Bloquea (`activo=False`) o desbloquea (`activo=True`) una cuenta.
 
-        El bloqueo es reversible y no borra nada: el gateway rechaza el login de
-        las cuentas con `activo=False`.
-        """
         usuario = self._buscar(usuario_id)
         if not isinstance(activo, bool):
             raise DatosUsuarioInvalidos("El estado debe ser verdadero o falso")
@@ -152,15 +126,9 @@ class GestionarUsuarios:
         usuario.activo = activo
         return self._a_publico(self._usuarios.actualizar(usuario))
 
-    # ------------------------------ eliminacion ------------------------------
 
     def eliminar(self, usuario_id: UUID, actor_id: str | None) -> None:
-        """Soft delete: marca `eliminado_en` y bloquea la cuenta.
 
-        No se borra la fila porque pedidos, cotizaciones, resenas y cupones la
-        referencian. La cuenta desaparece del listado y ya no puede iniciar
-        sesion.
-        """
         usuario = self._buscar(usuario_id)
         if _es_mismo_usuario(usuario, actor_id):
             raise OperacionNoPermitida("No puedes eliminar tu propia cuenta")
@@ -170,7 +138,6 @@ class GestionarUsuarios:
         usuario.eliminado_en = utcnow()
         self._usuarios.actualizar(usuario)
 
-    # ------------------------------ helpers ------------------------------
 
     def _buscar(self, usuario_id: UUID) -> Usuario:
         usuario = self._usuarios.buscar_por_id(usuario_id)
@@ -179,7 +146,6 @@ class GestionarUsuarios:
         return usuario
 
     def _exigir_otro_admin(self, usuario: Usuario) -> None:
-        """Impide que la accion deje el sistema sin un administrador activo."""
         es_admin_activo = (
             usuario.rol == Rol.ADMIN
             and usuario.activo
@@ -223,7 +189,6 @@ class GestionarUsuarios:
 
 
 def _texto(valor: Any) -> str:
-    """Normaliza un valor de JSON a texto sin espacios (None -> "")."""
     if valor is None:
         return ""
     return str(valor).strip()

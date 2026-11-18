@@ -7,7 +7,6 @@ from app.domain.interfaces.repositories import CategoriaRepository
 
 
 class GestionarCategoria:
-    """Caso de uso: CRUD de categorías del catálogo."""
 
     def __init__(self, repositorio: CategoriaRepository) -> None:
         self._repositorio = repositorio

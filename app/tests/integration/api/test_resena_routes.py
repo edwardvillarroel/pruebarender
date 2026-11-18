@@ -1,12 +1,4 @@
-"""Caracterización HTTP de las rutas de reseñas y su efecto en catálogo/pedidos.
 
-El frontend decide qué mostrar según el status HTTP, así que cada código tiene
-un significado fijo (ver `resena_routes`): 400 datos inválidos · 403 no dueño ·
-404 pedido o producto inexistente · 409 no entregado o ya reseñado. Estos tests
-fijan ese contrato contra la base real, más los dos efectos colaterales que ven
-Mis pedidos y el catálogo: el badge `resenas_pendientes` (0|1) y la superficie
-pública `rating`/`resenas_count` de `_a_publico_producto`.
-"""
 
 from __future__ import annotations
 
@@ -27,8 +19,6 @@ def _cabeceras(usuario, rol: str = "cliente") -> dict:
 
 
 def _pedido(usuario, productos, estado: str = "entregado") -> uuid.UUID:
-    """Pedido real con detalles por cada producto: la membresía del producto en
-    `pedido.detalles` es la fuente de verdad que valida el caso de uso."""
     pedido = PedidoModel(
         usuario_id=usuario.id,
         total=1000 * len(productos),
@@ -47,8 +37,6 @@ def _pedido(usuario, productos, estado: str = "entregado") -> uuid.UUID:
 
 
 def _otro_usuario(db_sesion, centinela) -> UsuarioModel:
-    """Segundo usuario real; el email lleva el prefijo del centinela para que
-    la limpieza R0 lo encuentre y lo borre."""
     u = UsuarioModel(
         email=f"{centinela}-otro@caracterizacion.test",
         password_hash="r0-no-se-usa",
@@ -89,8 +77,6 @@ def _url_resenas_producto(producto_id) -> str:
 
 
 def _publico_producto(client, prod) -> dict:
-    """El producto recién creado, filtrado de `GET /api/productos` por id
-    (el catálogo devuelve todos los activos, no solo los del test)."""
     respuesta = client.get("/api/productos")
     assert respuesta.status_code == 200, respuesta.get_json()
     return next(
@@ -108,7 +94,6 @@ def _pedido_en_el_listado(client, usuario, pedido_id) -> dict:
     )
 
 
-# --- POST /api/pedidos/<id>/resenas -----------------------------------------
 
 
 def test_post_feliz_responde_201_y_persiste(client, usuario, producto):
@@ -131,8 +116,6 @@ def test_post_feliz_responde_201_y_persiste(client, usuario, producto):
 
 
 def test_pedido_no_entregado_es_409(client, usuario, producto):
-    """Solo `entregado` es elegible; el 409 (y no 400) porque el pedido y el
-    request son válidos: lo que no se puede es la operación."""
     prod = producto()
     pedido_id = _pedido(usuario, [prod], estado="pendiente")
 
@@ -218,7 +201,6 @@ def test_estrellas_fuera_de_1_a_5_o_no_enteras_es_400(
     assert _resenas_en_la_base(pedido_id) == 0
 
 
-# --- GET /api/pedidos/<id>/resenas (precarga del modal) ---------------------
 
 
 def test_get_devuelve_las_resenas_del_pedido_para_precarga(client, usuario, producto):
@@ -259,8 +241,6 @@ def test_get_de_pedido_inexistente_es_404(client, usuario):
 
 
 def test_get_el_admin_tambien_puede_ver(client, usuario, producto, db_sesion, centinela):
-    """Mismo criterio que `_es_dueno` de las rutas de pedidos: el admin
-    consulta, no reseña."""
     prod = producto()
     pedido_id = _pedido(usuario, [prod])
     admin = _admin(db_sesion, centinela)
@@ -276,7 +256,6 @@ def test_get_el_admin_tambien_puede_ver(client, usuario, producto, db_sesion, ce
     assert len(respuesta.get_json()["resenas"]) == 1
 
 
-# --- GET /api/pedidos: badge resenas_pendientes -----------------------------
 
 
 def test_resenas_pendientes_es_1_en_entregado_con_productos_sin_resenar(
@@ -324,7 +303,6 @@ def test_resenas_pendientes_es_0_si_el_pedido_no_esta_entregado(
     assert nuestro["resenas_pendientes"] == 0
 
 
-# --- GET /api/productos: rating y resenas_count -----------------------------
 
 
 def test_catalogo_sin_resenas_expone_rating_null_y_contador_cero(client, producto):
@@ -341,8 +319,6 @@ def test_catalogo_sin_resenas_expone_rating_null_y_contador_cero(client, product
 def test_catalogo_expone_promedio_un_decimal_y_contador(
     client, usuario, producto, db_sesion, centinela
 ):
-    """R7: dos reseñas de dos dueños distintos (4 y 5) → `rating: 4.5` y
-    `resenas_count: 2`, y sin exponer `usuario_id`."""
     prod = producto()
     otro = _otro_usuario(db_sesion, centinela)
     pedido_mio = _pedido(usuario, [prod])
@@ -368,7 +344,6 @@ def test_catalogo_expone_promedio_un_decimal_y_contador(
     )
 
 
-# --- comentario opcional + GET público por producto -------------------------
 
 
 def test_post_con_comentario_lo_recorta_y_persiste(client, usuario, producto):
@@ -397,8 +372,6 @@ def test_post_con_comentario_lo_recorta_y_persiste(client, usuario, producto):
 
 
 def test_get_publico_por_producto_sin_sesion(client, usuario, producto):
-    """La página pública del catálogo lista reseñas sin sesión, con el nombre
-    del autor (nunca el `usuario_id`)."""
     prod = producto()
     pedido_id = _pedido(usuario, [prod])
     client.post(

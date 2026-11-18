@@ -32,11 +32,7 @@ def crear_token_estimacion(
     estimacion: dict,
     secreto: str | None,
 ) -> str | None:
-    """Firma la estimacion para un usuario, imagen y firma de especificaciones.
 
-    Devuelve `None` si no hay un secreto seguro configurado: en ese caso el alta
-    volvera a estimar en el backend en vez de confiar en el navegador.
-    """
     if not token or not _secreto_valido(secreto):
         return None
     payload = {
@@ -58,8 +54,6 @@ def verificar_token_estimacion(
     secreto: str | None,
     max_age: int,
 ) -> dict | None:
-    """Devuelve la estimacion firmada solo si el token es valido y corresponde
-    al usuario, la imagen y las especificaciones actuales."""
     if not token or not _secreto_valido(secreto):
         return None
     try:

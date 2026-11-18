@@ -1,10 +1,4 @@
-"""El aviso de anulacion aceptada por Tuu: quien lo enciende y quien lo apaga.
 
-El badge del cliente no es un adorno: significa "Tuu acepto anular tu pedido y
-nadie te lo habia dicho". Por eso el aviso solo puede nacer sobre un pedido
-cancelado, y marcar el aviso como visto debe ser idempotente — abrir el modal dos
-veces no puede romper nada ni reabrir el badge.
-"""
 
 from __future__ import annotations
 
@@ -23,7 +17,6 @@ from app.domain.enums import EstadoPedido
 
 
 class _PedidosFalsos:
-    """Repositorio en memoria que registra los avisos."""
 
     def __init__(self, pedido: Pedido | None = None):
         self._pedido = pedido

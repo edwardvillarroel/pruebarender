@@ -11,8 +11,6 @@ from app.domain.interfaces.repositories import PedidoRepository, SolicitudDiseno
 from app.domain.interfaces.venta_local_repository import VentaLocalRepository
 from app.domain.time import ZONA_CHILE, hoy_chile
 
-# Estados de pedido que siguen activos (por entregar / en curso). Los terminales
-# (`entregados`, `cancelados`) ya no representan una orden pendiente de atención.
 _ESTADOS_PEDIDO_ACTIVOS = frozenset(
     {
         EstadoPedido.PENDIENTE,
@@ -23,13 +21,7 @@ _ESTADOS_PEDIDO_ACTIVOS = frozenset(
 
 
 def _fecha_chile(instante: datetime | None) -> date | None:
-    """Fecha local de Chile de un instante del dominio.
 
-    Los timestamps se guardan en UTC (`utcnow`), asi que agrupar por dia/mes/semana
-    exige convertirlos primero a `America/Santiago`: si no, una venta de las 21:00
-    en Chile (00:00 UTC del dia siguiente) caeria en el dia/mes equivocado. Un
-    valor naive se interpreta como UTC, que es como lo escriben las entidades.
-    """
     if instante is None:
         return None
     if instante.tzinfo is None:
@@ -38,14 +30,8 @@ def _fecha_chile(instante: datetime | None) -> date | None:
 
 
 class GestionarReporte:
-    """Reporte general de ventas y pedidos para el panel de administracion.
 
-    Agrega las ventas de las sesiones locales cerradas y los pedidos pagados de
-    la tienda web como ingresos, y ademas resume los pedidos (con su estado) y
-    las cotizaciones pendientes, armando lo que consume el dashboard.
 
-    Solo consulta (lectura): no modifica ninguna tabla.
-    """
 
     def __init__(
         self,
@@ -68,10 +54,8 @@ class GestionarReporte:
             "cotizaciones": self._resumen_cotizaciones(solicitudes),
         }
 
-    # ------------------------------------------------------------------ ventas
 
     def _ventas_totales(self) -> list[VentaLocal]:
-        """Todas las ventas registradas en sesiones locales cerradas."""
         ventas: list[VentaLocal] = []
         for sesion in self._ventas.listar_reportes():
             ventas.extend(self._ventas.obtener_ventas_de_sesion(sesion.id))
@@ -80,12 +64,7 @@ class GestionarReporte:
     def _ingresos(
         self, ventas: list[VentaLocal], pedidos: list[Any]
     ) -> list[dict[str, Any]]:
-        """Ingresos unificados: ventas del local + pedidos de la tienda web pagados.
 
-        Son dos fuentes distintas (una venta local no genera un pedido), asi que
-        sumarlas no duplica montos. Cada ingreso queda con su fecha LOCAL de Chile
-        y su medio de pago para poder agrupar por dia, mes o semana.
-        """
         ingresos: list[dict[str, Any]] = []
 
         for venta in ventas:
@@ -102,7 +81,6 @@ class GestionarReporte:
 
         for pedido in pedidos:
             estado = str(getattr(pedido.estado, "value", pedido.estado))
-            # Un pedido cancelado no es ingreso aunque conserve un pago historico.
             if estado == EstadoPedido.CANCELADO.value:
                 continue
             fecha = _fecha_chile(pedido.creado_en)
@@ -112,7 +90,6 @@ class GestionarReporte:
                 {
                     "fecha": fecha,
                     "total": float(pedido.total or 0),
-                    # Las compras de la tienda web se pagan por la pasarela TUU.
                     "medio_pago": MedioPago.TUU.value,
                 }
             )
@@ -160,11 +137,7 @@ class GestionarReporte:
         hoy: date | None = None,
         cantidad: int = 5,
     ) -> list[dict[str, Any]]:
-        """Totales por semana (lunes a domingo) de las ultimas `cantidad` semanas.
 
-        `desde` es la fecha ISO del lunes de cada tramo: el frontend la usa como
-        etiqueta del eje X (formato DD/MM). Las fechas ya vienen en hora de Chile.
-        """
         hoy = hoy or hoy_chile()
         lunes_actual = hoy - timedelta(days=hoy.weekday())
         semanas: list[dict[str, Any]] = []
@@ -184,7 +157,6 @@ class GestionarReporte:
             )
         return semanas
 
-    # ------------------------------------------------------------------- pedidos
 
     def _resumen_pedidos(self, pedidos: list[Any]) -> dict[str, Any]:
         por_estado: dict[str, int] = {}
@@ -233,7 +205,6 @@ class GestionarReporte:
             return {}
         return datos if isinstance(datos, dict) else {}
 
-    # -------------------------------------------------------------- cotizaciones
 
     def _resumen_cotizaciones(
         self, solicitudes: list[SolicitudDiseno]

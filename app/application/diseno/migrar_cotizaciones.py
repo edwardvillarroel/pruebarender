@@ -1,20 +1,7 @@
-"""Migración puntual de imágenes de cotización a Supabase Storage (F4).
 
-Copia al bucket los archivos que aún viven solo en disco:
 
-1. los archivos locales de `uploads/cotizaciones/` (incluidos huérfanos sin
-   fila: el disco efímero de Render ya perdió archivos y conviene rescatar lo
-   que quede), y
-2. las rutas de `solicitudes_diseno.imagen` (si su archivo local desapareció,
-   se cuenta como `sin_archivo_local` y se sigue: la migración no aborta).
 
-Idempotente: un objeto ya presente en el bucket (chequeo por
-`GET /object/info/...`) se cuenta como `ya_existian` y no se vuelve a subir.
-Los archivos locales NO se borran después de subir (sirven de rollback).
 
-Se invoca desde `POST /api/admin/cotizaciones/migrar` con el mismo secreto de
-cron que la purga (F3). `dry_run=True` solo cuenta lo que SE subiría.
-"""
 
 from __future__ import annotations
 
@@ -34,7 +21,6 @@ class MigradorCotizaciones:
         self._carpeta_uploads = carpeta_uploads
 
     def ejecutar(self, dry_run: bool = False) -> dict:
-        """Sube lo que falte al bucket y devuelve el resumen pedido por F4."""
         resultado = {
             "migrados": 0,
             "ya_existian": 0,
@@ -48,7 +34,6 @@ class MigradorCotizaciones:
                 resultado["ya_existian"] += 1
                 continue
             if archivo is None or not archivo.is_file():
-                # El disco efímero ya lo perdió (o nunca estuvo): no es error fatal.
                 resultado["sin_archivo_local"] += 1
                 continue
             if dry_run:
@@ -79,11 +64,7 @@ class MigradorCotizaciones:
         return resultado
 
     def _rutas_a_migrar(self) -> dict[str, Path | None]:
-        """Ruta relativa -> archivo local (`None` si el archivo ya no existe).
 
-        Único paso de unión (a)+(b): archivos locales del disco y rutas de las
-        filas, deduplicados para que un mismo objeto no se cuente dos veces.
-        """
         rutas: dict[str, Path | None] = {}
 
         carpeta = self._carpeta() / "cotizaciones"
@@ -106,7 +87,6 @@ class MigradorCotizaciones:
         return Path(current_app.config.get("UPLOAD_FOLDER") or Config.UPLOAD_FOLDER)
 
     def _ruta_local(self, ruta: str) -> Path | None:
-        """Archivo en disco para una ruta relativa, con anti path-traversal."""
         base = self._carpeta().resolve()
         destino = base / ruta
         try:
@@ -117,7 +97,6 @@ class MigradorCotizaciones:
 
 
 def _ruta_migrable(imagen) -> str | None:
-    """Ruta relativa segura a migrar; `None` para `None`/http/absolutas/raras."""
     if not imagen or not isinstance(imagen, str):
         return None
     normalizada = imagen.replace("\\", "/")

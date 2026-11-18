@@ -1,11 +1,4 @@
-"""Pruebas del escritor de imágenes de cotización (F4).
 
-Fijan el contrato de `guardar_imagen_cotizacion_supabase`: siempre devuelve
-`cotizaciones/<uuid><ext>`, sube al bucket solo si la config está completa,
-no toca el disco cuando la subida sale bien y DEGRADA a disco con el MISMO
-nombre cuando la nube falla. La red se stubbea en `_request` o en la
-fábrica `almacen_desde_config`; la suite nunca toca la red.
-"""
 
 from __future__ import annotations
 
@@ -22,7 +15,6 @@ from app.infrastructure.storage.supabase_storage import AlmacenSupabaseStorage
 
 
 def _png_grande(lado: int = 900) -> bytes:
-    """PNG con ruido: supera el mínimo de bytes y el lado máximo de la miniatura."""
     salida = io.BytesIO()
     Image.effect_noise((lado, lado), 90).convert("RGB").save(
         salida, format="PNG"
@@ -31,7 +23,6 @@ def _png_grande(lado: int = 900) -> bytes:
 
 
 class _AlmacenFalso:
-    """Doble de `AlmacenSupabaseStorage` que no toca la red."""
 
     def __init__(self, sube: bool = True):
         self.sube = sube
@@ -65,14 +56,9 @@ def _configurar_supabase(app) -> None:
     )
 
 
-# --------------------------------------------------------------------------
-# Sin Supabase: el contrato de siempre (disco local)
-# --------------------------------------------------------------------------
 
 
 def test_sin_supabase_escribe_en_disco_local(app, tmp_path):
-    # TestingConfig trae SUPABASE_* vacío: dentro del contexto la fábrica
-    # devuelve None y el escritor hace lo de siempre.
     with app.app_context():
         ruta = guardar_imagen_cotizacion_supabase(b"PNG", "png", tmp_path)
 
@@ -91,9 +77,6 @@ def test_escritor_local_base_sigue_intacto(tmp_path):
     assert (tmp_path / ruta).read_bytes() == b"PNG"
 
 
-# --------------------------------------------------------------------------
-# Con Supabase configurado: sube al bucket
-# --------------------------------------------------------------------------
 
 
 def test_con_supabase_sube_al_bucket_sin_tocar_el_disco(
@@ -111,7 +94,6 @@ def test_con_supabase_sube_al_bucket_sin_tocar_el_disco(
     assert falso.llamadas == [(ruta, b"PNG", "image/png")]
     assert ruta.startswith("cotizaciones/")
     assert ruta.endswith(".png")
-    # Éxito en la nube: NO se crea nada en disco.
     assert not (tmp_path / "cotizaciones").exists()
 
 
@@ -160,9 +142,6 @@ def test_extension_con_punto_o_sin_punto_da_el_mismo_resultado(
     assert sin_punto.endswith(".png")
 
 
-# --------------------------------------------------------------------------
-# Falla de la nube: degradación a disco con el MISMO nombre
-# --------------------------------------------------------------------------
 
 
 def test_si_falla_la_nube_escribe_en_disco_con_el_mismo_nombre(
@@ -183,9 +162,6 @@ def test_si_falla_la_nube_escribe_en_disco_con_el_mismo_nombre(
     assert "no aceptó" in caplog.text
 
 
-# --------------------------------------------------------------------------
-# La fábrica real lee la config de la aplicación en uso
-# --------------------------------------------------------------------------
 
 
 def test_config_de_app_config_usa_el_almacen_real(app, tmp_path, monkeypatch):
@@ -207,13 +183,9 @@ def test_config_de_app_config_usa_el_almacen_real(app, tmp_path, monkeypatch):
     assert kwargs["headers"]["Content-Type"] == "image/png"
     assert kwargs["headers"]["x-upsert"] == "true"
     assert kwargs["data"] == b"PNG"
-    # Éxito en la nube: nada en disco.
     assert not (tmp_path / "cotizaciones").exists()
 
 
-# --------------------------------------------------------------------------
-# Miniatura en el momento de la subida
-# --------------------------------------------------------------------------
 
 
 def test_la_imagen_local_se_guarda_con_su_miniatura(tmp_path):
@@ -280,5 +252,4 @@ def test_una_imagen_ilegible_no_rompe_la_subida(app, tmp_path, monkeypatch):
     with app.app_context():
         ruta = guardar_imagen_cotizacion_supabase(b"PNG", "png", tmp_path)
 
-    # Solo el original: la miniatura devolvió `None` y no se subió nada más.
     assert [c[0] for c in falso.llamadas] == [ruta]

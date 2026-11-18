@@ -1,11 +1,4 @@
-"""Pruebas de las miniaturas de cotización.
 
-El listado muestra cada referencia en una caja de 96×96. Estos tests fijan las
-dos piezas que hacen que eso no descargue la foto completa: la convención de
-ruta (`cotizaciones/<uuid>.<ext>` → `miniaturas/cotizaciones/<uuid>.jpg`) y la
-reducción con Pillow, incluyendo el `None` que obliga al llamador a servir el
-original.
-"""
 
 from __future__ import annotations
 
@@ -22,7 +15,6 @@ from app.infrastructure.imagenes.miniaturas_cotizacion import (
 
 
 def _imagen_bytes(lado: int, formato: str = "PNG", ruido: bool = False) -> bytes:
-    """Imagen de prueba; con `ruido` comprime mal y supera el mínimo de bytes."""
     if ruido:
         imagen = Image.effect_noise((lado, lado), 90).convert("RGB")
     else:
@@ -67,7 +59,7 @@ def test_crear_miniatura_reduce_y_devuelve_jpeg():
     miniatura = crear_miniatura(original)
 
     assert miniatura is not None
-    assert miniatura.startswith(b"\xff\xd8")  # firma JPEG
+    assert miniatura.startswith(b"\xff\xd8")
     assert len(miniatura) < len(original)
     with Image.open(io.BytesIO(miniatura)) as imagen:
         assert max(imagen.size) <= LADO_MAXIMO_MINIATURA

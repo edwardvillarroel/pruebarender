@@ -1,11 +1,4 @@
-"""Middleware de auditoría de acciones sensibles (OWASP Top 10 2025, A09).
 
-`auditar` registra la acción sensible (p. ej. `crear_pedido`) sobre el
-endpoint que la ejecuta y persiste el evento via el caso de uso inyectado
-(`AUDITORIA_SERVICE`). El guard de uso real vive en las rutas; acá se
-blindan el mecanismo de registro y la persistencia para que una acción
-sensible no pueda dejarse fuera por omisión.
-"""
 
 from unittest.mock import Mock
 
@@ -33,9 +26,6 @@ def test_auditar_devuelve_un_wrapper_que_ejecuta():
     assert decorada() == "ok"
 
 
-# ---------------------------------------------------------------------------
-# Endpoints de acciones sensibles quedan registrados para auditoria (A09)
-# ---------------------------------------------------------------------------
 
 
 def test_acciones_de_pedido_registradas_para_auditoria():
@@ -59,7 +49,6 @@ def test_acciones_de_gestion_de_usuarios_registradas_para_auditoria():
 
 
 def test_endpoint_de_cambio_de_rol_registra_en_el_servicio_de_auditoria(app, client):
-    """La accion auditada persiste via `AUDITORIA_SERVICE` (mock, sin BD)."""
     app.config["AUDITORIA_SERVICE"] = Mock()
     app.config["USUARIOS_SERVICE"] = Mock()
     app.config["USUARIOS_SERVICE"].cambiar_rol.return_value = {

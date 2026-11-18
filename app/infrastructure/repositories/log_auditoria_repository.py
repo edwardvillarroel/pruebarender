@@ -4,12 +4,10 @@ from app.infrastructure.database.models.log_auditoria_model import LogAuditoriaM
 
 
 class LogAuditoriaRepository:
-    """Repositorio BD de eventos de auditoria (RNF-06)."""
 
     model = LogAuditoriaModel
 
     def add(self, log: LogAuditoria) -> LogAuditoria:
-        """INSERT del evento de auditoria."""
         db.session.add(
             LogAuditoriaModel(
                 id=log.id,

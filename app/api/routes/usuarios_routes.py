@@ -16,7 +16,6 @@ usuarios_bp = Blueprint("usuarios", __name__)
 
 
 def _servicio() -> GestionarUsuarios:
-    """Caso de uso inyectado desde `create_app` (la ruta no importa infraestructura)."""
     return current_app.config["USUARIOS_SERVICE"]
 
 
@@ -25,7 +24,6 @@ def _cuerpo() -> dict:
 
 
 def _error(exc: Exception, status: int):
-    """Formato de error acordado con el frontend: `{ mensaje }`."""
     return jsonify(mensaje=str(exc)), status
 
 
@@ -33,11 +31,7 @@ def _error(exc: Exception, status: int):
 @requiere_sesion()
 @rol_requerido("admin")
 def listar_usuarios():
-    """Usuarios vivos con sus metricas de compras y cotizaciones (solo admin).
 
-    Devuelve `{usuarios: [...]}` para que el frontend distinga el listado
-    vacio de un error.
-    """
     return jsonify(usuarios=_servicio().listar())
 
 
@@ -46,11 +40,7 @@ def listar_usuarios():
 @rol_requerido("admin")
 @auditar("crear_usuario")
 def crear_usuario():
-    """Alta de usuario desde el panel (solo admin).
 
-    Body: `{nombre, apellido, email, password, rol}`. La contrasena se guarda
-    hasheada con bcrypt (mismo formato que el gateway) y el correo es unico.
-    """
     try:
         usuario = _servicio().crear(_cuerpo(), usuario_actual())
     except DatosUsuarioInvalidos as exc:
@@ -65,7 +55,6 @@ def crear_usuario():
 @rol_requerido("admin")
 @auditar("cambiar_rol")
 def cambiar_rol(usuario_id: UUID):
-    """Otorga o quita permisos (admin <-> cliente) sin dejar el sistema sin admin."""
     try:
         usuario = _servicio().cambiar_rol(
             usuario_id, _cuerpo().get("rol"), usuario_actual()
@@ -84,11 +73,7 @@ def cambiar_rol(usuario_id: UUID):
 @rol_requerido("admin")
 @auditar("cambiar_estado_usuario")
 def cambiar_estado(usuario_id: UUID):
-    """Bloquea (`{activo: false}`) o desbloquea (`{activo: true}`) una cuenta.
 
-    El bloqueo es reversible y no borra datos; el gateway rechaza el login de
-    las cuentas inactivas.
-    """
     try:
         usuario = _servicio().cambiar_estado(
             usuario_id, _cuerpo().get("activo"), usuario_actual()
@@ -107,11 +92,7 @@ def cambiar_estado(usuario_id: UUID):
 @rol_requerido("admin")
 @auditar("eliminar_usuario")
 def eliminar_usuario(usuario_id: UUID):
-    """Eliminacion logica (soft delete) de una cuenta.
 
-    La fila se conserva porque pedidos y cotizaciones la referencian; se marca
-    `eliminado_en` y se desactiva el acceso.
-    """
     try:
         _servicio().eliminar(usuario_id, usuario_actual())
     except UsuarioNoEncontrado as exc:

@@ -1,6 +1,5 @@
 import { useLayoutEffect } from 'react';
 
-/** Bloquea el scroll del fondo mientras el modal esta montado (mismo patron que LoginModal). */
 export function useBloqueoScroll() {
   useLayoutEffect(() => {
     const scrollY = window.scrollY;

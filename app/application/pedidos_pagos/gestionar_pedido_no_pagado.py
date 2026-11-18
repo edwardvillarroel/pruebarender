@@ -75,9 +75,6 @@ class GestionarPedidoNoPagado:
 
         datos = _datos_cliente(pedido)
         referencia = codificar_referencia(pedido.id)
-        # El total releido de la base viene como Decimal (la columna es
-        # numeric(10,2) en Postgres): el contrato de la pasarela pide int y
-        # un Decimal ni serializa a JSON ni firma igual que un entero.
         monto = int(pedido.total)
         solicitud = SolicitudPago(
             monto=monto,
@@ -138,11 +135,7 @@ class GestionarPedidoNoPagado:
             raise PedidoNoModificableError("El pedido ya tiene un pago confirmado")
 
     def _liberar_cupon(self, pedido: Pedido, usuario_id: UUID) -> None:
-        """Devuelve el cupÃ³n si el pago nunca se completÃ³.
 
-        Es best-effort: el pedido ya se eliminÃ³ y un cupÃ³n quemado no puede
-        hacer fallar la operaciÃ³n que pidiÃ³ el cliente.
-        """
         if not pedido.cupon_codigo or self._cupones is None:
             return
         try:

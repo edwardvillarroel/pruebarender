@@ -36,9 +36,6 @@ export function useMasVendidos(periodo, limite = 10, activo = true) {
       .then((res) => {
         if (!vigente) return;
         const prods = res.productos ?? [];
-        // `semana` solo viene con `periodo=semana`: dice si el backend mostro
-        // la semana actual, la anterior o el historico (regla de los 4
-        // productos distintos vendidos por semana).
         const meta = res.semana ?? null;
         cache.set(key, { productos: prods, semana: meta });
         setProductos(prods);

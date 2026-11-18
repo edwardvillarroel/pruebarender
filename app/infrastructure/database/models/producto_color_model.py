@@ -1,8 +1,4 @@
-"""Modelo ORM de los colores de un producto (tabla `producto_colores`).
 
-Cada fila es una variante de color con su propia imagen. Los bytes viven en la
-tabla (BLOB) y no en `productos`, para poder servir cada foto por separado.
-"""
 
 import uuid
 from datetime import datetime
@@ -23,8 +19,6 @@ class ProductoColorModel(db.Model):
     nombre = db.Column(db.String(50), nullable=False)
     imagen_bytes = deferred(db.Column(LargeBinary))
     imagen_content_type = db.Column(db.String(50))
-    # Thumbnail generado perezosamente desde `imagen_bytes`; la foto original se
-    # conserva intacta para la vista de detalle.
     imagen_thumb_bytes = deferred(db.Column(LargeBinary))
     imagen_thumb_content_type = db.Column(db.String(50))
     orden = db.Column(db.Integer, nullable=False, default=0)

@@ -1,4 +1,3 @@
-"""Adaptador de correo del backend sobre el cliente compartido de Resend."""
 
 from __future__ import annotations
 
@@ -200,7 +199,6 @@ def _cotizacion_correo(
 def _parametros_comprobante(
     pedido: Pedido, cliente_email: str, estado_pago: str
 ) -> dict[str, str]:
-    """Campos históricos que se imprimen en modo simulación."""
     items = "\n".join(
         f"{item.cantidad}x {item.nombre}: {formatear_pesos(item.subtotal)}"
         for item in _items_correo(pedido)
@@ -233,7 +231,6 @@ def _parametros_comprobante(
 
 
 class ResendCorreo(ServicioCorreo):
-    """Implementación de `ServicioCorreo` con Resend y modo simulación."""
 
     def __init__(self, config: Any) -> None:
         self._cliente = ClienteCorreo(config)

@@ -75,23 +75,15 @@ class ProductoRepository(ProductoRepositoryInterface):
     def listar_mas_vendidos(
         self, desde: datetime | None, limite: int
     ) -> list[ProductoVendido]:
-        """Ranking desde `desde` (None = historico completo)."""
         return self._listar_mas_vendidos(desde, None, limite)
 
     def listar_mas_vendidos_en_ventana(
         self, desde: datetime, hasta: datetime, limite: int
     ) -> list[ProductoVendido]:
-        """Ranking dentro de la ventana `[desde, hasta)`."""
         return self._listar_mas_vendidos(desde, hasta, limite)
 
     def contar_productos_distintos(self, desde: datetime, hasta: datetime) -> int:
-        """Cantidad de productos distintos vendidos en `[desde, hasta)`.
 
-        Cuenta productos, no unidades (un producto con 10 unidades suma 1) y
-        solo mira pagos completados, igual que el ranking. No filtra por
-        `activo`: la condicion de negocio habla de lo que se vendio, aunque el
-        producto se haya dado de baja despues.
-        """
         pago_completado = (
             select(literal(1))
             .select_from(PagoModel)
@@ -110,21 +102,9 @@ class ProductoRepository(ProductoRepositoryInterface):
     def _listar_mas_vendidos(
         self, desde: datetime | None, hasta: datetime | None, limite: int
     ) -> list[ProductoVendido]:
-        """Ranking de productos por unidades vendidas.
 
-        "Vendido" es lo que tiene un pago completado: es el mismo criterio con
-        el que se descuenta el stock, asi que el ranking no puede contar pedidos
-        que nunca se pagaron.
 
-        El filtro de pago va como `EXISTS` y no como `JOIN` a propósito: un
-        pedido puede tener varias filas en `pagos` (autorizado y luego
-        completado, o reintentos) y un `JOIN` multiplicaria las lineas de
-        `detalle_pedidos`, inflando el `SUM` de unidades.
 
-        La ventana `desde`/`hasta` se aplica sobre `pagos.creado_en` (cuando se
-        cobro), no sobre `pedidos.creado_en` (cuando se pidio): lo que se quiere
-        es "vendido en los ultimos N dias" o "vendido en tal semana".
-        """
         pago_completado = (
             select(literal(1))
             .select_from(PagoModel)
@@ -136,9 +116,6 @@ class ProductoRepository(ProductoRepositoryInterface):
         if hasta is not None:
             pago_completado = pago_completado.where(PagoModel.creado_en < hasta)
 
-        # `precio_unitario` es `numeric(10,2)` en la base (el modelo lo declara
-        # como Integer), asi que la suma vuelve como `Decimal`: sin el cast
-        # los ingresos no serializan a JSON.
         agregacion = db.session.execute(
             select(
                 DetallePedidoModel.producto_id,
@@ -173,8 +150,6 @@ class ProductoRepository(ProductoRepositoryInterface):
         ).all()
         por_id = {f[0].id: f for f in filas}
 
-        # El orden del ranking lo fija la agregacion, no el `SELECT` de los
-        # productos: se recorre en ese orden y se saltea lo que no exista.
         resultado: list[ProductoVendido] = []
         for producto_id, (unidades, ingresos) in metricas.items():
             fila = por_id.get(producto_id)
@@ -562,7 +537,6 @@ def _a_entidad(
         descuento=modelo.descuento,
         badge=modelo.badge,
         precio_original=modelo.precio_original,
-        # `numeric` vuelve como `Decimal`; la entity promete `float | None`.
         rating=float(modelo.rating) if modelo.rating is not None else None,
         resenas_count=modelo.resenas_count or 0,
         material=modelo.material,

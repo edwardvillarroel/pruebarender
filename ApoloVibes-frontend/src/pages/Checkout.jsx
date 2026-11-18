@@ -190,7 +190,6 @@ export default function Checkout() {
     if (!debeBloquearSalida) {
       bypassRef.current = false
       if (window.__checkoutBlocking === false) {
-        // ensure clean
       }
       return
     }
@@ -275,7 +274,6 @@ export default function Checkout() {
             return
           }
           if (typeof destino === 'string') {
-            // Si viene con hash
             if (destino.includes('#')) {
               const hash = destino.split('#')[1]
               if (hash) {
@@ -318,7 +316,6 @@ export default function Checkout() {
   const total = esCotizacion ? precioCotizacion : (Number(totalCarrito) || 0)
   const cuponEfectivo = esCotizacion ? null : cupon
 
-  //AGREGAR IMAGENES !!!!
   if (!user) { return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>Inicia sesión para continuar</p></section> }
   if (esCotizacion && cargandoCotizacion) {
     return <section className="wrap" style={{ paddingTop: 80, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p style={{ color: 'var(--text-dim)' }}>Cargando cotización...</p></section>
@@ -340,7 +337,6 @@ export default function Checkout() {
   }
   const emailDeCuenta = !!(user?.email ?? user?.correo)
 
-  // validaciones
   const errores = calcularErrores(cliente, fechaNacimiento, aceptaTerminos)
   const edad = edadDesde(fechaNacimiento)
   const esMayor = esMayorDeEdad(edad)
@@ -354,7 +350,6 @@ export default function Checkout() {
   const datosPersonalesCompletos = direccionCompleta && sinErrores(['tipoDocumento', 'tipoIdentificacion', 'rut', 'razonSocial', 'giro', 'fechaNacimiento', 'aceptaTerminos'])
   const entregaSeleccionada = datosPersonalesCompletos && entrega !== null
 
-  //totales
   const envioGratis = Number(total) >= ENVIO_GRATIS_DESDE
 
   const montoDescuento = Array.isArray(items)
@@ -397,7 +392,6 @@ export default function Checkout() {
   const montoNeto = Math.round(totalFinal / 1.19)
   const montoIva = totalFinal - montoNeto
 
-  //handles
   function actualizar(campo, valor) {
     setCliente(prev => ({ ...prev, [campo]: valor }))
   }
@@ -429,7 +423,6 @@ export default function Checkout() {
     setTocado(prev => ({ ...prev, rut: false }))
   }
 
-  //prop
   function campo(nombre, normalizar) {
     const hayError = !!errorDe(nombre)
     return {
@@ -488,7 +481,6 @@ export default function Checkout() {
 
       <div className="checkout-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: 48 }}>
         <form className="checkout-form" noValidate onSubmit={pagar}>
-          {/* Paso 1: Contacto */}
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginBottom: 16, color: 'var(--surface)' }}>Contacto</h2>
           <Campo
             id="email"
@@ -510,7 +502,6 @@ export default function Checkout() {
 
           <div className="separador-suave" style={{ marginBottom: 24 }} />
 
-          {/* Paso 2: Dirección — bloqueado hasta que el contacto sea válido */}
           <fieldset
             disabled={!contactoCompleto}
             style={{ ...sinBorde, opacity: contactoCompleto ? 1 : 0.4 }}
@@ -672,7 +663,6 @@ export default function Checkout() {
 
           <div className="separador-suave" style={{ marginBottom: 24 }} />
 
-          {/* Paso 3: Datos personales — bloqueado hasta completar la dirección */}
           <fieldset
             disabled={!direccionCompleta}
             style={{ ...sinBorde, opacity: direccionCompleta ? 1 : 0.4 }}
@@ -794,7 +784,6 @@ export default function Checkout() {
           </fieldset>
 
           <div className="separador-suave" style={{ marginBottom: 24 }} />
-          {/* Paso 4: Opciones de entrega — bloqueado hasta completar datos personales */}
           <fieldset
             disabled={!datosPersonalesCompletos}
             style={{ ...sinBorde, opacity: datosPersonalesCompletos ? 1 : 0.4 }}

@@ -1,13 +1,4 @@
-"""Pruebas del thumbnail del catálogo.
 
-Fijan las cuatro reglas que sostienen el diseño:
-1. Si el thumbnail ya está cacheado, se devuelve sin volver a generar.
-2. Si no existe, se genera desde la original y se guarda.
-3. Si no se puede generar, se devuelve `None` para que la ruta sirva la
-   imagen original en vez de dejar la tarjeta rota.
-4. Al guardar una foto, su thumbnail se genera en el acto y no espera al
-   primer `GET /thumb`.
-"""
 
 from unittest.mock import Mock
 from uuid import uuid4
@@ -51,8 +42,6 @@ def test_si_el_thumbnail_ya_esta_cacheado_no_regenera_ni_guarda():
     resultado = servicio.obtener_thumb(uuid4())
 
     assert resultado is cacheado
-    # Regenerar en cada request seria el bug completo: 2,4 MB de Pillow por
-    # visita al catálogo.
     generador.assert_not_called()
     repositorio.guardar_thumb.assert_not_called()
     repositorio.get_imagen_by_id.assert_not_called()
@@ -84,12 +73,10 @@ def test_producto_sin_foto_no_intenta_generar_nada():
 
 
 def test_foto_demasiado_chica_o_ilegible_no_rompe_la_tarjeta():
-    # El generador devuelve None cuando la foto ya cabe o no se puede decodificar.
     servicio, repositorio = _servicio(generador=Mock(return_value=None))
 
     assert servicio.obtener_thumb(uuid4()) is None
     assert servicio.obtener_thumb_color(uuid4()) is None
-    # No se guarda un thumbnail vacio: quedaria cacheado como "ya existe".
     repositorio.guardar_thumb.assert_not_called()
     repositorio.guardar_color_thumb.assert_not_called()
 
@@ -116,12 +103,6 @@ def test_thumb_de_color_ya_cacheado_no_regenera():
     generador.assert_not_called()
 
 
-# --- Thumbnail generado al guardar la foto (no perezoso) ---------------------
-#
-# La generación perezosa hacía que el primer `GET /thumb` que llegara pagara el
-# trabajo de Pillow dentro de la respuesta. Con la foto ya en memoria al guardar
-# no hay excusa: el thumbnail sale en el mismo alta y el catálogo ya lista con
-# su `imagen_thumb`.
 
 
 def _repositorio_para_guardar(color=None) -> Mock:
@@ -143,7 +124,6 @@ def test_guardar_imagen_genera_y_persiste_el_thumbnail():
 
     servicio.guardar_imagen(producto_id, ORIGINAL)
 
-    # Se genera desde la foto que se acaba de guardar, no desde una lectura.
     generador.assert_called_once_with(ORIGINAL.bytes, ORIGINAL.content_type)
     repositorio.guardar_thumb.assert_called_once()
     guardado = repositorio.guardar_thumb.call_args[0][1]
@@ -151,7 +131,6 @@ def test_guardar_imagen_genera_y_persiste_el_thumbnail():
 
 
 def test_el_thumbnail_se_guarda_para_el_producto_que_se_actualizo():
-    # El id del thumbnail tiene que ser el del producto, no el de la foto.
     repositorio = _repositorio_para_guardar()
     servicio = GestionarProducto(repositorio, generador_thumb=Mock(return_value=THUMB))
     producto_id = uuid4()
@@ -168,7 +147,6 @@ def test_guardar_imagen_sin_generador_no_rompe():
     servicio.guardar_imagen(uuid4(), ORIGINAL)
 
     repositorio.guardar_imagen.assert_called_once()
-    # Sin Pillow no hay thumbnail, pero la foto se guarda igual.
     repositorio.guardar_thumb.assert_not_called()
 
 
@@ -180,8 +158,6 @@ def test_guardar_imagen_con_generador_que_devuelve_none_no_guarda_thumb():
 
     servicio.guardar_imagen(uuid4(), ORIGINAL)
 
-    # Guardar un thumbnail vacio lo cachearia como "ya existe" y quedaria
-    #cacheado para siempre: mejor no guardar nada y que la ruta sirva la original.
     repositorio.guardar_thumb.assert_not_called()
 
 
@@ -204,7 +180,6 @@ def test_guardar_color_sin_generador_no_rompe():
 
     servicio.guardar_color(uuid4(), "Negro", ORIGINAL)
 
-    # Sin Pillow no hay thumbnail, pero el color se guarda igual.
     repositorio.guardar_color.assert_called_once()
     assert repositorio.guardar_color.call_args[0][1] == "Negro"
     repositorio.guardar_color_thumb.assert_not_called()

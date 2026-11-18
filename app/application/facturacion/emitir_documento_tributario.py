@@ -1,13 +1,5 @@
-"""Emisión del documento electrónico (boleta o factura) de un pedido.
 
-Es el caso de uso que conoce el ciclo de vida del documento: reserva la fila,
-llama al proveedor con una clave de idempotencia determinista, guarda el folio
-y el PDF, y sabe recuperar un documento que el proveedor ya había emitido.
 
-La emisión NUNCA debe romper el pago: si el proveedor falla, el error queda
-registrado en la fila del documento y el pago sigue su curso. Por eso el
-llamador (`ProcesarPago`) captura la excepción.
-"""
 
 from __future__ import annotations
 
@@ -115,7 +107,6 @@ class EmitirDocumentoTributario(ServicioDocumentacionTributaria):
             emitido = self._emisor.emitir(solicitud)
         except ErrorEmisionTributaria as exc:
             if exc.ya_emitido and exc.token:
-                # El proveedor ya lo había emitido: se recupera en vez de fallar.
                 logger.info(
                     "El documento del pedido %s ya estaba emitido; se recupera el token %s",
                     pedido_id,
@@ -153,7 +144,6 @@ class EmitirDocumentoTributario(ServicioDocumentacionTributaria):
         return documento
 
     def _recuperar(self, token: str, monto_total: int) -> DocumentoEmitido:
-        """Reconstruye el documento emitido a partir de su token."""
         consultado = self._emisor.consultar_documento(token)
         neto, iva = calcular_montos(monto_total)
         return DocumentoEmitido(
@@ -168,7 +158,6 @@ class EmitirDocumentoTributario(ServicioDocumentacionTributaria):
 
 
 def _datos_faltantes(datos) -> list[str]:
-    """Datos que el SII exige y que no llegaron."""
     if datos.tipo is not TipoDocumentoTributario.FACTURA:
         return []
     faltantes = []
@@ -184,7 +173,6 @@ def _datos_faltantes(datos) -> list[str]:
 
 
 def _cliente_de(pedido: Pedido) -> dict:
-    """El JSON con los datos del cliente que guardó el checkout."""
     if not pedido.direccion_envio:
         return {}
     try:
@@ -195,11 +183,7 @@ def _cliente_de(pedido: Pedido) -> dict:
 
 
 def _lineas_del_pedido(pedido: Pedido) -> list[LineaDocumento]:
-    """Líneas del documento: los productos del pedido y, si corresponde, el envío.
 
-    Las líneas tienen que sumar el total cobrado, así que el costo de envío
-    va como una línea más cuando se cobra.
-    """
     lineas = [
         LineaDocumento(
             nombre=detalle.nombre or "Producto",

@@ -1,20 +1,6 @@
-"""Harnes de caracterizacion (R0) contra la base real.
 
-Estos tests congelan el comportamiento que la migracion a PostgreSQL no puede
-cambiar. Corren identicos contra Oracle y Supabase: el motor se elige con
-`TEST_DB_BACKEND` y la `TestingConfig` resuelve la DSN.
 
-Por que NO se usa SQLite: el punto de la caracterizacion es comparar motores.
-Un test que pasa en SQLite no dice nada sobre si el `NULLS NOT DISTINCT` de
-PostgreSQL se comporta como el unico de Oracle, ni sobre `timestamptz`.
 
-Aislamiento
------------
-Cada test crea filas con un centinela unico (`r0-<uuid>`) y las borra al
-terminar. Un `session` de sesion toma un conteo de las tablas que se tocan y el
-teardown final falla si el numero no volvio al inicial. Si un test deja basura,
-la suite se da cuenta en lugar de contaminar la base silenciosamente.
-"""
 
 from __future__ import annotations
 
@@ -51,14 +37,7 @@ TABLAS_SENSIBLES = (
 
 @pytest.fixture(scope="session")
 def app():
-    """App contra la base de tests.
 
-    Si la base no esta disponible o falta el esquema, esto FALLA, no se saltea.
-    Una suite que se salta entera sin decir nada reporta verde con cero
-    cobertura, que es peor que un rojo: es la forma tipica de dar por buena una
-    migracion que no se probo. Para correr sin base (por ejemplo en un lint)
-    hay que pedirlo explicitamente con `R0_PERMITIR_SIN_BASE=1`.
-    """
     try:
         aplicacion = create_app(TestingConfig)
         with aplicacion.app_context():
@@ -88,14 +67,7 @@ def app():
 
 @pytest.fixture
 def client(app):
-    """Cliente HTTP que simula la firma del gateway (OWASP A01).
 
-    El backend es fail-closed: toda request autenticada debe traer
-    `X-Internal-Secret`. Los tests de integracion ejercitan la API interna con
-    `X-User-Id`/`X-User-Rol` inyectados; el unico emisor legitimo de esas
-    cabeceras es el gateway, asi que el cliente agrega el secreto compartido
-    de testing en cada request.
-    """
     cliente = app.test_client()
     abrir_original = cliente.open
 
@@ -178,10 +150,6 @@ def _verificar_sin_residuos() -> None:
 
 _CONTEO_INICIAL: dict[str, int] | None = None
 
-# Marca de todas las filas que crea la suite. La limpieza es centralizada y en
-# orden de FK, en vez de por fixture: los tests crean usuarios y carritos
-# auxiliar en el camino, y un teardown por fixture se olvidaba de ellos y
-# reventaba con violaciones de clave foranea.
 _LIMPIEZA = [
     ("carrito_items", "carrito_id IN (SELECT id FROM carrito WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
@@ -192,30 +160,17 @@ _LIMPIEZA = [
     ("ventas_local", "sesion_id IN (SELECT id FROM sesiones_venta WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
     ("sesiones_venta", "usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test')"),
-    # Antes que `pedidos` y `usuarios`: `resenas` es FK de ambas, asi que
-    # borrar el pedido (o el usuario) con la reseña viva viola la FK.
     ("resenas", "pedido_id IN (SELECT id FROM pedidos WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
-    # Antes que `pedidos`: `pagos.pedido_id` es FK a `pedidos`, asi que borrar
-    # el pedido con el pago vivo viola la FK. Los tests de `/pago/crear` son los
-    # primeros que dejan filas en `pagos`.
     ("pagos", "pedido_id IN (SELECT id FROM pedidos WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
     ("detalle_pedidos", "pedido_id IN (SELECT id FROM pedidos WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
-    # Antes que `pedidos`: `documentos_tributarios.pedido_id` es FK a
-    # `pedidos`, asi que borrar el pedido con el documento vivo viola la FK.
     ("documentos_tributarios", "pedido_id IN (SELECT id FROM pedidos WHERE usuario_id IN "
      "(SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test'))"),
     ("pedidos", "usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test')"),
-    # Antes que `usuarios`: `logs_auditoria.usuario_id` es FK a `usuarios`
-    # (auditoria del hardening). Borrar el usuario con logs vivos viola
-    # fk_log_usuario, el DELETE falla y —al ser todo un unico commit— la
-    # limpieza entera se revierte y contamina la suite completa.
     ("logs_auditoria", "usuario_id IN (SELECT id FROM usuarios WHERE email LIKE '%@caracterizacion.test')"),
     ("usuarios", "email LIKE '%@caracterizacion.test'"),
-    # Va antes de `productos`: `producto_colores.producto_id` es FK a
-    # `productos`, asi que borrar el producto con colores vivos viola la FK.
     ("producto_colores", "producto_id IN (SELECT id FROM productos WHERE nombre LIKE 'r0-%')"),
     ("productos", "nombre LIKE 'r0-%'"),
     ("categorias", "nombre LIKE 'r0-%'"),
@@ -232,7 +187,6 @@ def _limpiar_filas_r0() -> None:
 
 @pytest.fixture(autouse=True)
 def _limpiar_tras_cada_test(app):
-    """Guaranteiza que ningun test deje filas propias en la base."""
     yield
     with app.app_context():
         db.session.rollback()
@@ -241,7 +195,6 @@ def _limpiar_tras_cada_test(app):
 
 @pytest.fixture
 def db_sesion(app):
-    """Sesion de BD dentro de contexto de app, limpia al final."""
     with app.app_context():
         yield db.session
         db.session.rollback()
@@ -250,14 +203,11 @@ def db_sesion(app):
 
 @pytest.fixture
 def centinela() -> str:
-    """Marca unica por test, para identificar y borrar filas propias."""
     return "r0-" + uuid.uuid4().hex[:12]
 
 
 @pytest.fixture
 def usuario(db_sesion, centinela):
-    # `apellido` es obligatorio para rol cliente: lo exige el CHECK
-    # ck_usuarios_apellido del esquema.
     u = UsuarioModel(
         email=f"{centinela}@caracterizacion.test",
         password_hash="r0-no-se-usa",

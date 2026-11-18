@@ -232,7 +232,6 @@ function DetalleModal({ pedido, onClose, onPagar, procesando, onCancelado, onMen
           .modal-scroll { scrollbar-gutter: stable; }
         `}</style>
 
-          {/* Header */}
           <div style={{
             flexShrink: 0,
             display: 'flex', flexDirection: 'column',
@@ -321,7 +320,6 @@ function DetalleModal({ pedido, onClose, onPagar, procesando, onCancelado, onMen
                 </div>
               </div>
 
-              {/* Productos */}
               <div style={{ borderTop: `1px solid ${LINEA}` }}>
                 {itemsPedido.map((item, i) => (
                   <div
@@ -366,7 +364,6 @@ function DetalleModal({ pedido, onClose, onPagar, procesando, onCancelado, onMen
                 ))}
               </div>
 
-              {/* Totales */}
               <div style={{ padding: '14px 0 18px' }}>
                 {descuentoCupon > 0 && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#22c55e', marginBottom: 6 }}>
@@ -394,7 +391,6 @@ function DetalleModal({ pedido, onClose, onPagar, procesando, onCancelado, onMen
                 </div>
               </div>
 
-              {/* Datos del cliente */}
               {datos.length > 0 && (
                 <div style={{ background: FONDO_TARJETA, borderRadius: 12, padding: 14, marginBottom: 18 }}>
                   <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: COLOR_APAGADO }}>
@@ -408,7 +404,6 @@ function DetalleModal({ pedido, onClose, onPagar, procesando, onCancelado, onMen
                 </div>
               )}
 
-              {/* Cancelación del pedido por el cliente */}
               {puedeCancelar && (
                 <div style={{
                   background: 'rgba(250,127,25,.14)', border: '1px solid rgba(250,127,25,.4)',
@@ -442,7 +437,6 @@ function DetalleModal({ pedido, onClose, onPagar, procesando, onCancelado, onMen
             </div>
           </div>
 
-          {/* Footer fijo con acciones */}
           <div style={{
             flexShrink: 0,
             display: 'flex', gap: 10,

@@ -1,20 +1,11 @@
-"""Purga manual de cotizaciones vencidas (retención 12 meses, A.8.10).
 
-Equivalente en local al cron semanal `POST /api/admin/cotizaciones/purgar`:
-borra filas sin pedido mayores al plazo, sus archivos y los huérfanos de
-`uploads/cotizaciones/`.
 
-Uso (desde la raíz del repo):
-    .venv\\Scripts\\python.exe scripts/purgar_cotizaciones.py --dry-run
-    .venv\\Scripts\\python.exe scripts/purgar_cotizaciones.py --edad-dias 365
-"""
 from __future__ import annotations
 
 import argparse
 import sys
 from pathlib import Path
 
-# Permite ejecutar el script desde cualquier carpeta.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app import create_app  # noqa: E402

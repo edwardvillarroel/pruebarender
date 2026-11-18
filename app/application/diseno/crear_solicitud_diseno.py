@@ -42,8 +42,6 @@ IA_ORIGEN_SERVER = "cotizador-apolovibes-v2"
 IA_ORIGEN_CLIENTE = "cotizador-apolovibes-v2-front"
 IA_ORIGEN_PENDIENTE = "cotizador-pendiente"
 
-# Control de frecuencia del cotizador (por proceso).
-# Si se usan varios workers, este control debe moverse a Redis o a una cola de tareas.
 INTERVALO_COTIZADOR_SEGUNDOS = 65
 _LOCK_COTIZADOR = threading.Lock()
 _ULTIMO_LLAMADO = 0.0
@@ -57,9 +55,6 @@ class CrearSolicitudDiseno:
         self.guardar_imagen = guardar_imagen
         self.cotizador_ia = cotizador_ia
 
-    # ------------------------------------------------------------------
-    # Caso de uso principal
-    # ------------------------------------------------------------------
     def ejecutar(self, usuario_id: UUID, datos: dict, imagen) -> SolicitudDiseno:
         datos = self._normalizar_datos(datos)
 
@@ -108,7 +103,6 @@ class CrearSolicitudDiseno:
             raise ValueError("Falta la imagen de referencia.")
         contenido, extension = validar_imagen_segura(imagen)
 
-        # La imagen aún NO se guarda en disco: primero se valida todo lo demás.
         solicitud = SolicitudDiseno(
             usuario_id=usuario_id, nombre=nombre, email=email, telefono=telefono,
             material=material, descripcion=descripcion, alto=alto, ancho=ancho,
@@ -117,18 +111,15 @@ class CrearSolicitudDiseno:
             estado=EstadoSolicitud.PENDIENTE,
         )
 
-        # 1) Se verifica el token. Solo un token VÁLIDO exime del límite por cuenta.
         estimacion_firmada = None
         try:
             estimacion_firmada = self._aplicar_estimacion_firmada(datos, solicitud, contenido, usuario_id)
         except Exception:
             logger.exception("Error al verificar el token de estimación")
 
-        # 2) Sin token válido se aplica el límite, antes de tocar disco o cotizador.
         if estimacion_firmada is None:
             self._verificar_limite_cuenta(usuario_id)
 
-        # 3) Estimación
         try:
             if estimacion_firmada is not None:
                 self._aplicar_resultado(solicitud, estimacion_firmada)
@@ -156,7 +147,6 @@ class CrearSolicitudDiseno:
             solicitud.ia_origen = self._marcador_error(exc)
             logger.exception("No se pudo estimar la cotización con el cotizador IA (%s)", solicitud.ia_origen)
 
-        # 4) Recién ahora se guarda la imagen; si falla la persistencia, se limpia.
         ruta_imagen = None
         if self.guardar_imagen is not None:
             ruta_imagen = self.guardar_imagen(contenido, f".{extension}", Config.UPLOAD_FOLDER)
@@ -197,9 +187,6 @@ class CrearSolicitudDiseno:
             ),
         }
 
-    # ------------------------------------------------------------------
-    # Normalización y validaciones
-    # ------------------------------------------------------------------
     @staticmethod
     def _normalizar_datos(datos: dict) -> dict:
         datos = dict(datos or {})
@@ -244,9 +231,6 @@ class CrearSolicitudDiseno:
             raise ValueError(f"El valor de {campo} no puede superar {MAX_DIMENSION}.")
         return d
 
-    # ------------------------------------------------------------------
-    # Límite por cuenta
-    # ------------------------------------------------------------------
     def _verificar_limite_cuenta(self, usuario_id: UUID) -> None:
         from datetime import timezone
         ahora = utcnow()
@@ -280,12 +264,7 @@ class CrearSolicitudDiseno:
         if c_1hora >= LIMITE_POR_HORA:
             raise ValueError(f"Llegaste al límite de {LIMITE_POR_HORA} cotizaciones por hora.")
 
-    # ------------------------------------------------------------------
-    # Cotizador
-    # ------------------------------------------------------------------
     def _estimar_con_cola(self, contenido, extension, alto, ancho, largo, unidad, cantidad, uso, material, color) -> dict:
-        """Llamado no bloqueante: si el cotizador está ocupado o dentro del
-        intervalo mínimo, lanza CotizadorOcupado en lugar de dormir la petición."""
         global _ULTIMO_LLAMADO
         if not _LOCK_COTIZADOR.acquire(blocking=False):
             raise CotizadorOcupado()
@@ -360,9 +339,6 @@ class CrearSolicitudDiseno:
         solicitud.confianza_complejidad_ia = self._to_decimal(
             pn(res, "confianza_complejidad_ia", "confianza_complejidad"))
 
-    # ------------------------------------------------------------------
-    # Utilidades
-    # ------------------------------------------------------------------
     @staticmethod
     def _primero_no_nulo(res: dict, *claves: str):
         for clave in claves:

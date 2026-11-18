@@ -16,15 +16,7 @@ FOTO_NUEVA = ImagenProducto(bytes=b"n" * 9000, content_type="image/jpeg")
 
 
 class _FilaProducto:
-    """Fila de resultado que se lee por posición y por atributo.
 
-    `get_by_id`/`list_activos` reciben la tupla
-    `(modelo, tiene_thumb, tiene_imagen)`, mientras que `get_thumb_by_id` lee
-    `fila.imagen_thumb_bytes`. Delegar en el modelo hace que las dos lecturas
-    reflejen el mismo estado, que es justo lo que necesita un test de
-    invalidación: tras borrar la foto hay que ver el thumbnail como `None` y no
-    como el valor viejo cacheado.
-    """
 
     def __init__(
         self,
@@ -34,8 +26,6 @@ class _FilaProducto:
     ):
         self.modelo = modelo
         self.tiene_thumb = tiene_thumb
-        # Sin valor explicito se deduce del modelo, igual que hace el SELECT con
-        # `imagen_bytes.isnot(None)`.
         self.tiene_imagen = (
             tiene_imagen
             if tiene_imagen is not None
@@ -74,12 +64,6 @@ def _preparar_sesion(monkeypatch, modelo: ProductoModel, color=None):
     session.get.side_effect = lambda _model, clave: filas.get(clave)
     session.delete.side_effect = lambda producto: filas.pop(producto.id)
 
-    # `get_by_id`/`list_activos` piden el modelo y, en el mismo SELECT, si ya
-    # existe el thumbnail (`imagen_thumb_bytes.isnot(None)`) y la foto
-    # (`imagen_bytes.isnot(None)`). El resultado de SQLAlchemy es una tupla
-    # `(modelo, tiene_thumb, tiene_imagen)`, no el modelo solo.
-    # `guardar_color` usa el mismo `execute` con `scalar_one_or_none()` (¿el
-    # color existe ya?) y `scalar_one()` (siguiente `orden`).
     resultado = Mock()
     resultado.first.return_value = _FilaProducto(modelo, False)
     resultado.all.return_value = [_FilaProducto(modelo, False)]
@@ -92,7 +76,6 @@ def _preparar_sesion(monkeypatch, modelo: ProductoModel, color=None):
 
 
 def _preparar_color(producto_id, thumb_cacheado: bytes = b"t" * 300) -> ProductoColorModel:
-    """Color de prueba con un thumbnail ya cacheado."""
     color = ProductoColorModel()
     color.id = uuid4()
     color.producto_id = producto_id
@@ -129,19 +112,6 @@ def test_eliminar_es_idempotente_para_producto_inactivo(monkeypatch):
     session.commit.assert_called_once_with()
 
 
-# --- Invalidación del thumbnail al reemplazar la foto -------------------------
-#
-# El thumbnail es un caché derivado del BLOB original. Si se reemplaza la foto y
-# el caché sobrevive, la tarjeta del catálogo sigue mostrando la foto anterior y
-# no hay ningún error visible: la imagen sale bien, solo que vieja. Por eso la
-# invalidación va dentro del propio `guardar_imagen`/`guardar_color` (es un
-# invariante de persistencia) y por eso tiene cobertura acá.
-#
-# Estas pruebas usan el repositorio real contra una sesión `Mock` en vez de una
-# BD: el paso que hay que verificar es que las columnas `imagen_thumb_*` queden
-# en `None` y que la escritura confirme. Un `UPDATE` sin `commit` no fallaría
-# contra una BD falsa que no transacciona, así que el `commit` se afirma
-# explícitamente en cada caso.
 
 
 def test_reemplazar_la_foto_borra_el_thumbnail_cacheado(monkeypatch):
@@ -156,14 +126,11 @@ def test_reemplazar_la_foto_borra_el_thumbnail_cacheado(monkeypatch):
 
     assert modelo.imagen_thumb_bytes is None
     assert modelo.imagen_thumb_content_type is None
-    # La original sí se reemplaza: el thumbnail se borra, la foto no.
     assert modelo.imagen_bytes == FOTO_NUEVA.bytes
     assert modelo.imagen_content_type == FOTO_NUEVA.content_type
 
 
 def test_reemplazar_la_foto_confirma_el_borrado_del_thumbnail(monkeypatch):
-    # Sin `commit` el `None` queda solo en la sesión y se pierde: es el bug que
-    # tenía el `invalidar_thumb` que se eliminó por código muerto.
     producto, modelo = _preparar_producto(activo=True)
     modelo.imagen_thumb_bytes = b"thumb-viejo"
     _, session = _preparar_sesion(monkeypatch, modelo)
@@ -174,12 +141,7 @@ def test_reemplazar_la_foto_confirma_el_borrado_del_thumbnail(monkeypatch):
 
 
 def test_tras_reemplazar_la_foto_el_thumbnail_se_regenera(monkeypatch):
-    """Comportamiento observable: la tarjeta deja de mostrar la foto vieja.
 
-    No alcanza con afirmar que la columna quedó en `None`: lo que importa es que
-    el caso de uso, al pedir el thumbnail de nuevo, no sirva el caché anterior
-    sino que lo regenere desde la foto nueva.
-    """
     producto, modelo = _preparar_producto(activo=True)
     modelo.imagen_bytes = b"vieja" * 1000
     modelo.imagen_content_type = "image/png"
@@ -212,8 +174,6 @@ def test_reemplazar_la_foto_de_un_color_borra_su_thumbnail(monkeypatch):
 
 
 def test_guardar_el_thumbnail_confirma_la_escritura(monkeypatch):
-    # Contraparte del borrado: escribir el caché también tiene que commitear, o
-    # se regeneraría en cada request (2,4 MB de Pillow por visita al catálogo).
     producto, modelo = _preparar_producto(activo=True)
     _, session = _preparar_sesion(monkeypatch, modelo)
 
@@ -224,22 +184,10 @@ def test_guardar_el_thumbnail_confirma_la_escritura(monkeypatch):
     session.commit.assert_called_once_with()
 
 
-# --- La foto es el BLOB, no la URL de `productos.imagen` ----------------------
-#
-# `guardar_imagen` escribe la URL en la columna de texto `imagen` la primera vez
-# y nunca la vuelve a validar. Si el BLOB se borra o nunca se guardo, la URL
-# sigue ahi y el repositorio reportaba un producto "con foto": la tarjeta pedia
-# una imagen que responde 404 y, peor, `listar_con_foto_de_color` lo excluia de
-# la busqueda, asi que las fotos de color del producto nunca se usaban.
-#
-# La foto real es `imagen_bytes`. El SELECT la consulta con `isnot(None)` en la
-# misma consulta (igual que el thumbnail) para no disparar un SELECT por
-# producto, que es el N+1 que este listado ya tuvo que arreglar.
 
 
 def test_listar_activos_no_reporta_foto_si_solo_queda_la_url(monkeypatch):
     producto, modelo = _preparar_producto(activo=True)
-    # URL persistida de una subida anterior, sin BLOB que la respalde.
     modelo.imagen = f"/api/productos/{producto.id}/imagen"
     _preparar_sesion(monkeypatch, modelo)
 
@@ -260,8 +208,6 @@ def test_listar_activos_expone_la_ruta_de_imagen_cuando_hay_blob(monkeypatch):
 
 
 def test_listar_activos_omite_el_thumbnail_sin_blob_de_thumb(monkeypatch):
-    # La foto y el thumbnail son caches distintos: tener foto no implica tener
-    # thumbnail cacheado, y por eso `imagen_thumb` sale en `None`.
     producto, modelo = _preparar_producto(activo=True)
     modelo.imagen_bytes = b"foto" * 1000
     _preparar_sesion(monkeypatch, modelo)
@@ -272,7 +218,6 @@ def test_listar_activos_omite_el_thumbnail_sin_blob_de_thumb(monkeypatch):
 
 
 def test_obtener_producto_tambien_ignora_la_url_sin_blob(monkeypatch):
-    # `get_by_id` alimenta el detalle: la URL rota se repetía ahí también.
     producto, modelo = _preparar_producto(activo=True)
     modelo.imagen = f"/api/productos/{producto.id}/imagen"
     _preparar_sesion(monkeypatch, modelo)
@@ -283,17 +228,6 @@ def test_obtener_producto_tambien_ignora_la_url_sin_blob(monkeypatch):
     assert resultado.imagen is None
 
 
-# --- Flag de nuevo lanzamiento -----------------------------------------------
-#
-# `nuevo_lanzamiento` decide si el producto sale en la seccion "Lanzamientos" de
-# la home. No es lo mismo que `activo` (que es el borrado logico): un producto
-# puede estar activo y no ser un lanzamiento.
-#
-# El punto delicate es el apagado: la etiqueta "Nuevo" se DERIVA en el mapper de
-# la API, no se persiste (ver `test_catalogo_routes.py`). Si alguna vez se
-# guardara, apagar el flag dejaria el "Nuevo" pegado en la fila para siempre,
-# porque el repositorio volveria a leer su propio valor derivado. Estos tests
-# fijan el flag como un campo booleano normal que hace round-trip.
 
 
 def test_el_flag_de_lanzamiento_llega_del_modelo_a_la_entidad(monkeypatch):
@@ -319,12 +253,7 @@ def test_el_flag_de_lanzamiento_se_persiste_al_actualizar(monkeypatch):
 
 
 def test_se_puede_apagar_el_flag_de_lanzamiento(monkeypatch):
-    """Apagar tiene que escribir `False`, no "no hacer nada".
 
-    Es la asercion que distingue `if dto.nuevo_lanzamiento` (truthy: el False
-    nunca se aplica y el producto queda marcado para siempre) de
-    `if dto.nuevo_lanzamiento is not None`.
-    """
     producto, modelo = _preparar_producto(activo=True)
     modelo.nuevo_lanzamiento = True
     _preparar_sesion(monkeypatch, modelo)
@@ -337,7 +266,6 @@ def test_se_puede_apagar_el_flag_de_lanzamiento(monkeypatch):
 
 
 def test_un_update_sin_el_flag_no_lo_toca(monkeypatch):
-    """PATCH parcial (p.ej. solo el stock) no puede apagar un lanzamiento."""
     producto, modelo = _preparar_producto(activo=True)
     modelo.nuevo_lanzamiento = True
     _preparar_sesion(monkeypatch, modelo)
@@ -363,17 +291,10 @@ def test_crear_honora_el_flag_de_lanzamiento(monkeypatch):
         )
     )
 
-# `crear` arma un modelo nuevo: el flag tiene que haber llegado al `add`.
     agregado = db.session.add.call_args[0][0]
     assert agregado.nuevo_lanzamiento is True
 
 
-# --- stock_minimo y aviso_stock_enviado ---------------------------------------
-#
-# `stock_minimo` es un umbral de persistencia: se vuelve a leer al cruzar la
-# frontera. `aviso_stock_enviado` se marca en el cruce del descuento (test de
-# integracion) y se limpia aca, en el update, cuando el stock repuesto queda por
-# encima del umbral: el aviso es por cruce, no acumulativo.
 
 
 def test_el_stock_minimo_llega_del_modelo_a_la_entidad(monkeypatch):
@@ -408,7 +329,6 @@ def test_el_stock_minimo_se_persiste_al_actualizar(monkeypatch):
 
 
 def test_reponer_por_arriba_del_umbral_limpia_el_aviso(monkeypatch):
-    """El aviso es por cruce: reponer stock apaga el flag para el proximo cruce."""
     producto, modelo = _preparar_producto(activo=False)
     modelo.stock_minimo = 3
     modelo.aviso_stock_enviado = True
@@ -421,7 +341,6 @@ def test_reponer_por_arriba_del_umbral_limpia_el_aviso(monkeypatch):
 
 
 def test_reponer_sin_salir_del_umbral_mantiene_el_aviso(monkeypatch):
-    """Reponer de 1 a 3 no es reponer por ENCIMA del umbral: el aviso sigue."""
     producto, modelo = _preparar_producto(activo=False)
     modelo.stock_minimo = 3
     modelo.aviso_stock_enviado = True
@@ -434,15 +353,9 @@ def test_reponer_sin_salir_del_umbral_mantiene_el_aviso(monkeypatch):
     assert producto.stock <= 3
 
 
-# --- Ranking de mas vendidos -------------------------------------------------
-#
-# Lo que se verifica aca es la CONSULTA, no el resultado: si el filtro de pago
-# se escribiera como un `JOIN`, el ranking compilaria y devolveria numeros
-# plausibles, pero inflados. Por eso se afirma sobre el SQL.
 
 
 class _FilaAgregacion:
-    """Fila de la agregacion: producto, unidades vendidas e ingresos."""
 
     def __init__(self, producto_id, unidades: int, ingresos: int):
         self.producto_id = producto_id
@@ -451,7 +364,6 @@ class _FilaAgregacion:
 
 
 def _preparar_sesion_ranking(monkeypatch, agregacion, productos):
-    """Sesion con las dos consultas del ranking: agregacion y productos."""
     session = Mock()
     primero, segundo = Mock(), Mock()
     primero.all.return_value = agregacion
@@ -471,8 +383,6 @@ def _sql_de(consulta, literal_binds: bool = False) -> str:
 
 
 def test_el_ranking_solo_cuenta_pagos_completados(monkeypatch):
-    """Un pedido sin pagar no es una venta: es el mismo criterio con el que se
-    descuenta el stock."""
     producto, modelo = _preparar_producto(activo=True)
     session = _preparar_sesion_ranking(
         monkeypatch,
@@ -488,10 +398,6 @@ def test_el_ranking_solo_cuenta_pagos_completados(monkeypatch):
 
 
 def test_el_ranking_no_hace_join_con_pagos_para_no_multiplicar_lineas(monkeypatch):
-    """Un pedido puede tener varias filas en `pagos` (autorizado y luego
-    completado, o reintentos). Un `JOIN` multiplicaria las lineas de
-    `detalle_pedidos` y el `SUM` de unidades saldria inflado: el ranking
-    compilaria y devolveria numeros plausibles, pero falsos."""
     producto, modelo = _preparar_producto(activo=True)
     session = _preparar_sesion_ranking(
         monkeypatch,
@@ -506,7 +412,6 @@ def test_el_ranking_no_hace_join_con_pagos_para_no_multiplicar_lineas(monkeypatc
 
 
 def test_el_ranking_solo_muestra_productos_activos(monkeypatch):
-    """Un producto dado de baja (borrado logico) no va al ranking."""
     producto, modelo = _preparar_producto(activo=True)
     session = _preparar_sesion_ranking(
         monkeypatch,
@@ -521,8 +426,6 @@ def test_el_ranking_solo_muestra_productos_activos(monkeypatch):
 
 
 def test_la_ventana_de_venta_filtra_por_la_fecha_del_pago(monkeypatch):
-    """La ventana se aplica sobre `pagos.creado_en` (cuando se cobro), no sobre
-    `pedidos.creado_en` (cuando se pidio)."""
     producto, modelo = _preparar_producto(activo=True)
     session = _preparar_sesion_ranking(
         monkeypatch,
@@ -567,8 +470,6 @@ def test_el_ranking_pide_solo_el_limite_de_productos(monkeypatch):
 
 
 def test_el_ranking_conserva_el_orden_de_la_agregacion(monkeypatch):
-    """El orden lo fija la agregacion, no el `SELECT` de los productos: por eso
-    los productos se devuelven en el orden en que los pide la base."""
     primero, modelo_primero = _preparar_producto(activo=True)
     segundo, modelo_segundo = _preparar_producto(activo=True)
     _preparar_sesion_ranking(
@@ -577,8 +478,6 @@ def test_el_ranking_conserva_el_orden_de_la_agregacion(monkeypatch):
             _FilaAgregacion(primero.id, 9, 9000),
             _FilaAgregacion(segundo.id, 4, 4000),
         ],
-        # Al reves, a proposito: el ranking no se puede depender del orden del
-        # `SELECT` de productos.
         [
             _FilaProducto(modelo_segundo, False, True),
             _FilaProducto(modelo_primero, False, True),
@@ -593,8 +492,6 @@ def test_el_ranking_conserva_el_orden_de_la_agregacion(monkeypatch):
 
 
 def test_el_ranking_devuelve_los_ingresos_como_entero(monkeypatch):
-    """`precio_unitario` es `numeric(10,2)` en la base: sin el cast los ingresos
-    vuelven como `Decimal` y el JSON no los serializa."""
     producto, modelo = _preparar_producto(activo=True)
     _preparar_sesion_ranking(
         monkeypatch,
@@ -609,21 +506,14 @@ def test_el_ranking_devuelve_los_ingresos_como_entero(monkeypatch):
 
 
 def test_el_ranking_devuelve_lista_vacia_sin_ventas(monkeypatch):
-    """Sin pagos completados no es un error: la home muestra "todavia no hay
-    ventas"."""
     session = _preparar_sesion_ranking(monkeypatch, [], [])
 
     resultado = ProductoRepository().listar_mas_vendidos(None, 10)
 
     assert resultado == []
-    # Sin resultados no hace falta la segunda consulta (los productos).
     assert session.execute.call_count == 1
 
 
-# --- Ranking de una semana concreta -----------------------------------------
-#
-# La semana anterior necesita cota superior: con solo `desde`, los pagos de la
-# semana en curso se colarian en el ranking anterior.
 
 
 def test_la_ventana_semanal_filtra_por_desde_y_hasta(monkeypatch):

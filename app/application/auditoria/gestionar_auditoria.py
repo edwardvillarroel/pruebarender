@@ -4,12 +4,7 @@ from app.domain.entities.log_auditoria import LogAuditoria
 
 
 class GestionAuditoria:
-    """Caso de uso: registrar un evento de auditoría (RNF-06).
 
-    Persiste el `LogAuditoria` en la base a traves del puerto de
-    infraestructura inyectado (Clean Architecture: la capa de aplicacion
-    no conoce el ORM).
-    """
 
     def __init__(self, registro) -> None:
         self._registro = registro
@@ -36,7 +31,6 @@ class GestionAuditoria:
 
 
 def _como_uuid(valor):
-    """El header `X-User-Id` llega como string; la entidad usa UUID."""
     if isinstance(valor, str):
         try:
             return UUID(valor)

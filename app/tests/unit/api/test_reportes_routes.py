@@ -1,9 +1,4 @@
-"""Tests del reporte general de ventas y pedidos (panel de administracion).
 
-`GET /api/reportes` agrega ventas de sesiones locales cerradas, pedidos y
-cotizaciones para el dashboard admin. Aqui se cubren los guard de acceso y el
-shape del payload que consume el frontend.
-"""
 from unittest.mock import Mock
 
 CABECERA_ADMIN = {

@@ -1,16 +1,5 @@
-"""Modelos ORM de infraestructura.
 
-Este `__init__` importa TODOS los modelos a proposito. Entre ellos se referencian
-por nombre de clase (`db.relationship("PedidoModel")`), no por import directo,
-as que SQLAlchemy los resuelve en el momento de configurar los mappers: hace
-falta que todos esten registrados en el registry, no solo los que se importaron
-por el camino.
 
-Sin este archivo, importar un modelo suelto (por ejemplo
-`app.infrastructure.database.models.producto_model`) dejaba el registry a medias
-y el `relationship` de otro modelo no encontraba su contraparte: el fallo
-aparecia al instanciar cualquier modelo, lejos de la causa.
-"""
 
 from app.infrastructure.database.models.carrito_model import CarritoItemModel, CarritoModel
 from app.infrastructure.database.models.categoria_model import CategoriaModel

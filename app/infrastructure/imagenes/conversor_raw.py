@@ -12,14 +12,12 @@ try:
 except Exception:  
     Image = None
 
-# Extensiones de archivo RAW de cámara (minúsculas, sin punto).
 EXTENSIONES_RAW: frozenset[str] = frozenset({
     "raw", "dng", "nef", "nrw", "arw", "srf", "sr2", "raf", "rw2", "orf",
     "pef", "srw", "mrw", "x3f", "3fr", "iiq", "kdc", "dcr", "erf", "mos",
     "cr2", "cr3",
 })
 
-# Tipos MIME de imagen que el navegador dibuja directamente en un <img>.
 TIPOS_IMAGEN_RENDERIZABLES: frozenset[str] = frozenset({
     "image/jpeg",
     "image/png",
@@ -30,7 +28,6 @@ TIPOS_IMAGEN_RENDERIZABLES: frozenset[str] = frozenset({
     "image/svg+xml",
 })
 
-# Formato PIL -> tipo MIME navegable (para content_type mal declarado).
 _MIME_POR_FORMATO_PIL = {
     "JPEG": "image/jpeg",
     "PNG": "image/png",
@@ -61,11 +58,7 @@ _FORMATOS_CON_ALFA = ("PNG", "WEBP", "GIF")
 
 
 def es_raw(nombre_archivo: str) -> bool:
-    """Detecta si el nombre de archivo tiene extension de RAW de camara.
 
-    Tolera mayusculas/minusculas y devuelve `False` si el nombre esta vacio
-    o no tiene extension.
-    """
     if not nombre_archivo or "." not in nombre_archivo:
         return False
     extension = nombre_archivo.rsplit(".", 1)[-1].strip().lower()
@@ -73,12 +66,7 @@ def es_raw(nombre_archivo: str) -> bool:
 
 
 def convertir_raw_a_jpeg(datos: bytes) -> bytes:
-    """Decodifica bytes RAW de camara y los devuelve como JPEG (calidad 90).
 
-    Cierra siempre el manejador de libraw para no filtrar descriptores de
-    archivo. Lanza `ValueError` con mensaje en español si las dependencias
-    opcionales faltan o el archivo RAW no se puede procesar.
-    """
     if rawpy is None or Image is None:
         raise ValueError(_MENSAJE_DEPENDENCIAS)
     try:
@@ -101,23 +89,12 @@ def convertir_raw_a_jpeg(datos: bytes) -> bytes:
 
 
 def _tipo_mime_normalizado(content_type: str | None) -> str:
-    """Tipo MIME en minusculas y sin parametros (`; charset=...`)."""
     return (content_type or "").split(";", 1)[0].strip().lower()
 
 
 def _convertir_a_rgb(imagen: "Image.Image") -> "Image.Image":
-    """Deja la imagen en un modo que JPEG pueda guardar.
 
-    Copia de la version que vive en `thumbnail.py`: el modulo de thumbnails es
-    el unico que conoce Pillow para el catalogo y este tambien, y duplicar
-    treinta lineas es preferible a atarlos (uno depende del otro y cualquier
-    cambio en uno rompe al otro).
 
-    La diferencia con la original: aqui solo se compone sobre blanco si la
-    imagen TIENE canal alfa. Un PNG paletizado sin alfa tiene una sola banda, y
-    usarla como mascara hace fallar `paste` con `bad transparency mask`; esos se
-    convierten a RGB directo, que es lo que corresponde.
-    """
     if imagen.mode in ("RGB", "L"):
         return imagen
     if _tiene_transparencia(imagen):
@@ -129,11 +106,7 @@ def _convertir_a_rgb(imagen: "Image.Image") -> "Image.Image":
 
 
 def _tiene_transparencia(imagen: "Image.Image") -> bool:
-    """Indica si la imagen tiene canal alfa con algo transparente detras.
 
-    Un PNG en modo `P` no siempre tiene alfa: la clave `transparency` en
-    `info` es la que lo dice, y sin ella hay que tratarlo como opaco.
-    """
     if imagen.mode in ("RGBA", "LA"):
         return True
     if imagen.mode == "P":
@@ -142,27 +115,19 @@ def _tiene_transparencia(imagen: "Image.Image") -> bool:
 
 
 def _formato_de_salida(imagen: "Image.Image", formato_actual: str) -> str:
-    """Elige el formato con el que se guarda la foto ya optimizada.
 
-    Con transparencia se respeta el formato de entrada (PNG/WEBP/GIF) porque al
-    pasar a JPEG el canal alfa se pierde y los logos salen con fondo negro. Sin
-    transparencia, todo a JPEG quality 85: es el formato que pesa menos y el que
-    el navegador siempre sabe dibujar.
-    """
     if _tiene_transparencia(imagen):
         return formato_actual if formato_actual in _FORMATOS_CON_ALFA else "PNG"
     return "JPEG"
 
 
 def _guardar(imagen: "Image.Image", formato: str) -> bytes:
-    """Serializa la imagen al formato pedido y devuelve los bytes."""
     salida = io.BytesIO()
     if formato == "JPEG":
         _convertir_a_rgb(imagen).save(
             salida, format=formato, quality=CALIDAD_JPEG_OPTIMIZADO, optimize=True
         )
     elif formato == "WEBP":
-        # WEBP no entiende `optimize`: su own knob es `quality`.
         imagen.save(salida, format=formato, quality=CALIDAD_JPEG_OPTIMIZADO)
     else:
         imagen.save(salida, format=formato, optimize=True)
@@ -170,21 +135,8 @@ def _guardar(imagen: "Image.Image", formato: str) -> bytes:
 
 
 def optimizar_imagen(datos: bytes, content_type: str) -> tuple[bytes, str]:
-    """Reescala y recomprime una foto de producto para lo que se sirve en la web.
 
-    Las fotos se suben tal cual las saca la camara o el celular: 2-4 MB por
-    producto, con el lado mayor en miles de pixeles. Eso no aporta nada para una
-    tarjeta de catalogo ni para la foto ampliada del detalle, y se descarga en
-    cada peticion. Aqui se dejan en 1600px como maximo y en JPEG quality 85.
 
-    El archivo se devuelve intacto cuando ya cabe en el presupuesto (lado maximo
-    y `TAMANIO_MAXIMO_INTACTO`), y tambien cuando reprocesarlo lo haria MAS
-    grande: optimizar nunca puede hacer crecer el archivo. Salen intactos
-    ademas los formatos que Pillow no puede volver a codificar sin perder algo
-    (GIF animado) y, si Pillow no esta instalado, todos: es una dependencia
-    opcional y sin ella la imagen se guarda tal como se subio, que es como
-    funcionaba antes de este modulo.
-    """
     if Image is None or not datos:
         return datos, content_type
 
@@ -215,12 +167,7 @@ def optimizar_imagen(datos: bytes, content_type: str) -> tuple[bytes, str]:
 
 
 def _detectar_mime_decodificable(datos: bytes) -> str | None:
-    """Devuelve el tipo MIME si Pillow sabe decodificar los bytes, o `None`.
 
-    Se usa cuando el archivo no tiene extension RAW pero el `content_type`
-    no es navegable (por ejemplo `application/octet-stream`): si los bytes
-    son una imagen valida, se conservan y solo se corrige el tipo MIME.
-    """
     if Image is None:
         return None
     try:
@@ -236,20 +183,8 @@ def normalizar_imagen(
     content_type: str,
     nombre_archivo: str,
 ) -> tuple[bytes, str]:
-    """Normaliza una imagen subida para que el navegador pueda mostrarla.
 
-    - RAW de camara (por extension): se convierte a JPEG y despues se optimiza.
-      Si la conversion falla (formato no soportado, archivo danado o
-      dependencias ausentes) lanza `ValueError` con mensaje en español.
-    - Imagen ya navegable (JPG/PNG/WEBP/...): se optimiza y se devuelve.
-    - Ni RAW ni imagen decodificable: `ValueError` con mensaje en español
-      que nombra los formatos soportados.
 
-    Toda salida pasa por `optimizar_imagen`, que deja la foto en 1600px y JPEG
-    quality 85 (respetando el canal alfa) antes de guardarla. Un archivo que ya
-    entra en el presupuesto sale intacto, y sin Pillow sale tal cual subio: la
-    optimizacion no puede romper un alta que antes funcionaba.
-    """
     if es_raw(nombre_archivo):
         return optimizar_imagen(convertir_raw_a_jpeg(datos), "image/jpeg")
 

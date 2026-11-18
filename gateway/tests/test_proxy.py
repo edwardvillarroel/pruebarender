@@ -1,12 +1,4 @@
-"""Tests de `gateway.infrastructure.proxy.reenviar`.
 
-La whitelist de headers de `reenviar` es la unica puerta entre las respuestas
-del backend y el navegador: lo que no este ahi se pierde en silencio. Eso ya
-paso con `location`: los 302 de `/api/uploads` llegaban sin destino, el
-navegador no podia seguir el redirect a la signed URL de Supabase y las
-miniaturas de cotizacion salian en 0 bytes aunque el archivo estuviera bien en
-el bucket.
-"""
 
 from flask import Flask, request
 
@@ -39,7 +31,6 @@ def _reenviar(monkeypatch, respuesta, ruta="uploads/cotizaciones/x.webp?exp=1&si
 
 
 def test_reenviar_conserva_location_en_redirect(monkeypatch):
-    """El 302 a la signed URL de Supabase debe llegar con su Location intacto."""
     signed = (
         "https://ejemplo.supabase.co/storage/v1/object/sign/"
         "Cotizaciones/cotizaciones/x.webp?token=abc"
@@ -58,7 +49,6 @@ def test_reenviar_conserva_location_en_redirect(monkeypatch):
 
 
 def test_reenviar_sigue_filtrando_headers_internos(monkeypatch):
-    """La whitelist sigue cerrada: abrir `location` no abre todo lo demas."""
     respuesta = _RespuestaStub(
         200,
         b'{"ok": true}',

@@ -1,8 +1,4 @@
-"""Modelos de datos que consumen las plantillas de correo.
 
-Viven acá para que el backend y el gateway compartan el mismo contrato sin que
-`shared` dependa de `app`.
-"""
 
 from __future__ import annotations
 
@@ -13,7 +9,6 @@ from typing import Sequence
 
 @dataclass(frozen=True)
 class Correo:
-    """Contenido listo para enviar por el proveedor."""
 
     asunto: str
     html: str

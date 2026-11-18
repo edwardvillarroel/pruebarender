@@ -10,7 +10,6 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def _oracle_uri():
-    """URI a Oracle Autonomous con wallet mTLS. Sin ORACLE_* se usa Postgres."""
     usuario = os.getenv("ORACLE_USER", "ADMIN")
     password = os.getenv("ORACLE_PASSWORD", "")
     dsn = os.getenv("ORACLE_DSN", "")
@@ -60,7 +59,6 @@ class Config:
     LLM_API_KEY = os.getenv("LLM_API_KEY", "")
     LLM_BASE_URL = os.getenv("LLM_BASE_URL", "")
 
-    # Pasarela de pagos TUU (Pago Online de Haulmer)
     TUU_ACCOUNT_ID = os.getenv("TUU_ACCOUNT_ID", "62224230")
     TUU_SECRET_KEY = os.getenv("TUU_SECRET_KEY", "")
     TUU_API_URL = os.getenv(
@@ -82,23 +80,17 @@ class Config:
 
     STARKEN_MODO_SIMULACION = os.getenv("STARKEN_MODO_SIMULACION", "")
 
-    # Correo transaccional (Resend).
     RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
     EMAIL_FROM = os.getenv("EMAIL_FROM", "")
     ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
     FRONTEND_URL = os.getenv("FRONTEND_URL", "https://apolovibes3d.cl")
 
-    # Facturación electrónica (DTE) vía OpenFactura (Haulmer).
-    # La API key se genera en https://openfactura.haulmer.com -> Configuración
-    # -> API -> GENERAR API KEY, con la cuenta titular de la organización.
     OPENFACTURA_API_KEY = os.getenv("OPENFACTURA_API_KEY", "")
     OPENFACTURA_API_URL = os.getenv(
         "OPENFACTURA_API_URL", "https://api.haulmer.com"
     ).rstrip("/")
     OPENFACTURA_TIMEOUT = int(os.getenv("OPENFACTURA_TIMEOUT", "30"))
 
-    # Emisor: los datos de la organización certificada ante el SII. Salen de
-    # `GET /v2/dte/taxpayer/{rut}` de la propia API.
     EMISOR_RUT = os.getenv("EMISOR_RUT", "")
     EMISOR_RAZON_SOCIAL = os.getenv("EMISOR_RAZON_SOCIAL", "")
     EMISOR_GIRO = os.getenv("EMISOR_GIRO", "")
@@ -111,8 +103,6 @@ class Config:
     ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "glb", "stl"}
     UPLOAD_FOLDER = BASE_DIR / "uploads"
 
-    # URLs firmadas de /api/uploads (F1): sin UPLOAD_SIGN_SECRET explícito se
-    # firma con SECRET_KEY; TTL por defecto 24 h.
     UPLOAD_SIGN_SECRET = os.getenv("UPLOAD_SIGN_SECRET", "") or SECRET_KEY
     UPLOAD_SIGN_TTL_SECONDS = int(os.getenv("UPLOAD_SIGN_TTL_SECONDS", "86400"))
     CRON_SECRET = os.getenv("CRON_SECRET", "")
@@ -138,8 +128,6 @@ class Config:
     )
     APOLO_API_KEY = os.getenv("APOLO_API_KEY", "")
     COTIZADOR_IA_TIMEOUT = int(os.getenv("COTIZADOR_IA_TIMEOUT", "60"))
-    # Vigencia del token firmado que permite reutilizar la estimacion hecha al
-    # subir la imagen sin confiar en los precios que manda el navegador.
     ESTIMACION_TOKEN_TTL_SECONDS = int(
         os.getenv("ESTIMACION_TOKEN_TTL_SECONDS", "7200")
     )

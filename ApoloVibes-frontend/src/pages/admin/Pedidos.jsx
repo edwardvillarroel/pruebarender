@@ -338,7 +338,6 @@ function DetalleModal({ pedido, onClose, onCancelar }) {
           .modal-scroll { scrollbar-gutter: stable; }
         `}</style>
 
-        {/* Header */}
         <div style={{
           flexShrink: 0,
           display: 'flex', flexDirection: 'column',
@@ -408,7 +407,6 @@ function DetalleModal({ pedido, onClose, onCancelar }) {
               </div>
             </div>
 
-            {/* Productos */}
             <div style={{ borderTop: `1px solid ${LINEA}` }}>
               {itemsPedido.map((item, i) => (
                 <div
@@ -458,7 +456,6 @@ function DetalleModal({ pedido, onClose, onCancelar }) {
               ))}
             </div>
 
-            {/* Totales */}
             <div style={{ padding: '14px 0 18px' }}>
               {descuentoCupon > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#22c55e', marginBottom: 6 }}>
@@ -486,7 +483,6 @@ function DetalleModal({ pedido, onClose, onCancelar }) {
               </div>
             </div>
 
-            {/* Datos del cliente */}
             {datos.length > 0 && (
               <div style={{ background: FONDO_TARJETA, borderRadius: 12, padding: 14, marginBottom: 18 }}>
                 <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: COLOR_APAGADO }}>
@@ -500,7 +496,6 @@ function DetalleModal({ pedido, onClose, onCancelar }) {
               </div>
             )}
 
-            {/* Cancelar pedido*/}
             {puedeCancelar && (
               <div style={{
                 background: 'rgba(140,18,18,.12)', border: '1px solid rgba(255,90,90,.35)',
@@ -533,7 +528,6 @@ function DetalleModal({ pedido, onClose, onCancelar }) {
               </div>
             )}
 
-            {/* Anulación en Tuu */}
             {estado === 'cancelado' && (
               <div style={{
                 background: 'rgba(22,189,16,.10)', border: '1px solid rgba(22,189,16,.30)',
@@ -574,7 +568,6 @@ function DetalleModal({ pedido, onClose, onCancelar }) {
           </div>
         </div>
 
-        {/* Footer fijo con acción de cierre */}
         <div style={{
           flexShrink: 0,
           padding: '14px 36px', background: 'var(--surface)',
@@ -998,11 +991,8 @@ export default function Pedidos() {
                           {p.estado === 'entregado' || p.estado === 'cancelado' ? (
                             <ChipEstado pedido={p} />
                           ) : p.codigo_seguimiento && normalizarEstado(claveDespacho(p)) === 'en_ruta_de_entrega' ? (
-                            // "En ruta de entrega" es el ultimo paso antes de entregado:
-                            // se reemplaza el badge por el chip de accion final.
                             <ChipEstado pedido={p} onClick={() => setEntregarPedido(p)} />
                           ) : p.codigo_seguimiento ? (
-                            // Cualquier estado activo: badge del estado al lado del chip de accion.
                             <>
                               <BadgeDespacho estado={claveDespacho(p)} />
                               <ChipEstado pedido={p} onClick={() => setEntregarPedido(p)} />

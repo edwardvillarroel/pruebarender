@@ -1,5 +1,4 @@
 def estimacion_local(alto, ancho, largo, cantidad, material_usuario):
-    """Estimación local de respaldo cuando el cotizador IA devuelve 429."""
     try:
         volumen = float(alto) * float(ancho) * float(largo) * 0.30
     except Exception:

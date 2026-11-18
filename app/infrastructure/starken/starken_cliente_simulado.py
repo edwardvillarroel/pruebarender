@@ -1,15 +1,5 @@
-"""Cliente de seguimiento Starken en MODO SIMULACIÓN (desarrollo).
 
-Implementa la misma interfaz de dominio `StarkenSeguimientoCliente` que el
-cliente real, pero sin hacer llamadas HTTP. Se inyecta vía DI cuando
-`STARKEN_MODO_SIMULACION` está activo en la configuración; así el flujo de
-pedidos, las rutas y el frontend se ejercitan con datos plausibles sin
-necesitar la API key de la PYME.
 
-Los estados son DETERMINISTAS por código: el mismo código siempre entrega el
-mismo estado (hash), de modo que refrescar no "salta" de estado y cada pedido
-muestra un hit o una fase distinta en el panel admin.
-"""
 
 from __future__ import annotations
 
@@ -23,8 +13,6 @@ from app.domain.entities.seguimiento_starken import (
 from app.domain.interfaces.starken import StarkenSeguimientoCliente
 from app.domain.time import utcnow
 
-# Fases del proceso de despacho en orden. El estado del pedido se elige según
-# un hash del código para que distintos códigos muestren fases diferentes.
 FASES = [
     ("INGRESADO", "Solicitud de despacho ingresada en Starken"),
     ("EN TRANSITO", "La orden de flete se encuentra en tránsito"),
@@ -35,10 +23,9 @@ FASES = [
 
 
 class StarkenClienteSimulado(StarkenSeguimientoCliente):
-    """Cliente de seguimiento que responde datos fabricados deterministas."""
 
     def __init__(self, config: dict) -> None:
-        del config  # no usa credenciales; solo el flag lo selecciona
+        del config
 
     def consultar(self, codigo: str) -> SeguimientoStarken:
         indice = int.from_bytes(

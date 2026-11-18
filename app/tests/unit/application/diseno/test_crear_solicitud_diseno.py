@@ -1,11 +1,4 @@
-"""Estimacion IA al crear una solicitud de diseno.
 
-El frontend estima al subir la imagen; el backend firma esa estimacion y el
-alta solo la reutiliza si llega en un token valido, ligado al usuario, a la
-imagen y a las especificaciones. Los precios sueltos del formulario se ignoran
-siempre: el navegador no es confiable. Sin token valido (o ante cualquier fallo
-del cotizador) la solicitud se crea igual y el motivo queda en `ia_origen`.
-"""
 
 import io
 from decimal import Decimal
@@ -28,18 +21,11 @@ from app.infrastructure.cotizador.token_estimacion import (
 )
 
 SECRETO_TEST = "secreto-de-test-para-token-de-estimacion-1234567890"
-# Firma canonica que produce `firmaEspecificaciones` del frontend para
-# alto/ancho/largo=5, cm, cantidad=1, Decorativo, PLA+ y Negro.
 FIRMA_FRONT = "5|5|5|cm|1|Decorativo|PLA+|Negro"
 
 
 def _configurar(monkeypatch, clave, valor):
-    """Fija una config en las dos fuentes que lee `_config`.
 
-    `CrearSolicitudDiseno._config` usa `current_app` cuando hay contexto de
-    aplicacion. La suite de integracion deja un contexto vivo (fixture de
-    sesion), asi que sin esto el resultado depende del orden de las suites.
-    """
     monkeypatch.setattr(Config, clave, valor)
     from flask import current_app, has_app_context
 
@@ -174,7 +160,6 @@ def test_reutiliza_la_estimacion_firmada_sin_llamar_al_cotizador():
 
 
 def test_ignora_los_precios_del_formulario_aunque_el_token_sea_valido():
-    """El ataque clasico: token valido + precios editados en el FormData."""
     cotizador = _CotizadorFalso(resultado=_resultado_cotizador())
     servicio = CrearSolicitudDiseno(_RepoFalso(), cotizador_ia=cotizador)
     usuario_id = uuid4()

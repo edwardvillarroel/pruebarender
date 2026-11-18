@@ -1,5 +1,3 @@
-"""`POST /cotizaciones/estimar` emite un token firmado para reutilizar la
-estimacion en el alta, ligado al usuario y a los bytes de la imagen."""
 
 import io
 from uuid import uuid4

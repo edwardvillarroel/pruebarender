@@ -52,7 +52,6 @@ class PedidoRepository(PedidoRepositoryInterface):
     def pagos_por_cotizacion(
         self, cotizacion_ids: list[UUID]
     ) -> dict[UUID, dict[str, Any]]:
-        """Estado de pago de varias cotizaciones en una sola consulta."""
         if not cotizacion_ids:
             return {}
         filas = db.session.execute(
@@ -79,13 +78,7 @@ class PedidoRepository(PedidoRepositoryInterface):
         return self._con_imagenes([_a_entidad(m) for m in consulta.all()])
 
     def list_by_usuario(self, usuario_id: UUID) -> list[Pedido]:
-        """Pedidos del usuario con `resenas_pendientes` (0|1) calculado en SQL.
 
-        El badge es 1 solo si el pedido está `entregado` y existe al menos un
-        detalle cuyo producto no tiene reseña de ESTE usuario en ESTE pedido.
-        Una subquery en el mismo SELECT evita el N+1 de consultar reseñas
-        pedido por pedido desde la ruta.
-        """
         sin_resena_de_este = ~exists(
             select(literal(1))
             .select_from(ResenaModel)
@@ -142,7 +135,6 @@ class PedidoRepository(PedidoRepositoryInterface):
         return self._con_imagenes(pedidos)
 
     def list_todos(self) -> list[Pedido]:
-        """Todos los pedidos, con el estado de su pago."""
         filas = db.session.execute(
             select(self.model, self._estado_pago().label("estado_pago"))
             .options(selectinload(self.model.detalles))
@@ -167,11 +159,7 @@ class PedidoRepository(PedidoRepositoryInterface):
         return self._con_estado_pago(filas)
 
     def _estado_pago(self):
-        """Estado del pago del pedido: el completado si existe; si no, el último.
 
-        Se resuelve en SQL para no consultar el pago de cada pedido (N+1).
-        Devuelve `None` para pedidos sin ningún intento de pago.
-        """
         return (
             select(PagoModel.estado)
             .where(PagoModel.pedido_id == self.model.id)
@@ -193,11 +181,7 @@ class PedidoRepository(PedidoRepositoryInterface):
         return self._con_imagenes(pedidos)
 
     def _con_imagenes(self, pedidos: list[Pedido]) -> list[Pedido]:
-        """Completa la foto de cada línea en UNA sola consulta (evita N+1).
 
-        Los pedidos ya vienen con sus `detalles`, así que se juntan todos los
-        ítems de todos los pedidos y se resuelven de una vez.
-        """
         _resolver_imagenes([detalle for pedido in pedidos for detalle in pedido.detalles])
         return pedidos
 
@@ -268,7 +252,6 @@ class PedidoRepository(PedidoRepositoryInterface):
         return _a_entidad(modelo)
 
     def marcar_aviso_cancelacion(self, pedido_id: UUID) -> Pedido | None:
-        """Enciende el aviso de anulacion aceptada por Tuu (badge del cliente)."""
         modelo = db.session.get(self.model, pedido_id)
         if modelo is None:
             return None
@@ -278,7 +261,6 @@ class PedidoRepository(PedidoRepositoryInterface):
         return _a_entidad(modelo)
 
     def marcar_aviso_cancelacion_visto(self, pedido_id: UUID) -> Pedido | None:
-        """Apaga el badge: el cliente ya abrio el aviso."""
         modelo = db.session.get(self.model, pedido_id)
         if modelo is None:
             return None
@@ -322,14 +304,7 @@ class PedidoRepository(PedidoRepositoryInterface):
 
 
 def _resolver_imagenes(detalles: list[DetallePedido]) -> None:
-    """Completa `imagen` de cada detalle con la ruta pública del BLOB.
 
-    Mismo criterio que `CarritoRepositoryBd._resolver_imagenes`: la foto del
-    color elegido si esa variante tiene imagen, si no la del producto. Se
-    resuelve en UNA sola consulta para todos los detalles (evita N+1) y solo se
-    setea una URL cuando la imagen existe; si no, queda `None` y el frontend
-    cae al icono genérico.
-    """
     if not detalles:
         return
 
@@ -378,7 +353,6 @@ def _resolver_imagenes(detalles: list[DetallePedido]) -> None:
 
 
 def _valor_tipo_documento(tipo) -> str | None:
-    """El enum del tipo de documento, como texto para la columna."""
     if tipo is None:
         return None
     if isinstance(tipo, TipoDocumentoTributario):
@@ -387,7 +361,6 @@ def _valor_tipo_documento(tipo) -> str | None:
 
 
 def _a_tipo_documento(valor) -> TipoDocumentoTributario | None:
-    """La columna de texto, como enum del dominio."""
     if not valor:
         return None
     try:

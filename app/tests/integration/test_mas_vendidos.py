@@ -1,18 +1,5 @@
-"""El ranking de "mas vendidos" cuenta compras, no pedidos.
 
-La regla es una sola y es la misma con la que se descuenta el stock: solo
-cuenta lo pagado. En la base conviven pedidos que nunca se pagaron (carrito
-abandonado, pasarela que devuelve `failed`, pestana cerrada) con compras
-reales, asi que un ranking que sumara lineas de pedido venderia productos que
-nadie compro.
 
-Por que el filtro va con `EXISTS` y no con `JOIN` a `pagos`: un pedido puede
-tener varias filas en `pagos` (el reintento tipico de pasarela deja un
-`fallido` y despues un `completado`). Con un `JOIN` cada linea de
-`detalle_pedidos` se contaria una vez por cada pago y las unidades saldrian
-infladas. Estos tests congelan ese comportamiento: el ranking tiene que contar
-cada linea UNA vez, sin importar cuantos intentos de pago tenga el pedido.
-"""
 
 from __future__ import annotations
 
@@ -67,7 +54,6 @@ def _pago(pedido, estado: str, creado_en=None) -> PagoModel:
 
 
 def _compra(usuario, producto, cantidad: int, precio_unitario: int, estado: str = "completado"):
-    """Compra completa: pedido, linea de detalle y pago."""
     pedido = _pedido(usuario, total=cantidad * precio_unitario)
     _linea(pedido, producto, cantidad, precio_unitario)
     _pago(pedido, estado)
@@ -84,7 +70,6 @@ def _por_id(cuerpo: dict) -> dict:
     return {p["id"]: p for p in cuerpo["productos"]}
 
 
-# --- Que se cuente la venta ---------------------------------------------------
 
 
 def test_el_ranking_cuenta_las_unidades_vendidas(client, producto, usuario, centinela):
@@ -108,8 +93,6 @@ def test_el_ranking_suma_las_unidades_de_varias_compras(client, producto, usuari
 
 
 def test_los_ingresos_suman_el_precio_del_momento_de_la_compra(client, producto, usuario, centinela):
-    """El precio del `detalle_pedidos` es un snapshot: los ingresos son lo que
-    se cobro, no lo que el producto vale hoy."""
     p = producto(stock=10, nombre=f"{centinela}-ingresos", precio=5000)
     _compra(usuario, p, 4, 5000)
 
@@ -118,11 +101,9 @@ def test_los_ingresos_suman_el_precio_del_momento_de_la_compra(client, producto,
     assert _por_id(cuerpo)[str(p.id)]["ingresos"] == 20000
 
 
-# --- Que no se cuente lo que no es una venta ----------------------------------
 
 
 def test_el_ranking_no_cuenta_un_pedido_sin_pago(client, producto, usuario, centinela):
-    """Carrito abandonado: hay pedido en la base, pero nadie pago."""
     p = producto(stock=10, nombre=f"{centinela}-abandonado", precio=5000)
     _compra(usuario, p, 3, 5000, estado="pendiente")
 
@@ -141,12 +122,7 @@ def test_el_ranking_no_cuenta_un_pago_fallido(client, producto, usuario, centine
 
 
 def test_un_pedido_con_varios_pagos_no_infla_las_unidades(client, producto, usuario, centinela):
-    """Reintento de pasarela: queda el `fallido` del primer intento y el
-    `completado` del segundo. Es una sola compra de 2 unidades, no una de 4.
 
-    Es el test que congela el `EXISTS`: con un `JOIN` a `pagos` las unidades
-    se duplicarian y el ranking daria numeros plausibles, pero falsos.
-    """
     p = producto(stock=10, nombre=f"{centinela}-reintento", precio=5000)
     pedido = _pedido(usuario, total=10000)
     _linea(pedido, p, 2, 5000)
@@ -159,8 +135,6 @@ def test_un_pedido_con_varios_pagos_no_infla_las_unidades(client, producto, usua
 
 
 def test_un_producto_dado_de_baja_no_entra_al_ranking(client, producto, usuario, centinela, db_sesion):
-    """El borrado es logico (`activo = false`): un producto que ya no se vende
-    no puede encabezar la lista de los mas vendidos."""
     p = producto(stock=10, nombre=f"{centinela}-inactivo", precio=5000)
     _compra(usuario, p, 9, 5000)
     p.activo = False
@@ -171,7 +145,6 @@ def test_un_producto_dado_de_baja_no_entra_al_ranking(client, producto, usuario,
     assert str(p.id) not in _por_id(cuerpo)
 
 
-# --- Orden y ventana ----------------------------------------------------------
 
 
 def test_el_ranking_ordena_por_unidades_vendidas(client, producto, usuario, centinela):
@@ -191,8 +164,6 @@ def test_el_ranking_ordena_por_unidades_vendidas(client, producto, usuario, cent
 
 
 def test_la_ventana_de_venta_excluye_lo_vendido_antes(client, producto, usuario, centinela):
-    """`periodo=30d` mira la fecha del PAGO, no la del pedido: lo que importa
-    es cuando se cobro."""
     p = producto(stock=10, nombre=f"{centinela}-viejo", precio=5000)
     pedido = _pedido(usuario, total=5000)
     _linea(pedido, p, 3, 5000)
@@ -222,11 +193,9 @@ def test_el_limite_recorta_el_ranking(client, producto, usuario, centinela):
     assert cuerpo["total"] == 2
 
 
-# --- Contrato de la respuesta -------------------------------------------------
 
 
 def test_el_ranking_es_publico(client, producto, usuario, centinela):
-    """La home lo pide sin sesion: es tan publico como el catalogo."""
     p = producto(stock=10, nombre=f"{centinela}-publico", precio=5000)
     _compra(usuario, p, 1, 5000)
 

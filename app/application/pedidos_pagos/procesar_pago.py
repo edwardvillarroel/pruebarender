@@ -141,13 +141,7 @@ class ProcesarPago:
         return resultado
 
     def _buscar_reintento(self, dto: IniciarPagoDTO) -> ResultadoIntentoPago | None:
-        """Resultado de un inicio de pago ya en curso con la misma clave.
 
-        Sin clave, o si la clave no tiene pago vivo, devuelve `None` y el flujo
-        sigue normal. La clave solo se reusa si el pedido es del mismo usuario
-        que pregunta: si el pago existente es de otra sesion, se trata como
-        inexistente en vez de filtrar la URL de un tercero.
-        """
         if not dto.clave_idempotencia:
             return None
 
@@ -174,12 +168,7 @@ class ProcesarPago:
         return ResultadoIntentoPago(url=pago.url_intento, token=pago.token)
 
     def _canjear_cupon(self, pedido: Pedido) -> None:
-        """Marca como canjeado el cupón de uso único del pedido pagado.
 
-        Se llama solo cuando el pago quedó completado, así un pago fallido o
-        abandonado no "quema" el cupón. Los cupones ilimitados no se marcan.
-        Es best-effort: el pago ya está confirmado y no debe romperse.
-        """
         codigo = getattr(pedido, "cupon_codigo", None)
         if not codigo or self._cupones is None:
             return
@@ -196,13 +185,7 @@ class ProcesarPago:
             )
 
     def _descartar_pedido(self, pedido: Pedido) -> None:
-        """Borra el pedido que perdio la carrera de idempotencia.
 
-        No tiene pago asociado (el INSERT del pago fue el que falló), asi que
-        no lo referencia nadie. Si el borrado falla tampoco se propaga el error:
-        la prioridad es devolver el resultado del ganador, y un pedido huerfano
-        pendiente es el mismo estado que deja un carrito abandonado.
-        """
         try:
             self._pedidos.delete(pedido)
         except Exception:  # noqa: BLE001 - borrar el huerfano es best-effort
@@ -214,13 +197,7 @@ class ProcesarPago:
 
     @staticmethod
     def _validar_total_esperado(total: int, esperado: int | None) -> None:
-        """El cliente paga sobre el total que vio en pantalla.
 
-        Si el precio cambio entre que armo el carrito y que confirmo, el total
-        del servidor ya no es el que el cliente acepta pagar. Se aborta antes de
-        crear el pedido para que no quede una orden por un precio que nadie
-        confirmo. Sin `total_esperado` no se valida nada.
-        """
         if esperado is None or esperado == total:
             return
         raise TotalEsperadoDistintoError(
@@ -262,8 +239,6 @@ class ProcesarPago:
             if pago is not None:
                 pago.estado = EstadoPago.COMPLETADO
                 self._pagos.update(pago)
-            # Despues de marcar el pago: un envio lento no puede dejar la
-            # ventana abierta a que un reintento de TUU descuente stock dos veces.
             self._avisar_admin_stock(productos_avisar)
             self._canjear_cupon(pedido)
             if pedido.cotizacion_id is None:
@@ -301,12 +276,7 @@ class ProcesarPago:
         )
 
     def _iniciar_cotizacion(self, dto: IniciarPagoDTO) -> ResultadoIntentoPago:
-        """Abre el pago de una cotización aprobada usando un pedido real.
 
-        La cotización no tiene un producto de catálogo, así que el pedido lleva
-        una línea con el precio que asignó el administrador. El vínculo único
-        `pedidos.cotizacion_id` evita que dos intentos generen dos pedidos.
-        """
         if self._cotizaciones is None:
             raise ValueError("El pago de cotizaciones no está configurado")
 
@@ -490,7 +460,6 @@ class ProcesarPago:
     def _avisar_admin_pedido(
         self, pedido: Pedido, cliente_email: str, estado_pago: str
     ) -> None:
-        """Aviso interno del pago. Es best-effort: no puede romper el pago."""
         if self._correo is None:
             return
         try:
@@ -503,7 +472,6 @@ class ProcesarPago:
             )
 
     def _avisar_admin_stock(self, producto_ids: list[Any]) -> None:
-        """Notifica stock bajo solo si el producto aún no fue avisado."""
         if self._correo is None or not producto_ids:
             return
         try:
@@ -527,13 +495,7 @@ class ProcesarPago:
         self._pedidos.actualizar_estado(pedido.id, EstadoPedido.CANCELADO)
 
     def _emitir_documento(self, pedido: Pedido) -> None:
-        """Emite el documento electrónico del pedido, si corresponde.
 
-        Es best-effort a propósito: el pago ya está confirmado y el cliente
-        tiene que recibir la confirmación igual, aunque el proveedor de
-        documentos esté caído. El error queda registrado en la fila del
-        documento y la emisión se reintenta en la próxima confirmación.
-        """
         if self._documentacion is None:
             return
         try:
@@ -544,13 +506,7 @@ class ProcesarPago:
             )
 
     def _enviar_comprobante(self, pedido: Pedido, estado_pago: str) -> bool:
-        """Manda el comprobante y devuelve si se mando de verdad.
 
-        El retorno existe para que la respuesta al cliente no prometa algo que
-        no sabemos: el envio es best-effort y traga la excepcion, asi que sin
-        este `bool` la pantalla de exito diria "te enviamos el comprobante"
-        aunque el correo se haya perdido.
-        """
         if self._correo is None:
             return False
         email = _email_del_cliente(pedido.direccion_envio)

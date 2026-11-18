@@ -1,9 +1,4 @@
-"""Prueba funcional del backend contra PostgreSQL, sobre la DATA MIGRADA.
 
-No usa una base vacia: lee los 751 registros que migrated R2. Asi se prueba lo
-que importa de verdad, que el ORM (ya sin `UuidRaw`) lee UUIDs nativos,
-booleanos y los ~15 MB de BLOBs de `productos` y `producto_colores`.
-"""
 from __future__ import annotations
 
 import os
@@ -67,8 +62,6 @@ r = cliente.get("/api/productos")
 check("GET /api/productos responde 200", r.status_code == 200, f"status={r.status_code}")
 if r.status_code == 200:
     cuerpo = r.get_json()
-    # la API envuelve la lista; ademas filtra (stock/estado), asi que el total
-    # puede ser menor que el de la tabla: no es comparacion 1 a 1 con la BD
     items = cuerpo.get("productos", cuerpo) if isinstance(cuerpo, dict) else cuerpo
     check("  devuelve una lista de productos", isinstance(items, list) and len(items) > 0,
           f"n={len(items)}")
@@ -118,9 +111,6 @@ if usuario is not None:
           f"status={r.status_code}")
 
 print("\nEscritura: la regla de unicidad del carrito sigue valiendo")
-# El indice unico es (carrito_id, producto_id, color) NULLS NOT DISTINCT. La
-# clave incluye el carrito: dos usuarios distintos pueden tener el mismo
-# producto con el mismo color sin violar nada.
 if producto is not None and usuario is not None:
     headers = {"X-User-Id": str(usuario.id), "X-User-Rol": usuario.rol}
     cuerpo = {"producto_id": str(producto.id), "cantidad": 1}
@@ -150,9 +140,6 @@ if producto is not None and usuario is not None:
         check("  no hay (carrito, producto, color) repetidos",
               len(claves) == len(set(claves)), f"items={claves}")
 
-    # Limpieza: este test NO debe dejar filas en la data migrada. Se borra solo
-    # lo que aparecio durante la prueba: borrar "todos los carritos sin items"
-    # se llevaria por delante los carritos migrados que venian vacios.
     with app.app_context():
         with db.session.begin():
             db.session.execute(

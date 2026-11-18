@@ -31,9 +31,6 @@ function fondoDeCategoria(nombre) {
 
 export default function Home() {
   const { productos, categorias, cargando } = useProductos()
-  // La semana la decide el backend: si la actual no tiene mas de 4 productos
-  // distintos vendidos, devuelve la anterior (y si esa tampoco, el historico);
-  // en todos los casos lo informa en `semana.tipo`.
   const rankingSemanal = useMasVendidos('semana', 10)
   const lanzamientos = useMemo(
     () => productos
@@ -49,10 +46,6 @@ export default function Home() {
 
   const hayRanking = !rankingSemanal.cargando && !rankingSemanal.error
   const tipoSemana = rankingSemanal.semana?.tipo
-  // Con tipo "anterior" el ranking viene de la semana pasada; con "historico"
-  // (ni la actual ni la anterior alcanzaron el umbral de 4 productos distintos)
-  // viene del historico de mas vendidos, asi que el titulo vuelve a ser el de
-  // los mas vendidos de la semana.
   const esSemanaAnterior = tipoSemana === 'anterior'
   const tituloRanking = !hayRanking
     ? 'Nuestros productos'

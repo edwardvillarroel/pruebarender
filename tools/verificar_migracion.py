@@ -1,8 +1,4 @@
-"""Verificacion cruzada Oracle <-> Postgres: los conteos no alcanzan.
 
-Un UUID mal convertido mantiene el conteo de filas intacto y aun asi rompe
-todos los joins. Estos checks miran los DATOS.
-"""
 import pathlib
 import sys
 

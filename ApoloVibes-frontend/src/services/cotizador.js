@@ -1,8 +1,5 @@
 import { apiCotizador } from './api.js'
 
-// Firma canonica de las especificaciones de la pieza. Debe coincidir con la
-// que calcula el backend (`_firma_especificaciones` en CrearSolicitudDiseno) para
-// decidir si una estimacion calculada por el cliente se puede reutilizar.
 function numeroFirma(valor, defecto = '10') {
   const texto = valor === null || valor === undefined ? '' : String(valor).trim()
   if (texto === '') return defecto

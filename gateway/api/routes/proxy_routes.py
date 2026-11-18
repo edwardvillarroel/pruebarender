@@ -8,13 +8,11 @@ proxy_bp = Blueprint("proxy", __name__)
 
 @proxy_bp.route("/<path:ruta>", methods=["GET", "POST", "PUT", "PATCH", "DELETE"])
 def proxy(ruta):
-    # Verificar JWT sin abortar si el token es inválido/expirado (optional=True manual)
     claims = {}
     try:
         verify_jwt_in_request(optional=True)
         claims = get_jwt() or {}
     except (NoAuthorizationError, InvalidHeaderError, pyjwt.InvalidTokenError):
-        # Token presente pero inválido/expirado: tratar como anónimo
         claims = {}
 
     cabeceras_internas = {}

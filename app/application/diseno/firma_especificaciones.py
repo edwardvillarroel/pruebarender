@@ -1,10 +1,4 @@
-"""Firma canonica de las especificaciones de una pieza de diseno.
 
-Debe coincidir exactamente con `firmaEspecificaciones` del frontend
-(`src/services/cotizador.js`): si el usuario cambia tamano, cantidad, uso,
-material o color despues de estimar, la firma cambia y la estimacion anterior
-deja de ser reutilizable.
-"""
 
 from __future__ import annotations
 

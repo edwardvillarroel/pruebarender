@@ -1,9 +1,4 @@
-"""Validación de prompts antes de ser enviados al proveedor LLM.
 
-Segunda barrera (después de sanitizar_input) para mitigar prompt
-injection (RNF-05): solo se envía el prompt del sistema más los campos
-permitidos y ya saneados.
-"""
 
 MAX_PROMPT = 500
 

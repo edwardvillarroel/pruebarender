@@ -65,7 +65,6 @@ export function generarModelo3DMock(imagen, onProgress) {
         clearInterval(interval)
         onProgress?.({ status: 'completed', percent: 100, message: '¡Modelo listo!' })
 
-        // Usar un modelo GLB de prueba de drei examples
         resolve({
           modelUrl: 'https://vazxmixjsiawhamofees.supabase.co/storage/v1/object/public/models/gltf/robot-playground/robot-playground.glb',
           format: 'glb',

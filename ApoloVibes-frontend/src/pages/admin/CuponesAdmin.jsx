@@ -147,7 +147,6 @@ export default function CuponesAdmin() {
               style={estiloCampo}
             />
 
-            {/* Tipo (selector segmentado) + valor con símbolo */}
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <div
                 role="radiogroup"
@@ -207,7 +206,6 @@ export default function CuponesAdmin() {
               style={estiloCampo}
             />
 
-            {/* Uso único (interruptor) */}
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
               padding: '10px 12px', borderRadius: 8,
@@ -246,7 +244,6 @@ export default function CuponesAdmin() {
         </form>
 
         <div className="cup-card">
-          {/* Barra: filtros + búsqueda */}
           <div className="cup-barra">
             <div className="cup-tabs">
               {FILTROS.map(f => (

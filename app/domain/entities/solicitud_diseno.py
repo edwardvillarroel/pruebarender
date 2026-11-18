@@ -35,7 +35,6 @@ class SolicitudDiseno:
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=utcnow)
 
-    # Sugerido por IA (Cotizador ApoloVibes)
     material_sugerido_ia: str | None = None
     complejidad_ia: str | None = None
     gramos_estimados_ia: Decimal | None = None

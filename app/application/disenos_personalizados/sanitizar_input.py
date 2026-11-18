@@ -1,8 +1,4 @@
-"""Sanitización de inputs de diseño personalizado.
 
-Paso obligatorio antes de que cualquier texto del usuario llegue al LLM,
-para mitigar prompt injection (RNF-05).
-"""
 
 MAX_LONGITUD = 2000
 CAMPOS_PERMITIDOS = {"nombre", "email", "telefono", "material", "descripcion"}

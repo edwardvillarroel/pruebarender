@@ -13,15 +13,11 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.config.from_object(config_class)
     app.json = ProveedorJsonApp(app)
 
-    # OWASP A02: `CORS_ORIGINS` ya viene como lista desde Config (vacia si no se
-    # configura). Sin origenes no se habilita CORS (fail-closed, nunca "*").
     origenes_cors = app.config.get("CORS_ORIGINS") or []
     if origenes_cors:
         CORS(app, origins=origenes_cors)
     db.init_app(app)
 
-    # OWASP A09: caso de uso de auditoria para los endpoints decorados con
-    # `@auditar` (acciones sensibles -> LogAuditoria).
     from app.application.auditoria.gestionar_auditoria import GestionAuditoria
     from app.infrastructure.repositories.log_auditoria_repository import (
         LogAuditoriaRepository,
@@ -31,18 +27,14 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     @app.after_request
     def _cabeceras_seguridad(respuesta):
-        # OWASP A02: cabeceras de seguridad que antes faltaban en el backend.
         respuesta.headers["X-Content-Type-Options"] = "nosniff"
         respuesta.headers["X-Frame-Options"] = "DENY"
         respuesta.headers["Referrer-Policy"] = "no-referrer"
-        # HSTS solo cuando la cookie va Secure (produccion/HTTPS). En dev (http)
-        # el navegador descartaria la header y romperia la navegacion normal.
         if app.config.get("COOKIE_SECURE", True):
             respuesta.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"
             )
         if (respuesta.content_type or "").startswith("application/json"):
-            # Respuestas de API (JWT/cuerpo) no deben quedar en cache.
             respuesta.headers["Cache-Control"] = "no-store"
         return respuesta
 
@@ -189,7 +181,7 @@ def _configurar_pedidos_pagos(app: Flask) -> None:
     app.config["SEGUIMIENTO_STARKEN_SERVICE"] = GestionarSeguimientoStarken(
         pedidos, cliente_starken
     )
-    app.config["PASARELA_PAGO"] = pasarela  #solo para cotizaciones
+    app.config["PASARELA_PAGO"] = pasarela
 
 
 def _configurar_ventas(app: Flask) -> None:
@@ -261,9 +253,6 @@ def _configurar_disenos(app: Flask) -> None:
         api_key=app.config.get("APOLO_API_KEY"),
     )
     app.config["SOLICITUD_DISENO_REPOSITORY"] = repo 
-    # F4: el escritor decide por configuración (SUPABASE_URL/KEY/BUCKET) si la
-    # imagen va al bucket o a disco local; en ambos casos devuelve la misma
-    # ruta relativa `cotizaciones/<uuid><ext>` que guarda la BD.
     app.config["COTIZACION_SERVICE"] = CrearSolicitudDiseno(
         repo,
         guardar_imagen=guardar_imagen_cotizacion_supabase,

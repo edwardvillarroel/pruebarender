@@ -1,9 +1,4 @@
-"""Cliente de la pasarela TUU (Pago Online de Haulmer).
 
-Implementa la interfaz `PasarelaPago` del dominio. Toda la comunicación con el
-proveedor externo (HTTP más firma HMAC-SHA256) queda en infraestructura; la
-capa de aplicación solo conoce `SolicitudPago`/`ResultadoIntentoPago`.
-"""
 
 from __future__ import annotations
 
@@ -22,7 +17,6 @@ from app.domain.interfaces.pasarela_pago import (
 
 
 class TuuCliente(PasarelaPago):
-    """Cliente real de TUU. Se configura desde el punto de composición."""
 
     def __init__(self, config: dict[str, Any]) -> None:
         self._account_id = config["TUU_ACCOUNT_ID"]
@@ -35,9 +29,6 @@ class TuuCliente(PasarelaPago):
         self._timeout = config.get("TUU_TIMEOUT", 15)
 
     def crear_intento(self, solicitud: SolicitudPago) -> ResultadoIntentoPago:
-        # OWASP A04/A05: sin la key real no se firma un cobro. El default vacio
-        # (key fuera del codigo) tiene que fallar ruidosamente, no viajar con
-        # una firma calculada sobre un secreto vacio.
         if not self._secret_key:
             raise ErrorPasarela(
                 "La pasarela de pagos no está configurada (falta TUU_SECRET_KEY)"
@@ -72,8 +63,6 @@ class TuuCliente(PasarelaPago):
         return ResultadoIntentoPago(url=url, token=token)
 
     def verificar_firma(self, parametros: dict[str, str]) -> bool:
-        # Fail-closed: sin key configurada no se puede validar el origen del
-        # callback; aceptar con un secreto vacio permitiria forjar firmas.
         if not self._secret_key:
             return False
         esperada = self._firmar({k: v for k, v in parametros.items() if k != "x_signature"})
@@ -100,11 +89,7 @@ class TuuCliente(PasarelaPago):
         return parametros
 
     def _firmar(self, parametros: dict[str, Any]) -> str:
-        """Firma HMAC-SHA256 (hex) sobre los campos x_* ordenados alfabéticamente.
 
-        TUU concatena `clave` + `valor` (sin separadores) de cada campo `x_*`
-        (excluyendo la propia firma), ordenados por nombre de parámetro.
-        """
         cadena = "".join(
             f"{k}{v}"
             for k, v in sorted(parametros.items())

@@ -1,10 +1,4 @@
-"""Tests del mapper publico de productos y de cómo se sirven sus fotos.
 
-`_a_publico_producto` es la frontera que ve el frontend, asi que es el lugar
-donde se decide que etiqueta viaja en `badge` y si la fecha de alta sale en el
-JSON. Home ordena "Lanzamientos" del mas nuevo al mas viejo, asi que
-`creado_en` tiene que estar disponible o la seccion no se puede ordenar.
-"""
 from datetime import datetime, timezone
 from unittest.mock import Mock
 from uuid import uuid4
@@ -28,7 +22,6 @@ def _producto(**cambios) -> Producto:
     return Producto(**base)
 
 
-# --- Etiqueta de la tarjeta --------------------------------------------------
 
 
 def test_un_lanzamiento_viaja_con_la_etiqueta_nuevo():
@@ -46,32 +39,22 @@ def test_un_producto_normal_no_viaja_con_etiqueta():
 
 
 def test_un_badge_manual_no_se_pisa_cuando_no_es_lanzamiento():
-    """`badge` es texto libre y ya se usa para etiquetas como "Best Seller".
 
-    Derivar la etiqueta no puede borrar lo que el admin haya puesto a mano.
-    """
     publico = _a_publico_producto(_producto(badge="Best Seller"))
 
     assert publico["badge"] == "Best Seller"
 
 
 def test_la_etiqueta_nuevo_tiene_prioridad_sobre_el_badge_manual():
-    """Con el flag prendido la tarjeta muestra "Nuevo".
 
-    La tarjeta tiene un solo slot de etiqueta (`top: 10, left: 10`) asi que no
-    hay lugar para dos. El badge manual sigue intacto en la base: es el flag el
-    que manda en la respuesta.
-    """
     publico = _a_publico_producto(_producto(badge="Best Seller", nuevo_lanzamiento=True))
 
     assert publico["badge"] == "Nuevo"
 
 
-# --- Fecha de alta -----------------------------------------------------------
 
 
 def test_la_fecha_de_alta_viaja_en_iso():
-    """Home ordena por `creado_en`; sin esto la seccion no se puede ordenar."""
     fecha = datetime(2026, 9, 26, 3, 0, 28)
 
     publico = _a_publico_producto(_producto(creado_en=fecha))
@@ -80,31 +63,22 @@ def test_la_fecha_de_alta_viaja_en_iso():
 
 
 def test_un_producto_sin_fecha_no_rompe_el_json():
-    # `None` y no un str: el frontend compara `creado_en` contra strings.
     publico = _a_publico_producto(_producto(creado_en=None))
 
     assert publico["creado_en"] is None
 
 
 def test_el_flag_siempre_viaja_como_booleano():
-    """El `bool(...)` evita que la columna `NUMBER(1)` de Oracle llegue como 0/1.
 
-    El `.filter(p => p.nuevo_lanzamiento)` del frontend funciona igual con 0/1,
-    pero `aria-checked` y el switch recibirian 0/1 en vez de un booleano, que
-    es lo que espera React.
-    """
     publico = _a_publico_producto(_producto())
 
     assert publico["nuevo_lanzamiento"] is False
     assert isinstance(publico["nuevo_lanzamiento"], bool)
 
 
-# --- Stock bajo --------------------------------------------------------------
 
 
 def test_un_producto_bajo_stock_viaja_con_el_flag_prendido():
-    """El frontend deja de hardcodear el 3: `stock_bajo` llega derivado del
-    backend, con el umbral global `STOCK_BAJO` o el `stock_minimo` propio."""
     publico = _a_publico_producto(_producto(stock=3))
 
     assert publico["stock_bajo"] is True
@@ -125,7 +99,6 @@ def test_el_stock_minimo_propio_manda_sobre_el_global():
     assert publico["stock_minimo"] == 6
 
 
-# --- Ranking de mas vendidos -------------------------------------------------
 
 
 def _servicio_con_ranking(vendidos=None) -> Mock:
@@ -140,7 +113,6 @@ def _vendido(nombre: str = "Figura", unidades: int = 3, ingresos: int = 9000):
 
 
 def test_el_ranking_de_mas_vendidos_es_publico(app, client):
-    """La home lo consume sin sesion: es tan publico como el catalogo."""
     app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking([_vendido()])
 
     respuesta = client.get("/api/productos/mas-vendidos")
@@ -161,8 +133,6 @@ def test_el_ranking_devuelve_las_unidades_y_los_ingresos(app, client):
 
 
 def test_el_ranking_trae_los_mismos_campos_que_el_catalogo(app, client):
-    """La tarjeta del carrusel se pinta con los campos del catalogo: si el
-    ranking no los trae, la seccion sale con otro formato."""
     app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking([_vendido()])
 
     cuerpo = client.get("/api/productos/mas-vendidos").get_json()
@@ -189,7 +159,6 @@ def test_sin_periodo_el_ranking_cubre_el_historico_completo(app, client):
 
 
 def test_un_ranking_sin_ventas_devuelve_una_lista_vacia(app, client):
-    """Sin pagos completados no es un error: es una home sin ranking."""
     app.config["PRODUCTO_SERVICE"] = _servicio_con_ranking([])
 
     respuesta = client.get("/api/productos/mas-vendidos")
@@ -220,7 +189,6 @@ def test_el_limite_viaja_al_servicio(app, client):
     assert limite == "5"
 
 
-# --- Ranking semanal con fallback -------------------------------------------
 
 
 def _servicio_semana(tipo: str = "actual", distintos: int = 5) -> Mock:
@@ -256,8 +224,6 @@ def test_el_periodo_semana_usa_el_servicio_con_fallback(app, client):
 def test_el_periodo_semana_cae_al_historico_cuando_la_anterior_tambien_es_pobre(
     app, client
 ):
-    """Si ni la actual ni la anterior alcanzan el umbral de 4 productos, el
-    ranking pasa al historico: sin ventana y con tipo `"historico"`."""
     servicio = Mock()
     servicio.listar_mas_vendidos_semana.return_value = RankingSemana(
         productos=[_vendido()],
@@ -301,7 +267,6 @@ def test_el_ranking_semanal_trae_los_mismos_campos_que_el_catalogo(app, client):
         assert campo in producto
 
 
-# --- Cache de las fotos servidas ---------------------------------------------
 
 
 def _servicio_con_foto() -> Mock:
@@ -316,25 +281,14 @@ def _servicio_con_foto() -> Mock:
 
 
 def _assert_cacheable(respuesta) -> None:
-    """Siete dias de cache, sin `no-cache` que lo contradiga.
 
-    Se mira el `Cache-Control` ya parseado y no el header crudo: el orden de las
-    directivas no es parte del contrato y Werkzeug lo arma segun el orden en que
-    se setearon.
-    """
     cache = respuesta.cache_control
     assert cache.max_age == CACHE_IMAGENES_SEGUNDOS
-    # `no-cache` con `max-age` es una contradiccion: obliga al navegador a
-    # revalidar en cada visita, que es justo lo que se vino a evitar.
     assert not cache.no_cache
-    # Estas fotos no dependen de quien las pida, asi que un cache compartido
-    # (gateway/CDN) las puede guardar.
     assert cache.public
 
 
 def test_la_imagen_del_producto_se_sirve_cacheada(app, client):
-    """Sin esto el navegador vuelve a pedir los MB de la foto en cada carga del
-    catalogo, que es justo lo que el thumbnail vino a resolver."""
     app.config["PRODUCTO_SERVICE"] = _servicio_con_foto()
 
     respuesta = client.get(f"/api/productos/{uuid4()}/imagen")
@@ -378,6 +332,4 @@ def test_una_foto_inexistente_sigue_dando_404(app, client):
 
 
 def test_la_cache_de_imagenes_dura_una_semana():
-    # Si alguien cambia el valor, el peso de cada visita al catalogo cambia con
-    # el: que el cambio sea una decisión consciente y no un número que se movió.
     assert CACHE_IMAGENES_SEGUNDOS == 604800

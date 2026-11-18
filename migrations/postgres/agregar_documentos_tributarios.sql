@@ -1,8 +1,4 @@
--- Facturación electrónica: documento electrónico emitido por pedido.
---
--- Idempotente: se puede aplicar varias veces sin romper.
 
--- Tipo de documento que pide el cliente al pagar ("boleta" | "factura").
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS tipo_documento varchar(20);
 
 CREATE TABLE IF NOT EXISTS documentos_tributarios (
@@ -32,12 +28,10 @@ CREATE TABLE IF NOT EXISTS documentos_tributarios (
         CHECK (estado IN ('pendiente', 'emitido', 'error'))
 );
 
--- Un documento por pedido: es lo que impide emitir dos veces la misma venta.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_documentos_tributarios_pedido
     ON documentos_tributarios (pedido_id)
     WHERE pedido_id IS NOT NULL;
 
--- La clave de idempotencia se deriva del pedido, así que es única de verdad.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_documentos_tributarios_idem
     ON documentos_tributarios (clave_idempotencia);
 

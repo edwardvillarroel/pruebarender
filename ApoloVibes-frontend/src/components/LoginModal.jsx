@@ -103,7 +103,6 @@ export default function LoginModal({ onClose }) {
     const [codigoExpiradoRecup, setCodigoExpiradoRecup] = useState(false)
     const navigate = useNavigate()
 
-    // --- MFA (segundo factor) ---
     const [mfaTicket, setMfaTicket] = useState('')
     const [modoMfa, setModoMfa] = useState(null)
     const [codigoMfa, setCodigoMfa] = useState('')
@@ -112,7 +111,6 @@ export default function LoginModal({ onClose }) {
 
     const enPasoMfa = modo === 'login' && Boolean(modoMfa)
 
-    // --- reCAPTCHA ---
     const [captchaRequerido, setCaptchaRequerido] = useState(false)
     const [captchaToken, setCaptchaToken] = useState('')
 
@@ -387,7 +385,6 @@ export default function LoginModal({ onClose }) {
         setConectandoGoogle(false)
     }
 
-    // ---- Recuperación de contraseña ----
     const abrirRecuperacion = () => {
         setOlvidar(prev => ({ email: email.trim() || prev.email, codigo: '', password: '', confirmar: '' }))
         setConectandoGoogle(false)
@@ -509,7 +506,6 @@ export default function LoginModal({ onClose }) {
                     &times;
                 </button>
 
-                {/* Columna izquierda: formulario */}
                 <div className="login-modal-form" style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: 'auto', padding: '28px 40px' }}>
                     <div
                         className="login-brand-logo"
@@ -979,7 +975,6 @@ export default function LoginModal({ onClose }) {
                         </div>
                     ) : (
                         <div>
-                            {/* Paso 1: datos personales */}
                             {paso === 1 && (
                                 <form onSubmit={(ev) => { ev.preventDefault(); if (validarPaso1()) setPaso(2) }}>
                                     <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
@@ -1093,7 +1088,6 @@ export default function LoginModal({ onClose }) {
                                 </form>
                             )}
 
-                            {/* Paso 2: contraseña */}
                             {paso === 2 && (
                                 <form onSubmit={(ev) => { ev.preventDefault(); if (validarPaso2()) setPaso(3) }}>
                                     <label style={{ fontSize: 12, color: 'var(--text-dim)', display: 'block', marginBottom: 6 }}>
@@ -1127,7 +1121,6 @@ export default function LoginModal({ onClose }) {
                                         </button>
                                     </div>
                                     <p style={{ ...errorSlotStyle, margin: '8px 0 -15px' }}>{erroresPaso.password || ''}</p>
-                                    {/* Requisitos de contraseña segura + medidor en vivo */}
                                     <div style={{ marginTop: 8, background: 'var(--surface-2)', borderRadius: 10, padding: '10px 12px' }}>
                                         <div style={{ display: 'grid', gap: 3 }}>
                                             {fortaleza.reqs.map(r => (
@@ -1204,7 +1197,6 @@ export default function LoginModal({ onClose }) {
                                 </form>
                             )}
 
-                            {/* Paso 3: enviar código */}
                             {paso === 3 && (
                                 <div style={{ textAlign: 'center', padding: '16px 0 6px' }}>
                                     <div
@@ -1253,7 +1245,6 @@ export default function LoginModal({ onClose }) {
                                 </div>
                             )}
 
-                            {/* Paso 4: validar código */}
                             {paso === 4 && (
                                 <form onSubmit={confirmarRegistro}>
                                     {codigoEnviado && (

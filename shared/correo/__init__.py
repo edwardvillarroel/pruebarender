@@ -1,4 +1,3 @@
-"""Envío de correo transaccional sobre la API HTTP de Resend."""
 
 from shared.correo.cliente import ClienteCorreo, ErrorEnvioCorreo
 from shared.correo.modelos import (

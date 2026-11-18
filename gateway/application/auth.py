@@ -69,7 +69,6 @@ class DatosInvalidos(Exception):
 
 
 class CuentaSoloGoogle(Exception):
-    """La cuenta se creó con Google y no tiene contraseña local."""
 
     def __init__(
         self,
@@ -91,7 +90,6 @@ class CodigoNoEnviado(Exception):
 
 
 class CuentaBloqueada(Exception):
-    """La cuenta está bloqueada temporalmente; `espera_seg` dice cuánto falta."""
 
     def __init__(self, espera_seg, *args):
         super().__init__(*args)
@@ -99,7 +97,6 @@ class CuentaBloqueada(Exception):
 
 
 class MfaRequerido(Exception):
-    """El password es correcto pero falta el segundo factor."""
 
     def __init__(self, user, mfa_ticket, *args):
         super().__init__(*args)
@@ -108,7 +105,6 @@ class MfaRequerido(Exception):
 
 
 class BloqueoMfa(Exception):
-    """3 fallos MFA: bloqueo 15 min y hay que volver a pedir el password."""
 
     def __init__(self, espera_seg, *args):
         super().__init__(*args)
@@ -120,10 +116,9 @@ DURACION_REFRESH_MINUTOS = 7 * 24 * 60
 DURACION_CODIGO_MINUTOS = 10
 DURACION_CODIGO_RECUPERACION_MINUTOS = 5
 
-# --- Anti fuerza bruta ---
 UMBRAL_FALLOS_PASSWORD = 5
 UMBRAL_FALLOS_MFA = 3
-DURACIONES_BLOQUEO_PASSWORD_MINUTOS = [15, 60, 1440]  # 15min -> 1h -> 24h
+DURACIONES_BLOQUEO_PASSWORD_MINUTOS = [15, 60, 1440]
 DURACION_BLOQUEO_MFA_MINUTOS = 15
 CAPTCHA_DESDE_FALLOS = 3
 
@@ -170,10 +165,8 @@ def _validar_registro(email, password, nombre, apellido):
     return email, (apellido or "").strip() or None, (nombre or "").strip()
 
 
-# --------------------------------- anti fuerza bruta ---------------------------------
 
 def _espera_activa(clave, tipo):
-    """Segundos restantes de bloqueo para clave+tipo (0 si no está bloqueado)."""
     registro = repositorios.buscar_bloqueo(clave, tipo)
     if registro is None or registro.get("bloqueo_hasta") is None:
         return 0
@@ -185,14 +178,8 @@ def _espera_activa(clave, tipo):
 
 
 def _registrar_fallo(clave, tipo, umbral, escalable=True):
-    """Incrementa fallos de fuerte bruta y dispara el bloqueo si corresponde.
 
-    Devuelve dict con: `espera_seg` (0 si no quedó bloqueado), `captcha_requerido`
-    (a partir del 3er fallo) y `alerta` (True al alcanzar un umbral de bloqueo).
 
-    Un bloqueo ya concedido se conserva hasta expirar: solo los múltiplos del
-    umbral lo otorgan o renuevan. Los fallos intermedios no lo levantan.
-    """
     registro = repositorios.buscar_bloqueo(clave, tipo)
     fallos = (registro or {}).get("fallos") or 0
     nivel = (registro or {}).get("nivel") or 0
@@ -233,7 +220,6 @@ def _registrar_fallo_mfa(email):
 
 
 def requiere_captcha_para_login(email):
-    """True cuando la cuenta ya acumuló 3+ fallos y el próximo login exige captcha."""
     registro = repositorios.buscar_bloqueo((email or "").strip().lower(), "password")
     if registro is None:
         return False
@@ -263,16 +249,9 @@ def _notificar_alerta_si_corresponde(email, resultado, ip):
         repositorios.registrar_log("alerta_seguridad_fallo", None, ip, email)
 
 
-# --------------------------------- registro / recuperacion ---------------------------------
 
 def despachar_codigo_verificacion(email, ip):
-    """Genera y envía el código de confirmación de registro por correo.
 
-    Con credenciales de Resend configuradas (`.env`) el envío es REAL y la
-    función siempre devuelve None: el código nunca se expone en la respuesta.
-    Sin credenciales queda en modo simulación: el código se imprime en la
-    consola del gateway (solo servidor) para poder probar el flujo.
-    """
     email = (email or "").strip().lower()
     if not email or "@" not in email or "." not in email.split("@")[-1]:
         raise DatosInvalidos("El correo electrónico no es válido")
@@ -305,7 +284,6 @@ def despachar_codigo_verificacion(email, ip):
 
 
 def confirmar_registro(email, codigo, password, nombre, apellido, telefono, ip, user_agent, fabrica_tokens):
-    """Valida el código de verificación y crea el usuario con sesión iniciada."""
     email, apellido, nombre = _validar_registro(email, password, nombre, apellido)
 
     pendiente = repositorios.buscar_codigo(email)
@@ -333,13 +311,7 @@ def confirmar_registro(email, codigo, password, nombre, apellido, telefono, ip, 
 
 
 def despachar_codigo_recuperacion(email, ip):
-    """Genera y envía el código para restablecer la contraseña de una cuenta EXISTENTE.
 
-    Mismo contrato que el código de registro: con Resend el envío es real y el
-    código no sale del servidor; sin credenciales se imprime en la consola del
-    gateway (solo servidor). Devuelve (None, expira_en): la expiración viaja al
-    frontend para el countdown (el código nunca).
-    """
     email = (email or "").strip().lower()
     if not email or "@" not in email or "." not in email.split("@")[-1]:
         raise DatosInvalidos("El correo electrónico no es válido")
@@ -378,11 +350,7 @@ def despachar_codigo_recuperacion(email, ip):
 
 
 def validar_codigo_recuperacion(email, codigo):
-    """Valida un código de recuperación SIN consumirlo ni cambiar nada.
 
-    Permite al frontend confirmar el código antes de mostrar los campos de la
-    nueva contraseña; `restablecer_contrasena` vuelve a validarlo al confirmar.
-    """
     email = (email or "").strip().lower()
     if not email or "@" not in email or "." not in email.split("@")[-1]:
         raise DatosInvalidos("El correo electrónico no es válido")
@@ -394,10 +362,7 @@ def validar_codigo_recuperacion(email, codigo):
 
 
 def restablecer_contrasena(email, codigo, nueva_password, ip):
-    """Valida el código de recuperación y cambia la contraseña del usuario.
 
-    Revoca los refresh tokens del usuario para forzar un nuevo inicio de sesión.
-    """
     email = (email or "").strip().lower()
     if not email or "@" not in email or "." not in email.split("@")[-1]:
         raise DatosInvalidos("El correo electrónico no es válido")
@@ -427,7 +392,6 @@ def restablecer_contrasena(email, codigo, nueva_password, ip):
 
 
 def cambiar_contrasena(user_id, password_actual, nueva_password, ip):
-    """Cambio de contraseña con sesión activa; revoca TODAS las sesiones."""
     _validar_password(nueva_password)
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None or not usuario["activo"]:
@@ -446,10 +410,8 @@ def cambiar_contrasena(user_id, password_actual, nueva_password, ip):
     repositorios.registrar_log("cambio_pass_ok", user_id, ip, "")
 
 
-# --------------------------------- login ---------------------------------
 
 def _construir_sesion(usuario, ip, user_agent, fabrica_tokens):
-    """Crea el par access/refresh y persiste el refresh. Asume password validado."""
     jti = nuevo_jti()
     expira_en = calcular_expiracion(DURACION_REFRESH_MINUTOS)
     tokens = fabrica_tokens.crear_par(
@@ -469,11 +431,7 @@ def _construir_sesion(usuario, ip, user_agent, fabrica_tokens):
 
 
 def iniciar_sesion(email, password, ip, user_agent, fabrica_tokens):
-    """Login email/password. Devuelve sesión completa o lanza MfaRequerido.
 
-    Mensaje único `Credenciales incorrectas` (no revela si el correo existe).
-    Con MFA activo, responde un ticket de 5 min para completar el 2do factor.
-    """
     email = (email or "").strip().lower()
 
     espera = _espera_activa(email, "password")
@@ -517,10 +475,7 @@ def iniciar_sesion(email, password, ip, user_agent, fabrica_tokens):
 
 
 def verificar_mfa(mfa_ticket, codigo, ip, user_agent, fabrica_tokens):
-    """Completa el segundo factor: TOTP o código de respaldo.
 
-    Devuelve la sesión completa. 3 fallos → BloqueoMfa (hay que reingresar password).
-    """
     claims = fabrica_tokens.decodificar_ticket(mfa_ticket)
     if claims is None:
         raise CredencialesInvalidas()
@@ -543,7 +498,6 @@ def verificar_mfa(mfa_ticket, codigo, ip, user_agent, fabrica_tokens):
         repositorios.registrar_log("mfa_ok", user_id, ip, "totp")
         return _construir_sesion(usuario, ip, user_agent, fabrica_tokens)
 
-    # Segundo intento: código de respaldo (hasheado, de un solo uso).
     codigos = repositorios.buscar_codigo_respaldo_activo(user_id)
     for codigo_db in codigos:
         if verificar_codigo_respaldo(codigo, codigo_db["codigo_hash"]):
@@ -564,15 +518,9 @@ def _mfa_exitoso(email):
     repositorios.limpiar_bloqueo(email, "mfa")
 
 
-# --------------------------------- MFA (gestion) ---------------------------------
 
 def configurar_mfa(user_id):
-    """Genera un secreto TOTP nuevo (aún NO activo) y lo guarda. Devuelve datos QR.
 
-    Disponible para cuentas locales y Google-only: el TOTP de ApoloVibes es un
-    segundo factor propio y no reemplaza la contraseña, que en Google-only se
-    gestiona desde Google.
-    """
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None:
         raise CredencialesInvalidas()
@@ -588,12 +536,7 @@ def configurar_mfa(user_id):
 
 
 def activar_mfa(user_id, codigo):
-    """Verifica el primer código TOTP, activa MFA y revoca TODAS las sesiones.
 
-    Genera los 8 códigos de respaldo (hasheados) y los devuelve UNA sola vez.
-    Las cuentas Google-only también pueden activarlo: no tienen contraseña local,
-    pero el TOTP sigue siendo un segundo factor válido.
-    """
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None:
         raise CredencialesInvalidas()
@@ -617,10 +560,7 @@ def activar_mfa(user_id, codigo):
 
 
 def desactivar_mfa(user_id, password, codigo, ip):
-    """Desactiva MFA pidiendo password actual + TOTP; revoca TODAS las sesiones.
 
-    Las cuentas Google-only no tienen password local: el TOTP es la prueba.
-    """
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None or not usuario["activo"]:
         raise CredencialesInvalidas()
@@ -635,13 +575,12 @@ def desactivar_mfa(user_id, password, codigo, ip):
         raise CredencialesInvalidas()
 
     repositorios.actualizar_mfa(user_id, None, False)
-    repositorios.guardar_codigos_respaldo(user_id, [])  # limpia códigos previos
+    repositorios.guardar_codigos_respaldo(user_id, [])
     repositorios.revocar_tokens_de_usuario(user_id)
     repositorios.registrar_log("mfa_desactivado", user_id, ip, "sesiones revocadas")
 
 
 def regenerar_codigos_respaldo(user_id):
-    """Genera 8 códigos de respaldo nuevos (reemplaza los previos). Se muestran 1 vez."""
     usuario = repositorios.buscar_usuario_por_id(user_id)
     if usuario is None:
         raise CredencialesInvalidas()
@@ -653,21 +592,14 @@ def regenerar_codigos_respaldo(user_id):
     return {"codigos_respaldo": codigos}
 
 
-# --------------------------------- login Google ---------------------------------
 
 def _password_placeholder():
-    """Hash de un valor aleatorio: el usuario de Google no puede loguear con password."""
     import secrets as _secrets
     return crear_hash(_secrets.token_urlsafe(32))
 
 
 def iniciar_sesion_google(email, google_sub, nombre, apellido, ip, user_agent, fabrica_tokens):
-    """Login/registro via Google. Crea, vincula o usa la cuenta y entrega sesión.
 
-    Mismo contrato que `iniciar_sesion`: con MFA activo lanza MfaRequerido.
-    Si el correo ya existe pero pertenece a una cuenta local, lo vincula (el
-    correo verificado por Google demuestra titularidad).
-    """
     email = (email or "").strip().lower()
     google_sub = (google_sub or "").strip()
     if not email or not google_sub:
@@ -713,7 +645,6 @@ def iniciar_sesion_google(email, google_sub, nombre, apellido, ip, user_agent, f
     return _construir_sesion(usuario, ip, user_agent, fabrica_tokens)
 
 
-# --------------------------------- refresh / logout / perfil ---------------------------------
 
 def rotar_refresh(jti, ip, fabrica_tokens):
     registro = repositorios.buscar_refresh(jti)

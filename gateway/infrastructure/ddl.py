@@ -1,10 +1,4 @@
-"""DDL del gateway. Solo PostgreSQL.
 
-El schema lo crea `migrations/postgres/schema_completo.sql`; esto queda como
-red de seguridad idempotente para que el gateway no reviente al arrancar contra
-una base vacia. Oracle usaba VARCHAR2 / NUMBER(1) / SYSTIMESTAMP y consultaba
-`user_tab_columns`.
-"""
 
 from gateway.infrastructure.pg_pool import adquirir_conexion
 
@@ -54,8 +48,6 @@ CREATE TABLE IF NOT EXISTS bloqueos_login (
 )
 """
 
-# Soporte del ON CONFLICT que reemplaza al MERGE de Oracle. Ver el comentario en
-# tools/migrar_ddl_oracle.py (INDICES_REQUERIDOS_POSTGRES).
 _DDL_BLOQUEOS_LOGIN_UQ = """
 CREATE UNIQUE INDEX IF NOT EXISTS bloqueos_login_clave_tipo_uq
 ON bloqueos_login (lower(clave), tipo)
@@ -71,7 +63,6 @@ CREATE TABLE IF NOT EXISTS codigos_respaldo (
 )
 """
 
-# Columnas nuevas sobre `usuarios` (ALTERs idempotentes).
 _ALTERS_USUARIOS = [
     (
         "auth_provider",
@@ -94,8 +85,6 @@ _ALTERS_USUARIOS = [
         "ALTER TABLE usuarios ADD COLUMN password_configurada boolean DEFAULT true NOT NULL",
     ),
     (
-        # Soft delete del panel de administracion (ver
-        # migrations/postgres/agregar_eliminado_usuario.sql).
         "eliminado_en",
         "ALTER TABLE usuarios ADD COLUMN eliminado_en timestamptz",
     ),

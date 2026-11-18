@@ -5,13 +5,7 @@ from app.infrastructure.database.connection import db, utcnow
 
 
 class DocumentoTributarioModel(db.Model):
-    """Documento electrónico emitido (boleta 39 o factura 33).
 
-    Una fila por documento. `clave_idempotencia` es única: se deriva del id
-    del pedido, así que el índice es lo que impide emitir dos veces el mismo
-    pedido. `pedido_id` también es único (cuando no es nulo) por el mismo
-    motivo.
-    """
 
     __tablename__ = "documentos_tributarios"
 

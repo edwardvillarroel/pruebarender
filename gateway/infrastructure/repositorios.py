@@ -1,12 +1,4 @@
-"""Repositorios del gateway contra PostgreSQL.
 
-Diferencias con la versión Oracle que hay que tener presentes:
-  - Los parámetros son posicionales `%s` (psycopg2), no `:nombre` (oracledb).
-  - `usuarios.id` es `uuid`: se pasa el objeto `uuid.UUID`, nunca `.bytes`.
-    `refresh_tokens.user_id` y `codigos_respaldo.user_id` son `varchar(36)`,
-    esos sí van como texto.
-  - Los booleanos son `boolean`, no `NUMBER(1)`.
-"""
 
 import uuid
 
@@ -58,7 +50,6 @@ def buscar_usuario_por_id(user_id):
 
 
 def crear_usuario(email, password_hash, nombre, apellido, telefono, rol="cliente"):
-    """Crea un usuario nuevo con rol fijo (nunca admin) y lo devuelve."""
     nuevo_id = uuid.uuid4()
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:
@@ -134,7 +125,6 @@ def revocar_refresh(jti):
 
 
 def revocar_tokens_de_usuario(user_id):
-    # refresh_tokens.user_id es varchar(36), no uuid: va como texto.
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:
             cursor.execute(
@@ -202,7 +192,6 @@ def marcar_codigo_usado(email):
 
 
 def buscar_bloqueo(clave, tipo):
-    """Retorna el registro de bloqueos de una clave (email o ip) + tipo."""
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:
             cursor.execute(
@@ -221,13 +210,7 @@ def buscar_bloqueo(clave, tipo):
 
 
 def guardar_o_actualizar_bloqueo(clave, tipo, fallos, nivel, bloqueo_hasta):
-    """Inserta o actualiza un contador de fallos/bloqueo para una clave+tipo.
 
-    Traduccion del `MERGE` de Oracle. El predicado original comparaba
-    `LOWER(t.clave) = LOWER(s.clave)`, asi que el indice de conflicto es sobre
-    `lower(clave)`: `ON CONFLICT` exige un indice unico y coincide con la
-    semántica case-insensitive del original.
-    """
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:
             cursor.execute(
@@ -246,7 +229,6 @@ def guardar_o_actualizar_bloqueo(clave, tipo, fallos, nivel, bloqueo_hasta):
 
 
 def limpiar_bloqueo(clave, tipo):
-    """Borra el contador de fallos de una clave+tipo (login exitoso)."""
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:
             cursor.execute(
@@ -256,10 +238,8 @@ def limpiar_bloqueo(clave, tipo):
 
 
 def guardar_codigos_respaldo(user_id, codigos_hash):
-    """Reemplaza los códigos de respaldo de un usuario por la lista nueva."""
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:
-            # codigos_respaldo.user_id es varchar(36): va como texto.
             cursor.execute(
                 "DELETE FROM codigos_respaldo WHERE user_id = %s",
                 (user_id,),
@@ -275,7 +255,6 @@ def guardar_codigos_respaldo(user_id, codigos_hash):
 
 
 def buscar_codigo_respaldo_activo(user_id):
-    """Retorna los códigos de respaldo no usados de un usuario."""
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:
             cursor.execute(
@@ -327,7 +306,6 @@ def buscar_usuario_por_google_sub(google_sub):
 
 
 def vincular_google(user_id, google_sub):
-    """Asocia Google a un usuario existente sin cambiar su origen ni su contraseña."""
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:
             cursor.execute(
@@ -341,7 +319,6 @@ def vincular_google(user_id, google_sub):
 
 
 def crear_usuario_google(email, google_sub, nombre, apellido, password_hash):
-    """Crea un usuario nuevo autenticado via Google (password_hash placeholder)."""
     nuevo_id = uuid.uuid4()
     with adquirir_conexion() as conexion:
         with conexion.cursor() as cursor:

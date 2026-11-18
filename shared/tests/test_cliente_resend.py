@@ -1,4 +1,3 @@
-"""Contrato del cliente HTTP de Resend y de sus modos de fallo."""
 
 from __future__ import annotations
 

@@ -84,7 +84,6 @@ export default function Navbar() {
       )
       if (!estaEnCheckout) return
 
-      // Bloquear links
       const enlace = target.closest('a')
       if (enlace) {
         const href = enlace.getAttribute('href')
@@ -97,7 +96,6 @@ export default function Navbar() {
         }
       }
 
-      // Bloquear botones dentro del navbar que navegan
       const nav = target.closest('header')
       if (nav) {
         const boton = target.closest('button')
@@ -170,7 +168,6 @@ export default function Navbar() {
           color: '#FBF7EE'
         }}
       >
-        {/* LOGO */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             className="hamburger"
@@ -200,7 +197,6 @@ export default function Navbar() {
             </Link>
           </div>
         </div>
-        {/* Desktop nav */}
         <nav className="nav-links hide-mobile">
           <Link
             to="/categorias"
@@ -255,7 +251,6 @@ export default function Navbar() {
             {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
 
-          {/* Desktop auth */}
           <div style={{ position: 'relative' }} ref={userMenuRef}>
             <button
               onClick={() => {
@@ -277,7 +272,6 @@ export default function Navbar() {
               <User size={18} />
             </button>
 
-            {/* Dropdown */}
             {userMenuOpen && isLoggedIn && (
               <div style={{
                 position: 'absolute', top: 'calc(100% + 8px)', right: 0,
@@ -423,7 +417,6 @@ export default function Navbar() {
             )}
           </div>
 
-          {/* El carrito es solo para clientes */}
           {!isAdmin && (
             <div className="cart-icon" ref={cartMenuRef} style={{ position: 'relative', color: '#FBF7EE' }}>
               <button
@@ -685,14 +678,12 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile menu overlay */}
       {createPortal(
         <div
           className={`nav-mobile-overlay ${mobileOpen ? 'open' : ''}`}
           onClick={() => setMobileOpen(false)}
         >
           <div className="nav-mobile-menu" onClick={e => e.stopPropagation()}>
-            {/* Bloque superior: usuario o login + X a la derecha */}
             <div className="nm-header">
               <div className="nm-header-top">
                 {isLoggedIn ? (
@@ -730,7 +721,6 @@ export default function Navbar() {
             </div>
 
 
-            {/* Menú de usuario: pedidos, cotizaciones o panel admin */}
             {isLoggedIn && (
               isAdmin ? (
                 <div className="nm-section">
@@ -763,7 +753,6 @@ export default function Navbar() {
                 </div>
               ) : (
                 <>
-                  {/* Mis pedidos */}
                   <div className="nm-section">
                     <button
                       className="nm-item"
@@ -793,7 +782,6 @@ export default function Navbar() {
                     </button>
                   </div>
 
-                  {/* Mis cotizaciones */}
                   <div className="nm-section">
                     <button
                       className="nm-item"
@@ -846,7 +834,6 @@ export default function Navbar() {
             )}
 
 
-            {/* Categorías */}
             <div className="nm-section">
               <div className="nm-title">Categorías</div>
               <button className="nm-item" onClick={() => {
@@ -888,7 +875,6 @@ export default function Navbar() {
               ))}
             </div>
 
-            {/* Resto */}
             {isLoggedIn && (
               <div className="nm-section">
                 <button className="nm-item" onClick={() => {
@@ -927,7 +913,6 @@ export default function Navbar() {
               </button>
             </div>
 
-            {/* Logo pie del menu */}
             <div className="nm-footer">
               <img
                 src={mediaPath('nombrelogo2.webp')}

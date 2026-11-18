@@ -1,4 +1,3 @@
-"""Caso de uso: obtener el detalle de un pedido (cliente/admin)."""
 
 from __future__ import annotations
 
@@ -9,7 +8,6 @@ from app.domain.interfaces.repositories import PedidoRepository
 
 
 class ConsultarPedido:
-    """Caso de uso: consultas de pedidos (por id o por usuario)."""
 
     def __init__(self, repositorio: PedidoRepository) -> None:
         self._repositorio = repositorio

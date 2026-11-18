@@ -1,17 +1,6 @@
-"""R2: migra los datos de Oracle Autonomous a PostgreSQL.
 
-Conversión tipo-driven: lee los tipos de las columnas destino desde
-`information_schema` y convierte en función de eso, en lugar de hardcodear
-una tabla de conversiones por columna. Si el schema destino cambia, el script
-sigue siendo correcto.
 
-Uso:
-    python tools/migrar_datos_oracle_postgres.py --truncate
-    python tools/migrar_datos_oracle_postgres.py --dry-run
-    python tools/migrar_datos_oracle_postgres.py --tabla productos --tabla carrito_items
 
-Solo escribe en el destino. Nunca escribe en Oracle.
-"""
 
 from __future__ import annotations
 
@@ -44,16 +33,11 @@ import oracledb  # noqa: E402
 import psycopg2  # noqa: E402
 import psycopg2.extras  # noqa: E402
 
-# LOBs: 28 MB en total, entra de sobra. Sin esto los LOB devuelven un locator
-# inusable y el fetch falla.
 oracledb.defaults.fetch_lobs = True
 
 UTC = dt.timezone.utc
 
 
-# --------------------------------------------------------------------------
-# conexion
-# --------------------------------------------------------------------------
 def conectar_oracle():
     kw = {}
     wallet = os.environ.get("ORACLE_WALLET_DIR", "")
@@ -72,14 +56,7 @@ def conectar_oracle():
 
 
 def conectar_pg():
-    """Conexion al destino.
 
-    Prioriza `DATABASE_URL` / `PG_DSN`, igual que el gateway (`pg_pool._dsn`),
-    y recien ahi cae a los `POSTGRES_*` sueltos. Antes solo leia `POSTGRES_*` con
-    defaults a localhost: si la app estaba configurada con `DATABASE_URL` para
-    Supabase y el `.env` no traia `POSTGRES_HOST`, este script cargaba en el
-    Postgres local sin decir nada. El destino tiene que ser una sola verdad.
-    """
     dsn = os.getenv("DATABASE_URL") or os.getenv("PG_DSN")
     if dsn:
         return psycopg2.connect(dsn, connect_timeout=int(os.getenv("PG_CONNECT_TIMEOUT", "30")))
@@ -92,11 +69,7 @@ def conectar_pg():
     )
 
 
-# --------------------------------------------------------------------------
-# schema destino
-# --------------------------------------------------------------------------
 def columnas_destino(pg) -> dict[str, dict[str, str]]:
-    """{tabla: {columna: data_type}} leyendo el schema ya migrado."""
     cur = pg.cursor()
     cur.execute(
         """
@@ -113,7 +86,6 @@ def columnas_destino(pg) -> dict[str, dict[str, str]]:
 
 
 def orden_por_fk(pg) -> list[str]:
-    """Orden topologico: los padres antes que los hijos, para no violar FKs."""
     cur = pg.cursor()
     cur.execute(
         """
@@ -135,22 +107,15 @@ def orden_por_fk(pg) -> list[str]:
 
     orden, pendientes = [], set(tablas)
     while pendientes:
-        # Todos los padres tienen que estar YA emitidos. Con `&` en vez de `<=`,
-        # en la primera ronda el conjunto esta vacio y las tablas con FK se
-        # marcan listas antes que su padre.
         listos = sorted(t for t in pendientes if deps[t] <= set(orden))
-        if not listos:  # ciclo: no deberia pasar, pero no colgarse
+        if not listos:
             sys.exit(f"CICLO de FK entre tablas: {sorted(pendientes)}")
         orden.extend(listos)
         pendientes -= set(listos)
     return orden
 
 
-# --------------------------------------------------------------------------
-# conversion
-# --------------------------------------------------------------------------
 def hacer_conversor(data_type: str):
-    """Devuelve f(valor_oracle) -> valor_postgres para el tipo destino dado."""
     if data_type == "uuid":
         def _uuid(v):
             if v is None:
@@ -161,7 +126,6 @@ def hacer_conversor(data_type: str):
         return _uuid
 
     if data_type == "boolean":
-        # Oracle NUMBER(1,0) sin CHECK de dominio: 0 falso, todo lo demas true.
         return lambda v: None if v is None else bool(int(v))
 
     if data_type == "bytea":
@@ -187,9 +151,6 @@ def hacer_conversor(data_type: str):
             if v is None:
                 return None
             if isinstance(v, dt.datetime) and v.tzinfo is None:
-                # Oracle guarda TIMESTAMP sin zona como hora de pared. El
-                # servidor de Autonomous corre en UTC, asi que se asume UTC y
-                # se cuenta para poder auditarlo.
                 return v.replace(tzinfo=UTC)
             return v
         return _tstz
@@ -202,9 +163,6 @@ def construir_conversores(pg, tabla: str) -> list:
     return {c: hacer_conversor(t) for c, t in cols.items()}
 
 
-# --------------------------------------------------------------------------
-# migracion
-# --------------------------------------------------------------------------
 def vaciar(pg, tablas: list[str]) -> None:
     cur = pg.cursor()
     cur.execute("TRUNCATE TABLE " + ", ".join(f'"{t}"' for t in tablas)
@@ -216,8 +174,6 @@ def vaciar(pg, tablas: list[str]) -> None:
 
 def migrar_tabla(ora, pg, tabla: str, lote: int, dry_run: bool) -> tuple[int, int]:
     cur_o = ora.cursor()
-    # Oracle guardo los nombres sin comillas, o sea en MAYUSCULAS. El
-    # schema destino quedo en minusculas, asi que se traduce al vuelo.
     cur_o.execute(f'SELECT * FROM "{tabla.upper()}"')
     nombres = [d[0].lower() for d in cur_o.description]
 
@@ -255,13 +211,7 @@ def migrar_tabla(ora, pg, tabla: str, lote: int, dry_run: bool) -> tuple[int, in
 
 
 def sincronizar_sequences(pg) -> None:
-    """Reseña las secuencias de las columnas IDENTITY.
 
-    El migrador inserta los `id` explicitos que traia Oracle, y PostgreSQL NO
-    avanza la secuencia al insertar un valor explicito. Sin esto, el primer
-    INSERT que genere una identidad choca contra una fila ya migrada:
-    `duplicate key value violates unique constraint ..._pkey`.
-    """
     cur = pg.cursor()
     cur.execute(
         """
@@ -284,20 +234,11 @@ def sincronizar_sequences(pg) -> None:
     cur.close()
 
 
-# Nombres de base que se consideran de descarte. `--truncate` hace
-# `TRUNCATE ... RESTART IDENTITY CASCADE` sobre TODAS las tablas: si apunta por
-# error a la base real, la destruye sin margen de recuperacion. Por eso el
-# destino tiene que declararse descartable por nombre.
 BASES_DISCARDABLES = ("test", "dev", "tmp", "temp", "discard", "scratch", "sandbox")
 
 
 def exigir_destino_descartable(pg, Forzar: bool) -> str:
-    """Falla si la base de destino no es evidentemente de pruebas.
 
-    Antes de correr `--truncate` contra una base productive (por ejemplo la de
-    Supabase) hay que pasar `--i-destroy-target` a proposito. No es friccion
-    para el uso normal: los nombres de desarrollo y test pasan siempre.
-    """
     params = pg.get_dsn_parameters()
     dbname = params.get("dbname") or ""
     host = params.get("host") or ""
@@ -370,7 +311,6 @@ def main() -> int:
         print(f"{t:24} {n:>10}")
     print(f"\nTOTAL {total} filas en {dt_s:.1f}s")
 
-    # verificacion: el conteo de Postgres tiene que coincidir con el de Oracle
     if not args.dry_run:
         print("\nverificacion de conteos:")
         cur = pg.cursor()

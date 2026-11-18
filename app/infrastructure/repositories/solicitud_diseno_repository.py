@@ -40,12 +40,7 @@ class SolicitudDisenoRepository:
         return _a_entidad(modelo)
 
     def listar_vencidas(self, cutoff: datetime) -> List[SolicitudDiseno]:
-        """Filas anteriores al corte SIN pedido asociado (no se concretaron).
 
-        Las que tienen `pedidos.cotizacion_id` son relaciones comerciales
-        activas y no entran en la purga de retención (A.8.10). El `NOT EXISTS`
-        se resuelve en SQL, igual que en `PedidoRepository.list_by_usuario`.
-        """
         con_pedido = exists(
             select(literal(1))
             .select_from(PedidoModel)
@@ -60,7 +55,6 @@ class SolicitudDisenoRepository:
         return [_a_entidad(m) for m in modelos]
 
     def eliminar(self, ids: List[UUID]) -> None:
-        """Borra varias filas por id (purga y borrado manual de retención)."""
         if not ids:
             return
         db.session.execute(delete(self.model).where(self.model.id.in_(ids)))

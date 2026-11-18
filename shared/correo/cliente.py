@@ -38,7 +38,6 @@ def _dominio(destino: str) -> str:
 
 
 def _redactar(texto: str) -> str:
-    """Evita devolver direcciones de correo en los mensajes de error."""
     palabras = []
     for palabra in str(texto).split():
         if "@" in palabra:
@@ -72,7 +71,6 @@ def _error_http(status: int, respuesta: httpx.Response) -> ErrorEnvioCorreo:
 
 
 class ClienteCorreo:
-    """Cliente de Resend con modo simulación cuando falta configuración."""
 
     def __init__(self, config: Any) -> None:
         self._api_key = _leer_config(config, "RESEND_API_KEY")
@@ -90,7 +88,6 @@ class ClienteCorreo:
         }
 
     def enviar(self, destino: str, correo: Correo) -> bool:
-        """Envía un correo. Devuelve False en modo simulación."""
         if not self.configurado:
             logger.info(
                 "Correo simulado (Resend sin credenciales) hacia dominio %s: %s",

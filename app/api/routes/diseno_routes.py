@@ -38,9 +38,6 @@ from decimal import Decimal
 
 diseno_bp = Blueprint("disenos", __name__)
 
-# C: cache de las imágenes servidas por la app. La ruta de una cotización es un
-# UUID inmutable, así que la miniatura de esa ruta no cambia nunca; los
-# archivos legacy en disco se cachean un día (el TTL de la firma).
 _CACHE_MINIATURA_SEGUNDOS = 7 * 24 * 3600
 _CACHE_IMAGEN_SEGUNDOS = 86400
 
@@ -263,7 +260,6 @@ def marcar_aviso_cotizacion_visto(solicitud_id):
         if s is None:
             return jsonify({"mensaje": "Cotización no encontrada"}), 404
 
-        # Solo dueño o admin puede verla
         from app.api.middleware.auth import rol_actual
         if s.usuario_id and str(s.usuario_id) != str(usuario_id_str) and rol_actual() != "admin":
             return jsonify({"mensaje": "No autorizado"}), 403
@@ -286,7 +282,6 @@ def obtener_cotizacion(solicitud_id):
         repo = SolicitudDisenoRepository()
         s = repo.obtener_por_id(solicitud_id)
 
-        # Solo dueño o admin puede verla
         from app.api.middleware.auth import rol_actual
         usuario_id_str = usuario_actual()
         if s is None:
@@ -424,7 +419,6 @@ def estimar_cotizacion():
             t = str(valor).strip()
             return t or None
 
-        # Valores para el COTIZADOR (con defaults)
         alto = _numero("alto", _numero("altura", 10))
         ancho = _numero("ancho", 10)
         largo = _numero("largo", 10)
@@ -439,8 +433,6 @@ def estimar_cotizacion():
         material_usuario = _opcional(request.form.get("material_usuario") or request.form.get("material"))
         color_cotizador = _opcional(request.form.get("color")) or "Negro"
 
-        # Valores para la FIRMA (igual que en CrearSolicitudDiseno: None si vacío)
-        # Si el frontend mandó alto vacío, en crear va a ser None, acá también tiene que ser None para la firma
         def _decimal_o_none(nombre):
             v = request.form.get(nombre)
             if v is None or str(v).strip() == "":
@@ -455,7 +447,7 @@ def estimar_cotizacion():
         largo_firma = _decimal_o_none("largo")
         uso_firma = _opcional(request.form.get("uso"))
         color_firma = _opcional(request.form.get("color"))
-        material_firma = material_usuario  # ya es None o texto con strip
+        material_firma = material_usuario
 
         from app.infrastructure.imagenes.validador_imagen_segura import validar_imagen_segura
 
@@ -538,19 +530,12 @@ def estimar_cotizacion():
 @diseno_bp.get("/uploads/<path:filename>")
 def servir_uploads(filename):
     try:
-        # F1: sin firma vigente no se sirve el archivo (antes era público).
         if not verificar(filename, request.args.get("exp"), request.args.get("sig")):
             return jsonify({"mensaje": "Enlace inválido o expirado."}), 403
-        # C: el listado muestra 96×96; servir la foto completa ahí es lo que
-        # hacía tardar la carga. Si hay miniatura se responde con eso.
         if request.args.get("thumb") == "1":
             respuesta = _servir_miniatura(filename)
             if respuesta is not None:
                 return respuesta
-        # F4: si el objeto vive en Supabase Storage se redirige (302) a una URL
-        # firmada de vida corta; el servicio jamás ve la service-role key.
-        # B: no se pregunta antes si el objeto existe — si no está en el bucket
-        # (archivos legacy en disco) el `sign` falla y se sirve local igual.
         almacen = almacen_desde_config(current_app.config)
         if almacen is not None:
             url = almacen.url_firmada(filename)
@@ -563,11 +548,7 @@ def servir_uploads(filename):
 
 
 def _firmar_miniatura(ruta):
-    """URL de la miniatura, o la de la imagen original si no hay miniatura.
 
-    La firma cubre la ruta (no los query params extra): `thumb=1` solo cambia
-    cómo se sirve el mismo contenido ya autorizado.
-    """
     firmada = firmar(ruta)
     if firmada is None or ruta_miniatura(ruta) is None:
         return firmada
@@ -575,16 +556,11 @@ def _firmar_miniatura(ruta):
 
 
 def _servir_miniatura(filename):
-    """Respuesta con la miniatura, o `None` si conviene servir el original.
 
-    `None` (foto ya chica, Pillow ausente, original ilegible) no es un error:
-    es preferible bajar la foto grande antes que mostrar una imagen rota.
-    """
     datos = _obtener_miniatura(filename)
     if datos is None:
         return None
     respuesta = send_file(io.BytesIO(datos), mimetype=MIME_MINIATURA)
-    # El UUID de la imagen es inmutable: su miniatura no cambia nunca.
     respuesta.headers["Cache-Control"] = (
         f"private, max-age={_CACHE_MINIATURA_SEGUNDOS}"
     )
@@ -592,7 +568,6 @@ def _servir_miniatura(filename):
 
 
 def _obtener_miniatura(filename):
-    """Bytes de la miniatura, generándola y guardándola si todavía no existe."""
     destino = ruta_miniatura(filename)
     if destino is None:
         return None
@@ -611,8 +586,6 @@ def _generar_miniatura_bucket(almacen, destino, original):
     generada = crear_miniatura(original)
     if generada is None:
         return None
-    # Best-effort: si la subida falla se sirve igual y se reintenta al próximo
-    # request (el `subir` del almacen ya avisa y no lanza).
     almacen.subir(destino, generada, MIME_MINIATURA)
     return generada
 
@@ -622,7 +595,6 @@ def _obtener_miniatura_local(filename, destino):
     try:
         raiz = carpeta.resolve()
         cacheada = (raiz / destino).resolve()
-        # Anti path-traversal: la ruta derivada debe quedar dentro de uploads.
         cacheada.relative_to(raiz)
     except (OSError, ValueError):
         return None
@@ -642,14 +614,12 @@ def _obtener_miniatura_local(filename, destino):
         cacheada.parent.mkdir(parents=True, exist_ok=True)
         cacheada.write_bytes(generada)
     except OSError:
-        # Disco efímero o permisos: se sirve la miniatura recién generada igual.
         pass
     return generada
 
 
 @diseno_bp.post("/admin/cotizaciones/purgar")
 def purgar_cotizaciones_admin():
-    """Purga semanal de cotizaciones vencidas (F3 / A.8.10), vía cron."""
     try:
         secreto = str(current_app.config.get("CRON_SECRET") or "")
         if not secreto:
@@ -678,11 +648,7 @@ def purgar_cotizaciones_admin():
 
 @diseno_bp.post("/admin/cotizaciones/migrar")
 def migrar_cotizaciones_storage():
-    """Migración one-time de imágenes al bucket de Supabase (F4), vía cron.
 
-    Mismo patrón de guard que la purga (F3): 503 sin `CRON_SECRET`, 401 con
-    `X-Cron-Secret` incorrecto, `?dry_run=1|true|yes|si` solo cuenta.
-    """
     try:
         secreto = str(current_app.config.get("CRON_SECRET") or "")
         if not secreto:
@@ -718,7 +684,6 @@ def migrar_cotizaciones_storage():
 @diseno_bp.delete("/cotizaciones/<uuid:solicitud_id>")
 @rol_requerido("admin")
 def eliminar_cotizacion(solicitud_id):
-    """Borrado manual de una cotización sin pedido asociado (retención A.8.10)."""
     try:
         from app.application.diseno.purgar_cotizaciones import PurgadorCotizaciones
         from app.infrastructure.repositories.pedido_repository import PedidoRepository

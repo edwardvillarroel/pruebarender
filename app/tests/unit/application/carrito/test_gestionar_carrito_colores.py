@@ -3,11 +3,7 @@ from app.domain.entities.carrito import Carrito
 
 
 class _RepoFake:
-    """Carrito en memoria con la misma semantica que el repo de BD.
 
-    `obtener` devuelve lo guardado (o None si el usuario aun no tiene carrito),
-    asi que las operaciones sucesivas ven el mismo carrito y no uno nuevo.
-    """
 
     def __init__(self) -> None:
         self.por_usuario: dict[str, Carrito] = {}
@@ -64,7 +60,6 @@ def test_mismo_producto_en_distinto_color_genera_lineas_separadas():
     _agregar(servicio, usuario, "prod-1", 1, "Blanco")
     carrito = _agregar(servicio, usuario, "prod-1", 1, "Negro")
 
-    # Se imprime distinto, asi que no puede fusionarse en una sola linea.
     assert len(carrito.items) == 2
     assert sorted(i.color for i in carrito.items) == ["Blanco", "Negro"]
     assert all(i.cantidad == 1 for i in carrito.items)
@@ -78,7 +73,6 @@ def test_color_se_normaliza_a_none_cuando_viene_vacio():
     _agregar(servicio, usuario, "prod-1", 1, "Blanco")
     carrito = _agregar(servicio, usuario, "prod-1", 1, "   ")
 
-    # Sin color es la misma linea que la que no tiene color, no una nueva.
     assert len(carrito.items) == 2
     assert carrito.items[1].color is None
 
@@ -128,7 +122,6 @@ def test_carrito_se_persiste_tras_agregar():
 
     _agregar(servicio, "usuario-1", "prod-1", 1, "Blanco")
 
-    # Alta del carrito vacio + el guardado del item con color.
     assert repositorio.veces_guardado == 2
     guardado = repositorio.por_usuario["usuario-1"]
     assert isinstance(guardado, Carrito)

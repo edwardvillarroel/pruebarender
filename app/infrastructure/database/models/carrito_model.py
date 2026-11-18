@@ -1,8 +1,4 @@
-"""Modelos ORM del carrito de compras (tablas `carrito` / `carrito_items`).
 
-Las claves son UUIDs en RAW(16) (`db.Uuid`) y las fechas usan
-TIMESTAMP WITH TIME ZONE igual que el esquema en Oracle.
-"""
 
 import uuid
 from datetime import datetime

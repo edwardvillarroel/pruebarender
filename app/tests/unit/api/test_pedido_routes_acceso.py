@@ -1,14 +1,5 @@
-"""Control de acceso en las rutas de pedidos (OWASP Top 10 2025, A01).
 
-`GET /api/pedidos/<uuid>`, `POST .../cancelar`, `DELETE .../pagar` y los
-endpoint de pago/evaluacion de documentos solo deben servir al dueño del
-pedido o a un admin. El dueño se deriva del `X-User-Id` que el gateway
-inyecta tras validar el JWT: un id arbitrario en la URL no debe abrir el
-detalle (eso es lo que el OWASP Top 10 llama Broken Access Control /
-Insecure Direct Object Reference).
 
-No necesita base de datos: los servicios se mockean via `app.config[...]`.
-"""
 
 from unittest.mock import Mock
 from uuid import uuid4
@@ -21,8 +12,6 @@ from app.application.pedidos_pagos.gestionar_pedido_no_pagado import (
 )
 
 
-# OWASP A01: el backend es fail-closed, toda request autenticada debe venir
-# firmada por el gateway con `X-Internal-Secret` (fijado por el conftest).
 CABECERA_USUARIO = {
     "X-User-Id": "11111111-1111-1111-1111-111111111111",
     "X-User-Rol": "cliente",
@@ -36,7 +25,6 @@ CABECERA_ADMIN = {
 
 
 class _PedidoFalso:
-    """Solo los atributos que `_a_publico_pedido` lee del pedido."""
 
     def __init__(self, usuario_id: str):
         self.id = str(uuid4())
@@ -74,9 +62,6 @@ def _configurar_consulta(app, pedido) -> None:
     app.config["CONSULTA_PEDIDO_SERVICE"] = servicio
 
 
-# ---------------------------------------------------------------------------
-# GET /api/pedidos (listado: siempre del usuario autenticado)
-# ---------------------------------------------------------------------------
 
 
 def test_listado_de_pedidos_requiere_sesion(app, client):
@@ -85,9 +70,6 @@ def test_listado_de_pedidos_requiere_sesion(app, client):
     assert respuesta.get_json()["mensaje"] == "Sesión requerida"
 
 
-# ---------------------------------------------------------------------------
-# GET /api/pedidos/<uuid:pedido_id>
-# ---------------------------------------------------------------------------
 
 
 def test_detalle_pedido_sin_sesion_es_401(app, client):
@@ -97,7 +79,6 @@ def test_detalle_pedido_sin_sesion_es_401(app, client):
 
 
 def test_detalle_pedido_de_otro_usuario_es_403(app, client):
-    """El dueño real viene del JWT/gateway, no del path: otro user -> 403."""
     _configurar_consulta(app, _PedidoFalso("22222222-2222-2222-2222-222222222222"))
 
     respuesta = client.get(
@@ -118,7 +99,6 @@ def test_detalle_pedido_del_propio_usuario_es_200(app, client):
 
 
 def test_detalle_pedido_admin_puede_ver_de_otro_usuario(app, client):
-    """El admin (rol del gateway) puede ver el detalle de cualquier pedido."""
     _configurar_consulta(app, _PedidoFalso("22222222-2222-2222-2222-222222222222"))
 
     respuesta = client.get(f"/api/pedidos/{_uuid_pedido()}", headers=CABECERA_ADMIN)
@@ -127,9 +107,6 @@ def test_detalle_pedido_admin_puede_ver_de_otro_usuario(app, client):
     assert respuesta.get_json()["id"]
 
 
-# ---------------------------------------------------------------------------
-# POST /api/pedidos/<uuid:pedido_id>/cancelar
-# ---------------------------------------------------------------------------
 
 
 def test_cancelar_pedido_sin_sesion_es_401(app, client):
@@ -153,9 +130,6 @@ def test_cancelar_pedido_de_otro_usuario_es_403(app, client):
     assert respuesta.get_json()["mensaje"] == "No autorizado"
 
 
-# ---------------------------------------------------------------------------
-# DELETE /api/pedidos/<uuid:pedido_id>
-# ---------------------------------------------------------------------------
 
 
 def test_eliminar_pedido_de_otro_usuario_es_403(app, client):
@@ -172,9 +146,6 @@ def test_eliminar_pedido_de_otro_usuario_es_403(app, client):
     assert respuesta.get_json()["mensaje"] == "No autorizado"
 
 
-# ---------------------------------------------------------------------------
-# POST /api/pedidos/<uuid:pedido_id>/pagar (reintento de pago)
-# ---------------------------------------------------------------------------
 
 
 def test_reintentar_pago_de_otro_usuario_es_403(app, client):

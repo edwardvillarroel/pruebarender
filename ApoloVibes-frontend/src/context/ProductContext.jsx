@@ -29,14 +29,12 @@ export function ProductProvider({ children }) {
     }
   }
 
-  /** Actualiza un producto en el estado local sin re-fetch al API */
   function actualizarLocal(datos) {
     setProductos(prev =>
       prev.map(p => p.id === datos.id ? { ...p, ...datos } : p)
     )
   }
 
-  /** Elimina un producto del estado local sin re-fetch al API */
   function eliminarLocal(id) {
     setProductos(prev => prev.filter(p => p.id !== id))
   }

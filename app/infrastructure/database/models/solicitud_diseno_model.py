@@ -26,7 +26,6 @@ class SolicitudDisenoModel(db.Model):
     uso = db.Column(db.String(30))
     color = db.Column(db.String(60))
 
-    # Sugerido por IA (Cotizador ApoloVibes)
     material_sugerido_ia = db.Column(db.String(50))
     complejidad_ia = db.Column(db.String(50))
     gramos_estimados_ia = db.Column(db.Numeric(10, 2))

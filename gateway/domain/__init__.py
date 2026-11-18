@@ -1,1 +1,0 @@
-"""Lógica pura del gateway: reglas de tokens, hash, rotación y reuso."""

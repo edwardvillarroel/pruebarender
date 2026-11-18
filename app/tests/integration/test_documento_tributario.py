@@ -1,23 +1,7 @@
-"""El documento electrónico se emite cuando el pago se confirma, y queda.
 
-Este test es el recorrido completo contra la base de verdad: entra por la API
-pública (`POST /api/pago/crear` y `POST /api/pago/confirmar`) y sale por la
-API pública (`GET /api/pedidos/<id>/documento` y su PDF).
 
-Lo que se verifica:
 
-- El pedido recuerda qué documento pidió el cliente (columna `tipo_documento`).
-- Al confirmar el pago se emite el documento y se guarda su folio, su token y
-  su PDF.
-- Confirmar de nuevo NO emite un segundo documento (la idempotencia).
-- El comprobante se puede volver a bajar aunque el proveedor se caiga: el PDF
-  está en la base.
 
-El proveedor de documentos es un doble: no sale nada a la red. Lo que se prueba
-acá es la persistencia y el enganche con el pago, no el HTTP contra OpenFactura
-(eso vive en `tools/verificar_openfactura.py` y en los tests unitarios del
-cliente).
-"""
 
 from __future__ import annotations
 
@@ -62,7 +46,6 @@ class _PasarelaFalsa(PasarelaPago):
 
 
 class _EmisorFalso(EmisorTributario):
-    """Proveedor de documentos que no sale a la red."""
 
     def __init__(self) -> None:
         self.llamadas: list = []
@@ -94,12 +77,7 @@ def emisor():
 
 @pytest.fixture
 def pago_con_documentos(app, emisor):
-    """`ProcesarPago` con el servicio de documentos conectado.
 
-    Es el mismo cableado que hace `app/__init__.py`, pero con un emisor falso:
-    la escritura del pedido, del pago y del documento sigue yendo a la base
-    de verdad, que es lo que hay que probar.
-    """
     servicio = ProcesarPago(
         PedidoRepository(),
         PagoRepository(),
@@ -233,11 +211,7 @@ def test_el_pdf_del_documento_se_baja(
 def test_confirmar_de_nuevo_no_emite_un_segundo_documento(
     client, producto, usuario, centinela, pago_con_documentos, emisor
 ):
-    """La idempotencia es del negocio: un pedido, un documento.
 
-    La pasarela reintenta el callback (hasta 10 veces si no recibe 200), así que
-    el camino de "pago ya confirmado" se recorre muchas veces en la vida real.
-    """
     p = producto(stock=10, nombre=f"{centinela}-llavero", precio=5000)
     cabeceras = _cabeceras(usuario)
     pedido = _comprar(
@@ -259,7 +233,6 @@ def test_confirmar_de_nuevo_no_emite_un_segundo_documento(
 def test_un_pedido_sin_rut_no_emite_documento(
     client, producto, usuario, centinela, pago_con_documentos, emisor
 ):
-    """Sin RUT no hay comprobante: el pedido igual se paga igual."""
     p = producto(stock=10, nombre=f"{centinela}-llavero", precio=5000)
     cabeceras = _cabeceras(usuario)
     pedido = _comprar(
@@ -278,7 +251,6 @@ def test_un_pedido_sin_rut_no_emite_documento(
 def test_otro_usuario_no_ve_el_documento(
     client, producto, usuario, centinela, pago_con_documentos, db_sesion
 ):
-    """El comprobante es del dueño del pedido: no se filtra a otros."""
     from app.infrastructure.database.models.usuario_model import UsuarioModel
 
     p = producto(stock=10, nombre=f"{centinela}-llavero", precio=5000)

@@ -9,13 +9,7 @@ class ItemCarritoNoEncontrado(Exception):
 
 
 class GestionarCarrito:
-    """Lógica de negocio del carrito de compras (capa de aplicación).
 
-    Depende únicamente de la interfaz `CarritoRepository` (inyectada desde el
-    punto de composición). No conoce Flask, la sesión ni el origen del
-    `usuario_id`: ese valor llega como parámetro explícito y en la fase de
-    autenticación simplemente cambiará de dónde se obtiene.
-    """
 
     def __init__(self, repositorio: CarritoRepository) -> None:
         self._repositorio = repositorio
@@ -30,11 +24,7 @@ class GestionarCarrito:
     def agregar_item(
         self, usuario_id: str, producto_id: str, cantidad: int, color: str | None = None
     ) -> Carrito:
-        """Agrega una linea al carrito.
 
-        Las lineas se agrupan por producto Y color: el mismo producto en blanco
-        y en negro son dos lineas distintas, porque se imprimen distinto.
-        """
         self._validar_cantidad(cantidad)
         color = (color or "").strip() or None
         carrito = self.obtener(usuario_id)
@@ -73,5 +63,4 @@ class GestionarCarrito:
     @staticmethod
     def _validar_cantidad(cantidad: int) -> None:
         if cantidad < 1:
-            # Sin reglas de seguridad por ahora; solo consistencia del negocio.
             raise ValueError("La cantidad debe ser un entero mayor a cero")
