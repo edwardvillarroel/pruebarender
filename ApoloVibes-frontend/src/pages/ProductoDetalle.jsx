@@ -108,7 +108,9 @@ export default function ProductoDetalle() {
   const tieneVariantes = colores.length > 0
   const colorActual = colores.find(c => c.id === colorElegido) || null
   const faltaElegirColor = tieneVariantes && !colorActual
-  const fotoActual = (tieneVariantes && colorActual?.imagen) ? colorActual.imagen : producto.imagen
+  const fotoActual = (tieneVariantes && colorActual?.imagen)
+    ? colorActual.imagen
+    : (producto.imagen_url || producto.imagen)
   const rating = Number(producto.rating) || 0
 
   const bloqueado = producto.sinStock || isAdmin
@@ -118,7 +120,11 @@ export default function ProductoDetalle() {
     setAgregando(true)
     try {
       await agregarProducto(
-        { ...producto, color: colorActual?.nombre ?? producto.color, imagen: fotoActual },
+        {
+          ...producto,
+          color: colorActual?.nombre ?? producto.color,
+          imagen: fotoActual || producto.imagen_url || producto.imagen,
+        },
         cantidad
       )
     } finally {

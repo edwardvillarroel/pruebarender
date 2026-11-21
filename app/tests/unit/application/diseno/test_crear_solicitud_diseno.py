@@ -37,6 +37,12 @@ def _configurar(monkeypatch, clave, valor):
 def _secreto_fuerte(monkeypatch):
     _configurar(monkeypatch, "SECRET_KEY", SECRETO_TEST)
     _configurar(monkeypatch, "ESTIMACION_TOKEN_TTL_SECONDS", 7200)
+    import app.application.diseno.crear_solicitud_diseno as modulo
+
+    monkeypatch.setattr(modulo, "_ULTIMO_LLAMADO", 0.0)
+    lock = modulo._LOCK_COTIZADOR
+    if lock.locked():
+        lock.release()
 
 
 class _RepoFalso:
@@ -46,6 +52,16 @@ class _RepoFalso:
     def crear(self, entidad):
         self.creadas.append(entidad)
         return entidad
+
+    def listar_por_usuario(self, usuario_id):
+        return [s for s in self.creadas if str(s.usuario_id) == str(usuario_id)]
+
+    def contar_por_usuario_desde(self, usuario_id, desde):
+        return sum(
+            1
+            for s in self.listar_por_usuario(usuario_id)
+            if s.creado_en is not None and s.creado_en >= desde
+        )
 
 
 class _CotizadorFalso:
@@ -315,17 +331,27 @@ def test_token_con_precio_invalido_cae_al_cotizador():
     assert solicitud.ia_origen == IA_ORIGEN_SERVER
 
 
-@pytest.mark.parametrize("codigo", [401, 429])
-def test_fallo_http_del_cotizador_crea_la_solicitud_y_marca_el_origen(codigo):
-    cotizador = _CotizadorFalso(error=_error_http(codigo))
+def test_fallo_http_401_del_cotizador_crea_la_solicitud_y_marca_el_origen():
+    cotizador = _CotizadorFalso(error=_error_http(401))
     servicio = CrearSolicitudDiseno(_RepoFalso(), cotizador_ia=cotizador)
 
     solicitud = _ejecutar(servicio, _datos(estimacion_token="no-es-un-token"))
 
-    assert solicitud.ia_origen == f"cotizador-error-{codigo}"
+    assert solicitud.ia_origen == "cotizador-error-401"
     assert solicitud.ia_calculado_en is None
     assert solicitud.precio_estimado_ia is None
     assert solicitud.material_sugerido_ia is None
+
+
+def test_fallo_http_429_del_cotizador_usa_estimacion_local():
+    cotizador = _CotizadorFalso(error=_error_http(429))
+    servicio = CrearSolicitudDiseno(_RepoFalso(), cotizador_ia=cotizador)
+
+    solicitud = _ejecutar(servicio, _datos(estimacion_token="no-es-un-token"))
+
+    assert solicitud.ia_origen == IA_ORIGEN_SERVER
+    assert solicitud.ia_calculado_en is not None
+    assert solicitud.precio_estimado_ia is not None
 
 
 def test_timeout_del_cotizador_crea_la_solicitud_y_marca_el_origen():

@@ -14,6 +14,7 @@ class Producto:
     stock: int = 0
     descripcion: str | None = None
     imagen: str | None = None
+    imagen_url: str | None = None
     activo: bool = True
     id: UUID = field(default_factory=uuid4)
     creado_en: datetime = field(default_factory=utcnow)

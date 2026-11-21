@@ -18,6 +18,7 @@ class ProductoModel(db.Model):
     precio = db.Column(db.Integer, nullable=False)
     stock = db.Column(db.Integer, nullable=False, default=0)
     imagen = db.Column(db.String(500))
+    imagen_url = db.Column(db.Text)
     imagen_bytes = deferred(db.Column(LargeBinary))
     imagen_content_type = db.Column(db.String(50))
     imagen_thumb_bytes = deferred(db.Column(LargeBinary))

@@ -241,6 +241,7 @@ def _configurar_disenos(app: Flask) -> None:
     from app.infrastructure.repositories.solicitud_diseno_repository import (
         SolicitudDisenoRepository,
     )
+    from app.infrastructure.repositories.usuario_repository import UsuarioRepository
     from app.infrastructure.imagenes.almacen_cotizaciones import (
         guardar_imagen_cotizacion_supabase,
     )
@@ -257,6 +258,7 @@ def _configurar_disenos(app: Flask) -> None:
         repo,
         guardar_imagen=guardar_imagen_cotizacion_supabase,
         cotizador_ia=cotizador_ia,
+        repositorio_usuarios=UsuarioRepository(),
     )
 
 

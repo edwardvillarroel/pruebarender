@@ -33,7 +33,7 @@ def crear_token_estimacion(
     secreto: str | None,
 ) -> str | None:
 
-    if not token or not _secreto_valido(secreto):
+    if not _secreto_valido(secreto):
         return None
     payload = {
         "v": VERSION,

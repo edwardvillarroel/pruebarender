@@ -15,11 +15,11 @@ class EstadoSolicitud(str, Enum):
 
 @dataclass
 class SolicitudDiseno:
-    usuario_id: UUID
-    nombre: str
-    email: str
+    usuario_id: UUID | None
     material: str
     descripcion: str
+    nombre: str | None = None
+    email: str | None = None
     telefono: str | None = None
     alto: Decimal | None = None
     ancho: Decimal | None = None

@@ -1,0 +1,107 @@
+{
+  "actualizado_en": "2026-05-21",
+  "masVendidos": [
+    {
+      "id": "fallback-mv-1",
+      "nombre": "Dragón articulado",
+      "descripcion": "Figura articulada impresa en 3D, ideal para colección y decoración.",
+      "precio": 14990,
+      "imagen": "/fallback/img/prod-1.webp",
+      "imagen_thumb": "/fallback/img/prod-1.webp",
+      "imagen_url": "/fallback/img/prod-1.webp",
+      "stock": 0,
+      "activo": true,
+      "soloVitrina": true
+    },
+    {
+      "id": "fallback-mv-2",
+      "nombre": "Cubone coleccionable",
+      "descripcion": "Figura coleccionable impresa en 3D con acabado detallado.",
+      "precio": 12990,
+      "imagen": "/fallback/img/prod-2.webp",
+      "imagen_thumb": "/fallback/img/prod-2.webp",
+      "imagen_url": "/fallback/img/prod-2.webp",
+      "stock": 0,
+      "activo": true,
+      "soloVitrina": true
+    },
+    {
+      "id": "fallback-mv-3",
+      "nombre": "Figura de animal",
+      "descripcion": "Figura decorativa impresa en 3D inspirada en animales.",
+      "precio": 9990,
+      "imagen": "/fallback/img/prod-3.webp",
+      "imagen_thumb": "/fallback/img/prod-3.webp",
+      "imagen_url": "/fallback/img/prod-3.webp",
+      "stock": 0,
+      "activo": true,
+      "soloVitrina": true
+    },
+    {
+      "id": "fallback-mv-4",
+      "nombre": "Figura articulada",
+      "descripcion": "Pieza articulada impresa en 3D con movimiento y estilo.",
+      "precio": 11990,
+      "imagen": "/fallback/img/prod-4.webp",
+      "imagen_thumb": "/fallback/img/prod-4.webp",
+      "imagen_url": "/fallback/img/prod-4.webp",
+      "stock": 0,
+      "activo": true,
+      "soloVitrina": true
+    }
+  ],
+  "lanzamientos": [
+    {
+      "id": "fallback-nl-1",
+      "nombre": "Figura anime",
+      "descripcion": "Nuevo lanzamiento inspirado en anime, impreso en 3D.",
+      "precio": 13990,
+      "imagen": "/fallback/img/prod-5.webp",
+      "imagen_thumb": "/fallback/img/prod-5.webp",
+      "imagen_url": "/fallback/img/prod-5.webp",
+      "stock": 0,
+      "activo": true,
+      "nuevo_lanzamiento": true,
+      "soloVitrina": true
+    },
+    {
+      "id": "fallback-nl-2",
+      "nombre": "Llavero personalizado",
+      "descripcion": "Llavero impreso en 3D, liviano y resistente para uso diario.",
+      "precio": 4990,
+      "imagen": "/fallback/img/prod-6.webp",
+      "imagen_thumb": "/fallback/img/prod-6.webp",
+      "imagen_url": "/fallback/img/prod-6.webp",
+      "stock": 0,
+      "activo": true,
+      "nuevo_lanzamiento": true,
+      "soloVitrina": true
+    },
+    {
+      "id": "fallback-nl-3",
+      "nombre": "Accesorio 3D",
+      "descripcion": "Accesorio impreso en 3D con diseño funcional y moderno.",
+      "precio": 8990,
+      "imagen": "/fallback/img/prod-7.webp",
+      "imagen_thumb": "/fallback/img/prod-7.webp",
+      "imagen_url": "/fallback/img/prod-7.webp",
+      "stock": 0,
+      "activo": true,
+      "nuevo_lanzamiento": true,
+      "soloVitrina": true
+    },
+    {
+      "id": "fallback-nl-4",
+      "nombre": "Diseño a medida",
+      "descripcion": "Producto de vitrina para mostrar diseños personalizados en 3D.",
+      "precio": 15990,
+      "imagen": "/fallback/img/prod-8.webp",
+      "imagen_thumb": "/fallback/img/prod-8.webp",
+      "imagen_url": "/fallback/img/prod-8.webp",
+      "stock": 0,
+      "activo": true,
+      "nuevo_lanzamiento": true,
+      "soloVitrina": true
+    }
+  ]
+}

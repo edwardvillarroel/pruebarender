@@ -6,4 +6,5 @@ from uuid import UUID, uuid4
 class Categoria:
     nombre: str
     descripcion: str | None = None
+    imagen_url: str | None = None
     id: UUID = field(default_factory=uuid4)

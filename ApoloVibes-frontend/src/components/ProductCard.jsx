@@ -19,7 +19,7 @@ export default function ProductCard({ producto, index = 0 }) {
   const { categorias } = useProductos()
   const acento = ACENTOS[index % ACENTOS.length]
   const categoria = categorias.find(c => c.id === producto.categoria_id)
-  const imagenTarjeta = producto.imagen_thumb || producto.imagen
+  const imagenTarjeta = producto.imagen_url || producto.imagen_thumb || producto.imagen
   const [agregando, setAgregando] = useState(false)
   const navigate = useNavigate()
 
@@ -43,7 +43,7 @@ export default function ProductCard({ producto, index = 0 }) {
         await agregarProducto({
           ...producto,
           color: colores[0].nombre,
-          imagen: colores[0].imagen || producto.imagen,
+          imagen: colores[0].imagen || producto.imagen_url || producto.imagen,
         })
         return
       }
@@ -53,22 +53,11 @@ export default function ProductCard({ producto, index = 0 }) {
     }
   }
 
-  const bloqueado = producto.sinStock || isAdmin
+  const soloVitrina = Boolean(producto.soloVitrina)
+  const bloqueado = producto.sinStock || isAdmin || soloVitrina
 
-  return (
-    <div
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border-card)',
-        borderRadius: 16,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 2px 4px rgba(253, 137, 3, 0.86)',
-        transition: 'transform .2s, box-shadow .2s'
-      }}
-    >
-      <Link to={`/producto/${producto.id}`} style={{ position: 'relative', display: 'block' }}>
+  const ContenidoImagen = (
+      <>
         <div
           style={{
             position: 'relative',
@@ -171,7 +160,29 @@ export default function ProductCard({ producto, index = 0 }) {
             }}
           />
         </div>
-      </Link>
+      </>
+  )
+
+  return (
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--border-card)',
+        borderRadius: 16,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: '0 2px 4px rgba(253, 137, 3, 0.86)',
+        transition: 'transform .2s, box-shadow .2s'
+      }}
+    >
+      {soloVitrina ? (
+        <div style={{ position: 'relative', display: 'block' }}>{ContenidoImagen}</div>
+      ) : (
+        <Link to={`/producto/${producto.id}`} style={{ position: 'relative', display: 'block' }}>
+          {ContenidoImagen}
+        </Link>
+      )}
 
       <div style={{ padding: '10px 16px', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -271,15 +282,17 @@ export default function ProductCard({ producto, index = 0 }) {
           }}
           onMouseEnter={(e) => !bloqueado && (e.currentTarget.style.opacity = '.85')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-        > {agregando ? 'Agregando' : 'Agregar'}
-          <img
-            src={mediaPath('cart.png')}
-            alt=""
-            style={{
-              width: 25, height: 25, filter: 'brightness(0) invert(1)',
-              opacity: bloqueado ? 0.5 : 1,
-            }}
-          />
+        > {soloVitrina ? 'Vista referencial' : agregando ? 'Agregando' : 'Agregar'}
+          {!soloVitrina && (
+            <img
+              src={mediaPath('cart.png')}
+              alt=""
+              style={{
+                width: 25, height: 25, filter: 'brightness(0) invert(1)',
+                opacity: bloqueado ? 0.5 : 1,
+              }}
+            />
+          )}
         </button>
       </div>
     </div>

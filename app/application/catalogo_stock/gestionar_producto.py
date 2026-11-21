@@ -281,9 +281,9 @@ class GestionarProducto:
             raise ValueError("Producto no encontrado")
         self._repositorio.delete(producto)
 
-    def guardar_imagen(self, producto_id: UUID, imagen: ImagenProducto) -> None:
+    def guardar_imagen(self, producto_id: UUID, imagen: ImagenProducto, imagen_url: str | None = None) -> None:
 
-        self._repositorio.guardar_imagen(producto_id, imagen)
+        self._repositorio.guardar_imagen(producto_id, imagen, imagen_url=imagen_url)
         self._regenerar_thumb(producto_id, imagen, self._repositorio.guardar_thumb)
 
     def _regenerar_thumb(

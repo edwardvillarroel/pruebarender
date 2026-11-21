@@ -251,6 +251,38 @@ def _resumen(respuesta) -> str:
         return "<sin cuerpo>"
 
 
+def url_publica_catalogo(supabase_url: str, ruta: str) -> str:
+    base = (supabase_url or "").strip().rstrip("/")
+    ruta = (ruta or "").lstrip("/")
+    return f"{base}/storage/v1/object/public/catalogo/{ruta}"
+
+
+def almacen_catalogo_desde_config(config=None) -> AlmacenSupabaseStorage | None:
+
+    if config is None:
+        from flask import current_app, has_app_context
+
+        if has_app_context():
+            config = current_app.config
+        else:
+            from app.config import Config
+
+            config = {
+                "SUPABASE_URL": getattr(Config, "SUPABASE_URL", ""),
+                "SUPABASE_SERVICE_KEY": getattr(Config, "SUPABASE_SERVICE_KEY", ""),
+                "SUPABASE_SIGN_TTL_SECONDS": getattr(
+                    Config, "SUPABASE_SIGN_TTL_SECONDS", 300
+                ),
+            }
+    almacen = AlmacenSupabaseStorage(
+        url=config.get("SUPABASE_URL"),
+        clave=config.get("SUPABASE_SERVICE_KEY"),
+        cubeta="catalogo",
+        ttl=config.get("SUPABASE_SIGN_TTL_SECONDS") or 300,
+    )
+    return almacen if almacen.configurado else None
+
+
 def almacen_desde_config(config=None) -> AlmacenSupabaseStorage | None:
 
     if config is None:

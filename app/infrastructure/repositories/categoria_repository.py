@@ -45,6 +45,7 @@ def _a_entidad(modelo: CategoriaModel) -> Categoria:
         id=modelo.id,
         nombre=modelo.nombre,
         descripcion=modelo.descripcion,
+        imagen_url=getattr(modelo, "imagen_url", None),
     )
 
 
@@ -53,4 +54,5 @@ def _a_modelo(entidad: Categoria) -> CategoriaModel:
         id=entidad.id,
         nombre=entidad.nombre,
         descripcion=entidad.descripcion,
+        imagen_url=getattr(entidad, "imagen_url", None),
     )

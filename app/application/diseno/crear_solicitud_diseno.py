@@ -50,25 +50,25 @@ class CotizadorOcupado(Exception):
     """El cotizador está en uso o dentro del intervalo mínimo entre llamados."""
 
 class CrearSolicitudDiseno:
-    def __init__(self, repositorio, guardar_imagen=None, cotizador_ia: ClienteCotizadorIA | None = None):
+    def __init__(
+        self,
+        repositorio,
+        guardar_imagen=None,
+        cotizador_ia: ClienteCotizadorIA | None = None,
+        repositorio_usuarios=None,
+    ):
         self.repositorio = repositorio
         self.guardar_imagen = guardar_imagen
         self.cotizador_ia = cotizador_ia
+        self.repositorio_usuarios = repositorio_usuarios
 
     def ejecutar(self, usuario_id: UUID, datos: dict, imagen) -> SolicitudDiseno:
         datos = self._normalizar_datos(datos)
 
-        nombre = str(datos.get("nombre") or "").strip()
-        if not nombre or len(nombre) > 150:
-            raise ValueError("El nombre es obligatorio y debe tener máximo 150 caracteres.")
-
-        email = str(datos.get("email") or "").strip()
-        if not email or len(email) > 255 or not EMAIL_RE.match(email):
-            raise ValueError("El correo electrónico no es válido.")
-
-        telefono = self._opcional_texto(datos.get("telefono"))
-        if telefono is not None and not TELEFONO_RE.match(telefono):
-            raise ValueError("El teléfono no es válido.")
+        usuario = self._obtener_usuario(usuario_id)
+        nombre = self._nombre_usuario(usuario, datos)
+        email = self._email_usuario(usuario, datos)
+        telefono = self._telefono_usuario(usuario, datos)
 
         material = str(datos.get("material") or "").strip()
         if material not in MATERIALES_PERMITIDOS:
@@ -125,21 +125,15 @@ class CrearSolicitudDiseno:
                 self._aplicar_resultado(solicitud, estimacion_firmada)
                 solicitud.ia_calculado_en = utcnow()
                 solicitud.ia_origen = IA_ORIGEN_CLIENTE
-            else:
-                estimacion_front = self._estimacion_desde_datos(datos)
-                if estimacion_front is not None:
-                    self._aplicar_resultado(solicitud, estimacion_front)
-                    solicitud.ia_calculado_en = utcnow()
-                    solicitud.ia_origen = IA_ORIGEN_CLIENTE
-                elif self.cotizador_ia is not None:
-                    estimacion = self._estimar_con_cola(
-                        contenido=contenido, extension=extension,
-                        alto=alto, ancho=ancho, largo=largo, unidad=unidad,
-                        cantidad=cantidad, uso=uso, material=material, color=color,
-                    )
-                    self._aplicar_resultado(solicitud, estimacion)
-                    solicitud.ia_calculado_en = utcnow()
-                    solicitud.ia_origen = IA_ORIGEN_SERVER
+            elif self.cotizador_ia is not None:
+                estimacion = self._estimar_con_cola(
+                    contenido=contenido, extension=extension,
+                    alto=alto, ancho=ancho, largo=largo, unidad=unidad,
+                    cantidad=cantidad, uso=uso, material=material, color=color,
+                )
+                self._aplicar_resultado(solicitud, estimacion)
+                solicitud.ia_calculado_en = utcnow()
+                solicitud.ia_origen = IA_ORIGEN_SERVER
         except CotizadorOcupado:
             solicitud.ia_origen = IA_ORIGEN_PENDIENTE
             logger.info("Cotizador ocupado; la solicitud queda pendiente de estimación.")
@@ -186,6 +180,43 @@ class CrearSolicitudDiseno:
                 self._primero_no_nulo(datos, "confianza_complejidad_ia", "confianza_complejidad")
             ),
         }
+
+    def _obtener_usuario(self, usuario_id: UUID):
+        repo = self.repositorio_usuarios
+        if repo is None:
+            return None
+        for metodo in ("get_by_id", "obtener_por_id", "buscar_por_id"):
+            fn = getattr(repo, metodo, None)
+            if callable(fn):
+                return fn(usuario_id)
+        return None
+
+    def _nombre_usuario(self, usuario, datos: dict) -> str | None:
+        if usuario is not None:
+            partes = [getattr(usuario, "nombre", None), getattr(usuario, "apellido", None)]
+            nombre = " ".join(p for p in partes if p).strip()
+            if nombre:
+                return nombre[:150]
+        nombre = str(datos.get("nombre") or "").strip()
+        return nombre[:150] if nombre else None
+
+    def _email_usuario(self, usuario, datos: dict) -> str | None:
+        if usuario is not None:
+            email = str(getattr(usuario, "email", "") or "").strip()
+            if email:
+                return email[:255]
+        email = str(datos.get("email") or "").strip()
+        return email[:255] if email else None
+
+    def _telefono_usuario(self, usuario, datos: dict) -> str | None:
+        if usuario is not None:
+            telefono = self._opcional_texto(getattr(usuario, "telefono", None))
+            if telefono:
+                return telefono
+        telefono = self._opcional_texto(datos.get("telefono"))
+        if telefono is not None and not TELEFONO_RE.match(telefono):
+            raise ValueError("El teléfono no es válido.")
+        return telefono
 
     @staticmethod
     def _normalizar_datos(datos: dict) -> dict:

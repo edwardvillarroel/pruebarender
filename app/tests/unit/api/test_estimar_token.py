@@ -79,16 +79,13 @@ def test_estimar_emite_token_ligado_al_usuario_y_a_la_imagen(app, client, monkey
     assert estimacion["gramos_estimados_ia"] == 9.3
 
 
-def test_estimar_sin_sesion_no_emite_token(app, client, monkeypatch):
+def test_estimar_sin_sesion_requiere_autenticacion(app, client, monkeypatch):
     app.config["SECRET_KEY"] = SECRETO
     monkeypatch.setattr(ClienteCotizadorIA, "estimar", lambda self, **kwargs: RESULTADO)
 
     respuesta = _post_estimar(client, _png_bytes(), {})
 
-    assert respuesta.status_code == 200
-    body = respuesta.get_json()
-    assert body["firma"] == FIRMA
-    assert "token" not in body
+    assert respuesta.status_code == 401
 
 
 def test_estimar_sin_secreto_seguro_no_emite_token(app, client, monkeypatch):

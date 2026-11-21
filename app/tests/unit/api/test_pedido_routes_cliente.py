@@ -12,8 +12,13 @@ class _PedidoFalso:
 
     def __init__(self, direccion_envio, detalles=()):
         self.id = "00000000-0000-0000-0000-000000000001"
+        self.cotizacion_id = None
         self.estado = type("E", (), {"value": "pendiente"})()
         self.total = 1000
+        self.subtotal = 1000
+        self.descuento_productos = 0
+        self.descuento_cupon = 0
+        self.cupon_codigo = None
         self.entrega = "retiro"
         self.direccion_envio = direccion_envio
         self.creado_en = None
@@ -24,7 +29,11 @@ class _PedidoFalso:
         self.usuario_id = "00000000-0000-0000-0000-000000000002"
         self.detalles = list(detalles)
         self.resenas_pendientes = 0
+        self.resenas_completadas = 0
         self.tipo_documento = None
+        self.estado_pago = None
+        self.aviso_cancelacion_en = None
+        self.aviso_cancelacion_visto = False
 
 
 def test_deserializa_el_cliente_guardado():

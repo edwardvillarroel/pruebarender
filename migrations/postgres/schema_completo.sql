@@ -16,6 +16,7 @@ CREATE TABLE CATEGORIAS
    (	ID uuid DEFAULT gen_random_uuid(), 
 	NOMBRE varchar(100)  NOT NULL , 
 	DESCRIPCION text , 
+	IMAGEN_URL text ,
 	 PRIMARY KEY (ID), 
 	 CONSTRAINT UQ_CATEGORIAS_NOMBRE UNIQUE (NOMBRE)
    );
@@ -157,6 +158,7 @@ CREATE TABLE PRODUCTOS
 	PRECIO numeric(10,2) NOT NULL , 
 	STOCK numeric DEFAULT 0 NOT NULL , 
 	IMAGEN varchar(500) , 
+	IMAGEN_URL text ,
 	ACTIVO boolean DEFAULT true NOT NULL , 
 	CREADO_EN timestamptz DEFAULT now() NOT NULL , 
 	IMAGEN_BYTES bytea, 
@@ -199,10 +201,7 @@ CREATE TABLE SESIONES_VENTA
 
 CREATE TABLE SOLICITUDES_DISENO 
    (	ID uuid DEFAULT gen_random_uuid(), 
-	USUARIO_ID uuid NOT NULL , 
-	NOMBRE varchar(150)  NOT NULL , 
-	EMAIL varchar(255)  NOT NULL , 
-	TELEFONO varchar(30) , 
+	USUARIO_ID uuid , 
 	MATERIAL varchar(30)  NOT NULL , 
 	DESCRIPCION text  NOT NULL , 
 	ESTADO varchar(30)  DEFAULT 'pendiente' NOT NULL , 
@@ -215,8 +214,8 @@ CREATE TABLE SOLICITUDES_DISENO
 	 CHECK (precio >= 0) , 
 	 PRIMARY KEY (ID)
    , 
-	 CONSTRAINT FK_SOLICITUD_USUARIO FOREIGN KEY (USUARIO_ID)
-	  REFERENCES USUARIOS (ID) 
+	 CONSTRAINT FK_SOLICITUDES_USUARIO FOREIGN KEY (USUARIO_ID)
+	  REFERENCES USUARIOS (ID) ON DELETE SET NULL
    );
 
 CREATE TABLE CARRITO_ITEMS 
@@ -383,3 +382,28 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_documentos_tributarios_idem
     ON documentos_tributarios (clave_idempotencia);
 CREATE INDEX IF NOT EXISTS idx_documentos_tributarios_estado
     ON documentos_tributarios (estado);
+
+-- FASE 2 (plan): lectura pública de catálogo por anon key (excepción documentada al gateway).
+ALTER TABLE productos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categorias ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "productos publicos" ON productos;
+CREATE POLICY "productos publicos"
+ON productos FOR SELECT
+TO anon, authenticated
+USING (true);
+
+DROP POLICY IF EXISTS "categorias publicas" ON categorias;
+CREATE POLICY "categorias publicas"
+ON categorias FOR SELECT
+TO anon, authenticated
+USING (true);
+
+-- FASE 1 (plan): bucket público `catalogo` (crear bucket en Dashboard/Storage API).
+-- Políticas de storage.objects:
+-- DROP POLICY IF EXISTS "catalogo lectura publica" ON storage.objects;
+-- CREATE POLICY "catalogo lectura publica" ON storage.objects FOR SELECT TO anon, authenticated USING (bucket_id = 'catalogo');
+-- DROP POLICY IF EXISTS "catalogo solo backend subir" ON storage.objects;
+-- CREATE POLICY "catalogo solo backend subir" ON storage.objects FOR INSERT TO service_role WITH CHECK (bucket_id = 'catalogo');
+-- DROP POLICY IF EXISTS "catalogo solo backend borrar" ON storage.objects;
+-- CREATE POLICY "catalogo solo backend borrar" ON storage.objects FOR DELETE TO service_role USING (bucket_id = 'catalogo');

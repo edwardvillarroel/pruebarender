@@ -79,25 +79,73 @@ function leerDescripcion(descripcion) {
   }
 }
 
-function MiniaturaModal({ src, nombre }) {
+function urlImagenCotizacion(valor) {
+  if (!valor) return ''
+  return /^(https?:|data:|blob:)/i.test(String(valor).trim()) ? String(valor).trim() : urlMedia(valor)
+}
+
+function MiniaturaModal({ src, thumbSrc, nombre }) {
   const [fallo, setFallo] = useState(false)
-  const url = src ? urlMedia(src) : ''
+  const [originalLista, setOriginalLista] = useState(false)
+  const urlOriginal = urlImagenCotizacion(src)
+  const urlThumb = urlImagenCotizacion(thumbSrc)
+  const urlInicial = urlThumb || urlOriginal
+
+  useEffect(() => {
+    setFallo(false)
+    setOriginalLista(false)
+    if (!urlThumb || !urlOriginal || urlThumb === urlOriginal) return
+    const img = new Image()
+    img.decoding = 'async'
+    img.onload = () => setOriginalLista(true)
+    img.src = urlOriginal
+    return () => { img.onload = null }
+  }, [urlOriginal, urlThumb])
+
+  const urlMostrar = !fallo && originalLista ? urlOriginal : urlInicial
 
   return (
     <div style={{ width: 96, height: 96, borderRadius: 12, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--input-bg)', border: `1px solid ${LINEA}`, color: COLOR_APAGADO }}>
-      {url && !fallo ? (
+      {urlMostrar && !fallo ? (
         <img
-          src={url}
+          src={urlMostrar}
           alt={`Referencia enviada por ${nombre}`}
-          loading="lazy"
+          loading="eager"
           decoding="async"
           width="96"
           height="96"
-          onError={() => setFallo(true)}
+          onError={() => {
+            if (originalLista && urlThumb) setOriginalLista(false)
+            else setFallo(true)
+          }}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
       ) : (
         <ImageOff size={28} strokeWidth={1.5} aria-label="Sin imagen" />
+      )}
+    </div>
+  )
+}
+
+function ThumbCotizacionLista({ src, nombre }) {
+  const [fallo, setFallo] = useState(false)
+  const url = urlImagenCotizacion(src)
+  return (
+    <div style={{ width: 48, height: 48, borderRadius: 10, overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--input-bg)', border: '1px solid var(--surface-3)', color: 'var(--text-dim)', margin: '0 auto' }}>
+      {url && !fallo ? (
+        <img
+          src={url}
+          alt={`Miniatura de cotización de ${nombre || 'cliente'}`}
+          loading="eager"
+          fetchPriority="low"
+          decoding="async"
+          width="48"
+          height="48"
+          onError={() => setFallo(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      ) : (
+        <ImageOff size={16} strokeWidth={1.5} aria-label="Sin imagen" />
       )}
     </div>
   )
@@ -272,7 +320,7 @@ function DetalleCotizacionModal({ cotizacion, onClose, precios, setPrecios, usar
             <div style={{ background: FONDO_TARJETA, borderRadius: 12, padding: 14, marginBottom: 20 }}>
               <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 600, color: COLOR_APAGADO }}>Datos del cliente</p>
               <div style={{ display: 'flex', gap: 12 }}>
-                <MiniaturaModal src={c.imagen} nombre={c.nombre} />
+                <MiniaturaModal src={c.imagen} thumbSrc={c.thumb_url || c.imagen_thumb} nombre={c.nombre} />
                 <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
                   <FilaDatoModal icono={User} valor={c.nombre} />
                   <FilaDatoModal icono={Mail} valor={c.email} />
@@ -684,6 +732,7 @@ export default function Cotizaciones() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'center' }}>
             <thead>
               <tr style={{ color: 'var(--surface)', textAlign: 'center', fontSize: 11, textTransform: 'uppercase' }}>
+                <th style={{ padding: '0 10px 12px' }}>Foto</th>
                 <th style={{ padding: '0 10px 12px' }}>Cotización</th>
                 <th style={{ padding: '0 10px 12px' }}>Cliente</th>
                 <th style={{ padding: '0 10px 12px' }}>Correo</th>
@@ -700,6 +749,9 @@ export default function Cotizaciones() {
                 const estilo = estilosEstado[c.estado] || estilosEstado.pendiente
                 return (
                   <tr key={c.id} style={{ borderTop: '1px solid var(--surface-3)' }}>
+                    <td style={{ padding: '8px 10px' }}>
+                      <ThumbCotizacionLista src={c.thumb_url || c.imagen_thumb} nombre={c.nombre} />
+                    </td>
                     <td style={{ padding: '13px 10px', fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', fontSize: 11 }}>
                       {c.id.slice(0, 8)}
                     </td>

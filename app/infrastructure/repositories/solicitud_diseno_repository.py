@@ -64,9 +64,6 @@ class SolicitudDisenoRepository:
         modelo = self.model.query.get(entidad.id)
         if modelo is None:
             raise ValueError("Solicitud no encontrada")
-        modelo.nombre = entidad.nombre
-        modelo.email = entidad.email
-        modelo.telefono = entidad.telefono
         modelo.material = entidad.material
         modelo.descripcion = entidad.descripcion
         modelo.alto = entidad.alto
@@ -87,12 +84,21 @@ class SolicitudDisenoRepository:
 
 
 def _a_entidad(modelo: SolicitudDisenoModel) -> SolicitudDiseno:
+    usuario = getattr(modelo, "usuario", None)
+    nombre_usuario = None
+    email_usuario = None
+    telefono_usuario = None
+    if usuario is not None:
+        partes = [getattr(usuario, "nombre", None), getattr(usuario, "apellido", None)]
+        nombre_usuario = " ".join(p for p in partes if p).strip() or None
+        email_usuario = getattr(usuario, "email", None)
+        telefono_usuario = getattr(usuario, "telefono", None)
     return SolicitudDiseno(
         id=modelo.id,
         usuario_id=modelo.usuario_id,
-        nombre=modelo.nombre,
-        email=modelo.email,
-        telefono=modelo.telefono,
+        nombre=nombre_usuario,
+        email=email_usuario,
+        telefono=telefono_usuario,
         material=modelo.material,
         descripcion=modelo.descripcion,
         alto=modelo.alto,
@@ -125,9 +131,6 @@ def _a_modelo(entidad: SolicitudDiseno) -> SolicitudDisenoModel:
     return SolicitudDisenoModel(
         id=entidad.id,
         usuario_id=entidad.usuario_id,
-        nombre=entidad.nombre,
-        email=entidad.email,
-        telefono=entidad.telefono,
         material=entidad.material,
         descripcion=entidad.descripcion,
         alto=entidad.alto,

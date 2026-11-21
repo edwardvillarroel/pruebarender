@@ -8,6 +8,7 @@ CREATE TABLE PRODUCTOS
 	PRECIO numeric(10,2) NOT NULL , 
 	STOCK numeric DEFAULT 0 NOT NULL , 
 	IMAGEN varchar(500) , 
+	IMAGEN_URL text ,
 	ACTIVO boolean DEFAULT true NOT NULL , 
 	CREADO_EN timestamptz DEFAULT now() NOT NULL , 
 	IMAGEN_BYTES bytea, 

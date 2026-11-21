@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { productoApi } from '../services/products.js'
+import { listarCategoriasPublicas, listarProductosPublicos } from '../services/catalogo.js'
 
 const ProductContext = createContext(null)
 
@@ -15,14 +15,14 @@ export function ProductProvider({ children }) {
     setError(null)
     try {
       const [resProductos, resCategorias] = await Promise.all([
-        productoApi.obtener(),
-        productoApi.listarCategorias(),
+        listarProductosPublicos(),
+        listarCategoriasPublicas(),
       ])
-      setProductos(resProductos.productos ?? [])
-      setCategorias(resCategorias.categorias ?? [])
+      setProductos(resProductos ?? [])
+      setCategorias(resCategorias ?? [])
     } catch (err) {
       console.error('Error al cargar catálogo:', err)
-      setError(err.message)
+      setError(err.message || 'No se pudo cargar el catálogo')
     } finally {
       setCargando(false)
       primeraCarga.current = false

@@ -35,6 +35,7 @@ def _a_publico_producto(producto) -> dict:
         "precio": producto.precio,
         "stock": producto.stock,
         "imagen": producto.imagen,
+        "imagen_url": getattr(producto, "imagen_url", None),
         "imagen_thumb": producto.imagen_thumb,
         "activo": producto.activo,
         "categoria_id": str(producto.categoria_id),
@@ -73,6 +74,7 @@ def _a_publico_categoria(categoria) -> dict:
         "id": str(categoria.id),
         "nombre": categoria.nombre,
         "descripcion": categoria.descripcion,
+        "imagen_url": getattr(categoria, "imagen_url", None),
     }
 
 
@@ -261,6 +263,16 @@ def listar_categorias():
     return jsonify(categorias=[_a_publico_categoria(c) for c in categorias])
 
 
+def _extension_desde_mime(content_type: str | None) -> str:
+    mapa = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+    }
+    return mapa.get((content_type or "").lower().strip(), ".jpg")
+
+
 @catalogo_bp.post("/productos/<uuid:producto_id>/imagen")
 @requiere_sesion()
 @rol_requerido("admin")
@@ -279,11 +291,28 @@ def subir_imagen(producto_id):
         return jsonify(mensaje=str(e)), 400
     from app.domain.entities.producto import ImagenProducto
     imagen = ImagenProducto(bytes=datos, content_type=content_type)
+
+    imagen_url = None
     try:
-        _servicio_producto().guardar_imagen(producto_id, imagen)
+        from app.infrastructure.storage.supabase_storage import (
+            almacen_catalogo_desde_config,
+            url_publica_catalogo,
+        )
+
+        almacen = almacen_catalogo_desde_config(current_app.config)
+        if almacen is not None:
+            ext = _extension_desde_mime(content_type)
+            ruta = f"productos/{producto_id}{ext}"
+            if almacen.subir(ruta, datos, content_type or "application/octet-stream"):
+                imagen_url = url_publica_catalogo(almacen.url, ruta)
+    except Exception:
+        current_app.logger.exception("No se pudo subir imagen de producto al bucket catalogo")
+
+    try:
+        _servicio_producto().guardar_imagen(producto_id, imagen, imagen_url=imagen_url)
     except Exception as e:
         return jsonify(mensaje=f"Error al guardar imagen: {e}"), 500
-    return jsonify(mensaje="Imagen subida correctamente"), 201
+    return jsonify(mensaje="Imagen subida correctamente", imagen_url=imagen_url), 201
 
 
 @catalogo_bp.get("/productos/<uuid:producto_id>/colores")

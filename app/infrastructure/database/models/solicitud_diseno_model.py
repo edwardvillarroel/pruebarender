@@ -7,10 +7,7 @@ class SolicitudDisenoModel(db.Model):
     __tablename__ = "solicitudes_diseno"
 
     id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
-    usuario_id = db.Column(db.Uuid, db.ForeignKey("usuarios.id"), nullable=False)
-    nombre = db.Column(db.String(150), nullable=False)
-    email = db.Column(db.String(255), nullable=False)
-    telefono = db.Column(db.String(30))
+    usuario_id = db.Column(db.Uuid, db.ForeignKey("usuarios.id", ondelete="SET NULL"), nullable=True)
     material = db.Column(db.String(30), nullable=False)
     descripcion = db.Column(db.Text, nullable=False)
     estado = db.Column(db.String(30), nullable=False, default="pendiente")
@@ -37,3 +34,5 @@ class SolicitudDisenoModel(db.Model):
     ia_origen = db.Column(db.String(50))
     aviso_estado_en = db.Column(db.DateTime(timezone=True))
     aviso_estado_visto = db.Column(db.Boolean, nullable=False, default=False)
+
+    usuario = db.relationship("UsuarioModel", lazy="joined", foreign_keys=[usuario_id])

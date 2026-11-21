@@ -190,6 +190,7 @@ class ProductoRepository(ProductoRepositoryInterface):
         modelo.precio = entidad.precio
         modelo.stock = entidad.stock
         modelo.imagen = entidad.imagen
+        modelo.imagen_url = entidad.imagen_url
         modelo.activo = entidad.activo
         modelo.categoria_id = entidad.categoria_id
         modelo.material = entidad.material
@@ -279,13 +280,15 @@ class ProductoRepository(ProductoRepositoryInterface):
         modelo.activo = False
         db.session.commit()
 
-    def guardar_imagen(self, producto_id: UUID, imagen: ImagenProducto) -> None:
+    def guardar_imagen(self, producto_id: UUID, imagen: ImagenProducto, imagen_url: str | None = None) -> None:
         modelo = db.session.get(self.model, producto_id)
         if modelo:
             modelo.imagen_bytes = imagen.bytes
             modelo.imagen_content_type = imagen.content_type
             if not modelo.imagen:
                 modelo.imagen = f"/api/productos/{producto_id}/imagen"
+            if imagen_url:
+                modelo.imagen_url = imagen_url
             modelo.imagen_thumb_bytes = None
             modelo.imagen_thumb_content_type = None
             db.session.commit()
@@ -530,6 +533,7 @@ def _a_entidad(
         precio=modelo.precio,
         stock=modelo.stock,
         imagen=imagen,
+        imagen_url=getattr(modelo, "imagen_url", None),
         activo=modelo.activo,
         categoria_id=modelo.categoria_id,
         creado_en=modelo.creado_en,
@@ -560,6 +564,7 @@ def _a_modelo(entidad: Producto) -> ProductoModel:
         precio=entidad.precio,
         stock=entidad.stock,
         imagen=entidad.imagen,
+        imagen_url=getattr(entidad, "imagen_url", None),
         activo=entidad.activo,
         categoria_id=entidad.categoria_id,
         creado_en=entidad.creado_en,
