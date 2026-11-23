@@ -40,12 +40,23 @@ function normalizarSpecs(valor) {
 
 function urlImagenApi(id, thumb = false) {
   if (!id) return null
-  return `/api/productos/${id}/imagen${thumb ? '/thumb' : ''}`
+  return thumb ? `/api/productos/${id}/thumb` : `/api/productos/${id}/imagen`
 }
 
-export function normalizarProductoPublico(p) {
+function urlImagenColorApi(colorId, thumb = false) {
+  if (!colorId) return null
+  return thumb ? `/api/productos/colores/${colorId}/thumb` : `/api/productos/colores/${colorId}/imagen`
+}
+
+export function normalizarProductoPublico(p, fallbackColor = null) {
   const id = String(p.id)
   const imagenUrl = p.imagen_url || null
+  const fallbackImagen = fallbackColor
+    ? urlImagenColorApi(fallbackColor.id, false)
+    : null
+  const fallbackThumb = fallbackColor
+    ? urlImagenColorApi(fallbackColor.id, true)
+    : null
   const tieneImagen = Boolean(imagenUrl || p.imagen || p.imagen_content_type)
   const tieneThumb = Boolean(imagenUrl || p.imagen_thumb_content_type || p.imagen || p.imagen_content_type)
 
@@ -55,9 +66,9 @@ export function normalizarProductoPublico(p) {
     descripcion: p.descripcion ?? null,
     precio: Number(p.precio),
     stock: Number(p.stock ?? 0),
-    imagen: imagenUrl || (tieneImagen ? urlImagenApi(id, false) : null),
+    imagen: imagenUrl || (tieneImagen ? urlImagenApi(id, false) : null) || fallbackImagen,
     imagen_url: imagenUrl,
-    imagen_thumb: imagenUrl || (tieneThumb ? urlImagenApi(id, true) : null),
+    imagen_thumb: imagenUrl || (tieneThumb ? urlImagenApi(id, true) : null) || fallbackThumb,
     activo: p.activo !== false,
     categoria_id: String(p.categoria_id),
     creado_en: p.creado_en ?? null,
@@ -84,6 +95,33 @@ export function normalizarCategoriaPublica(c) {
   }
 }
 
+async function obtenerFallbackColores(productos) {
+  const faltantes = productos
+    .filter((p) => !p.imagen_url && !p.imagen && !p.imagen_content_type && !p.imagen_thumb_content_type)
+    .map((p) => p.id)
+  if (!faltantes.length) return new Map()
+
+  const { data, error } = await supabase
+    .from('producto_colores')
+    .select('id, producto_id, orden, imagen_content_type, imagen_thumb_content_type')
+    .in('producto_id', faltantes)
+    .order('orden', { ascending: true })
+
+  if (error) {
+    console.warn('No se pudo cargar fallback de colores del catálogo:', error.message)
+    return new Map()
+  }
+
+  const mapa = new Map()
+  for (const color of data || []) {
+    const productoId = String(color.producto_id)
+    const tieneImagen = Boolean(color.imagen_content_type || color.imagen_thumb_content_type)
+    if (!tieneImagen || mapa.has(productoId)) continue
+    mapa.set(productoId, color)
+  }
+  return mapa
+}
+
 async function listarProductosDesdeSupabase() {
   const { data, error } = await supabase
     .from('productos')
@@ -92,7 +130,9 @@ async function listarProductosDesdeSupabase() {
     .order('creado_en', { ascending: false })
 
   if (error) throw new Error(error.message || 'No se pudo cargar el catálogo')
-  return (data || []).map(normalizarProductoPublico)
+  const productos = data || []
+  const fallbackColores = await obtenerFallbackColores(productos)
+  return productos.map((p) => normalizarProductoPublico(p, fallbackColores.get(String(p.id)) || null))
 }
 
 async function listarCategoriasDesdeSupabase() {

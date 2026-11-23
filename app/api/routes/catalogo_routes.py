@@ -374,8 +374,9 @@ def guardar_color(producto_id):
     from app.domain.entities.producto import ImagenProducto
 
     imagen = ImagenProducto(bytes=datos, content_type=content_type)
+    servicio = _servicio_producto()
     try:
-        color = _servicio_producto().guardar_color(producto_id, nombre, imagen)
+        color = servicio.guardar_color(producto_id, nombre, imagen)
     except ValueError as e:
         mensaje = str(e)
         if "no encontrado" in mensaje.lower():

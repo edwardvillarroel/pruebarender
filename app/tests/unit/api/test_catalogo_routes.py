@@ -333,3 +333,86 @@ def test_una_foto_inexistente_sigue_dando_404(app, client):
 
 def test_la_cache_de_imagenes_dura_una_semana():
     assert CACHE_IMAGENES_SEGUNDOS == 604800
+
+
+
+def _headers_admin():
+    return {
+        "X-User-Id": str(uuid4()),
+        "X-User-Rol": "admin",
+        "X-Internal-Secret": "secreto-interno-test",
+    }
+
+
+def _servicio_colores(producto=None):
+    servicio = Mock()
+    servicio.consultar.return_value = producto
+    color = Mock()
+    color.id = uuid4()
+    color.producto_id = producto.id if producto else uuid4()
+    color.nombre = "Rojo"
+    color.orden = 0
+    color.imagen_url = f"/api/productos/colores/{color.id}/imagen"
+    color.imagen_thumb_url = None
+    servicio.guardar_color.return_value = color
+    return servicio, color
+
+
+def test_guardar_color_promueve_primera_imagen_como_principal(app, client, monkeypatch):
+    from io import BytesIO
+
+    producto = _producto(imagen=None, imagen_url=None)
+    servicio, _ = _servicio_colores(producto)
+    app.config["PRODUCTO_SERVICE"] = servicio
+    app.config["CONVERSOR_IMAGEN"] = lambda datos, ct, fn: (datos, ct or "image/jpeg")
+
+    almacen = Mock()
+    almacen.url = "https://supabase.test"
+    almacen.subir.return_value = True
+    monkeypatch.setattr(
+        "app.infrastructure.storage.supabase_storage.almacen_catalogo_desde_config",
+        lambda config: almacen,
+    )
+    monkeypatch.setattr(
+        "app.infrastructure.storage.supabase_storage.url_publica_catalogo",
+        lambda url, ruta: f"{url}/storage/v1/object/public/catalogo/{ruta}",
+    )
+
+    respuesta = client.post(
+        f"/api/productos/{producto.id}/colores",
+        data={"imagen": (BytesIO(b"img"), "foto.jpg"), "color": "Rojo"},
+        headers=_headers_admin(),
+        content_type="multipart/form-data",
+    )
+
+    assert respuesta.status_code == 201
+    almacen.subir.assert_called_once()
+    servicio.guardar_imagen.assert_called_once()
+    _, kwargs = servicio.guardar_imagen.call_args
+    assert kwargs["imagen_url"].endswith(f"/productos/{producto.id}.jpg")
+
+
+def test_guardar_color_no_promueve_si_producto_ya_tiene_imagen(app, client, monkeypatch):
+    from io import BytesIO
+
+    producto = _producto(imagen="/api/productos/x/imagen", imagen_url="https://cdn/img.jpg")
+    servicio, _ = _servicio_colores(producto)
+    app.config["PRODUCTO_SERVICE"] = servicio
+    app.config["CONVERSOR_IMAGEN"] = lambda datos, ct, fn: (datos, ct or "image/jpeg")
+
+    almacen = Mock()
+    monkeypatch.setattr(
+        "app.infrastructure.storage.supabase_storage.almacen_catalogo_desde_config",
+        lambda config: almacen,
+    )
+
+    respuesta = client.post(
+        f"/api/productos/{producto.id}/colores",
+        data={"imagen": (BytesIO(b"img"), "foto.jpg"), "color": "Rojo"},
+        headers=_headers_admin(),
+        content_type="multipart/form-data",
+    )
+
+    assert respuesta.status_code == 201
+    almacen.subir.assert_not_called()
+    servicio.guardar_imagen.assert_not_called()

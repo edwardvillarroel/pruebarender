@@ -89,6 +89,12 @@ class ProductoRepository(RepositoryBase[Producto], ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def guardar_imagen(
+        self, producto_id: UUID, imagen: ImagenProducto, imagen_url: str | None = None
+    ) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_thumb_by_id(self, producto_id: UUID) -> ImagenProducto | None:
 
         raise NotImplementedError
