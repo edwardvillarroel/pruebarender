@@ -300,6 +300,8 @@ class ProductoRepository(ProductoRepositoryInterface):
                 ProductoColorModel.producto_id,
                 ProductoColorModel.nombre,
                 ProductoColorModel.orden,
+                ProductoColorModel.imagen_url,
+                ProductoColorModel.imagen_thumb_url,
                 ProductoColorModel.imagen_bytes.isnot(None).label("tiene_imagen"),
                 ProductoColorModel.imagen_thumb_bytes.isnot(None).label("tiene_thumb"),
             )
@@ -312,9 +314,13 @@ class ProductoRepository(ProductoRepositoryInterface):
                 producto_id=f.producto_id,
                 nombre=f.nombre,
                 orden=f.orden or 0,
-                imagen_url=_ruta_imagen_color(f.id) if f.tiene_imagen else None,
+                imagen_url=(
+                    f.imagen_url or (_ruta_imagen_color(f.id) if f.tiene_imagen else None)
+                ),
                 imagen_thumb_url=(
-                    _ruta_thumb_color(f.id) if f.tiene_imagen and f.tiene_thumb else None
+                    f.imagen_thumb_url
+                    or f.imagen_url
+                    or (_ruta_thumb_color(f.id) if f.tiene_imagen and f.tiene_thumb else None)
                 ),
             )
             for f in filas
@@ -346,6 +352,8 @@ class ProductoRepository(ProductoRepositoryInterface):
                 ProductoColorModel.producto_id,
                 ProductoColorModel.id,
                 ProductoColorModel.orden,
+                ProductoColorModel.imagen_url,
+                ProductoColorModel.imagen_thumb_url,
                 ProductoColorModel.imagen_thumb_bytes.isnot(None).label("tiene_thumb"),
             ).where(
                 ProductoColorModel.producto_id.in_(list(pedidos)),
@@ -353,21 +361,25 @@ class ProductoRepository(ProductoRepositoryInterface):
             )
         ).all()
 
-        mejor: dict[UUID, tuple[int, UUID, bool]] = {}
-        for producto_id, color_id, orden, tiene_thumb in candidatos:
+        mejor: dict[UUID, tuple[int, UUID, bool, str | None, str | None]] = {}
+        for producto_id, color_id, orden, imagen_url, imagen_thumb_url, tiene_thumb in candidatos:
             orden = orden or 0
             actual = mejor.get(producto_id)
             if actual is None or orden < actual[0]:
-                mejor[producto_id] = (orden, color_id, bool(tiene_thumb))
+                mejor[producto_id] = (
+                    orden, color_id, bool(tiene_thumb), imagen_url, imagen_thumb_url
+                )
 
         return {
             producto_id: FotoColorCatalogo(
-                imagen_url=_ruta_imagen_color(color_id),
+                imagen_url=url or _ruta_imagen_color(color_id),
                 imagen_thumb_url=(
-                    _ruta_thumb_color(color_id) if tiene_thumb else None
+                    thumb_url
+                    or url
+                    or (_ruta_thumb_color(color_id) if tiene_thumb else None)
                 ),
             )
-            for producto_id, (_, color_id, tiene_thumb) in mejor.items()
+            for producto_id, (_, color_id, tiene_thumb, url, thumb_url) in mejor.items()
         }
 
     def get_color_by_id(self, color_id: UUID) -> ColorProducto | None:
@@ -377,6 +389,8 @@ class ProductoRepository(ProductoRepositoryInterface):
                 ProductoColorModel.producto_id,
                 ProductoColorModel.nombre,
                 ProductoColorModel.orden,
+                ProductoColorModel.imagen_url,
+                ProductoColorModel.imagen_thumb_url,
                 ProductoColorModel.imagen_bytes.isnot(None).label("tiene_imagen"),
                 ProductoColorModel.imagen_thumb_bytes.isnot(None).label("tiene_thumb"),
             ).where(ProductoColorModel.id == color_id)
@@ -388,11 +402,13 @@ class ProductoRepository(ProductoRepositoryInterface):
             producto_id=fila.producto_id,
             nombre=fila.nombre,
             orden=fila.orden or 0,
-            imagen_url=_ruta_imagen_color(fila.id) if fila.tiene_imagen else None,
+            imagen_url=(
+                fila.imagen_url or (_ruta_imagen_color(fila.id) if fila.tiene_imagen else None)
+            ),
             imagen_thumb_url=(
-                _ruta_thumb_color(fila.id)
-                if fila.tiene_imagen and fila.tiene_thumb
-                else None
+                fila.imagen_thumb_url
+                or fila.imagen_url
+                or (_ruta_thumb_color(fila.id) if fila.tiene_imagen and fila.tiene_thumb else None)
             ),
         )
 
@@ -494,6 +510,22 @@ class ProductoRepository(ProductoRepositoryInterface):
             orden=modelo.orden or 0,
             imagen_url=_ruta_imagen_color(modelo.id),
         )
+
+    def guardar_urls_color(
+        self,
+        color_id: UUID,
+        imagen_url: str | None,
+        imagen_thumb_url: str | None,
+    ) -> None:
+        db.session.execute(
+            update(ProductoColorModel)
+            .where(ProductoColorModel.id == color_id)
+            .values(
+                imagen_url=imagen_url,
+                imagen_thumb_url=imagen_thumb_url,
+            )
+        )
+        db.session.commit()
 
     def eliminar_color(self, color_id: UUID) -> None:
         modelo = db.session.get(ProductoColorModel, color_id)

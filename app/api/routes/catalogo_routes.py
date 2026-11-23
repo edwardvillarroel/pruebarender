@@ -273,6 +273,25 @@ def _extension_desde_mime(content_type: str | None) -> str:
     return mapa.get((content_type or "").lower().strip(), ".jpg")
 
 
+def _subir_catalogo(ruta: str, contenido: bytes, content_type: str) -> str | None:
+    """Sube al bucket público best-effort; devuelve la URL pública o None."""
+    try:
+        from app.infrastructure.storage.supabase_storage import (
+            almacen_catalogo_desde_config,
+            url_publica_catalogo,
+        )
+
+        almacen = almacen_catalogo_desde_config(current_app.config)
+        if almacen is None:
+            return None
+        if not almacen.subir(ruta, contenido, content_type or "application/octet-stream"):
+            return None
+        return url_publica_catalogo(almacen.url, ruta)
+    except Exception:  # noqa: BLE001 - la nube no puede romper la subida local
+        current_app.logger.exception("No se pudo subir %s al bucket catalogo", ruta)
+        return None
+
+
 @catalogo_bp.post("/productos/<uuid:producto_id>/imagen")
 @requiere_sesion()
 @rol_requerido("admin")
@@ -292,21 +311,11 @@ def subir_imagen(producto_id):
     from app.domain.entities.producto import ImagenProducto
     imagen = ImagenProducto(bytes=datos, content_type=content_type)
 
-    imagen_url = None
-    try:
-        from app.infrastructure.storage.supabase_storage import (
-            almacen_catalogo_desde_config,
-            url_publica_catalogo,
-        )
-
-        almacen = almacen_catalogo_desde_config(current_app.config)
-        if almacen is not None:
-            ext = _extension_desde_mime(content_type)
-            ruta = f"productos/{producto_id}{ext}"
-            if almacen.subir(ruta, datos, content_type or "application/octet-stream"):
-                imagen_url = url_publica_catalogo(almacen.url, ruta)
-    except Exception:
-        current_app.logger.exception("No se pudo subir imagen de producto al bucket catalogo")
+    imagen_url = _subir_catalogo(
+        f"productos/{producto_id}{_extension_desde_mime(content_type)}",
+        datos,
+        content_type,
+    )
 
     try:
         _servicio_producto().guardar_imagen(producto_id, imagen, imagen_url=imagen_url)
@@ -374,6 +383,27 @@ def guardar_color(producto_id):
         return jsonify(mensaje=mensaje), 400
     except Exception as e:
         return jsonify(mensaje=f"Error al guardar color: {e}"), 500
+
+    # El navegador lee las variantes del bucket público: original + thumb.
+    url = _subir_catalogo(
+        f"colores/{color.id}{_extension_desde_mime(content_type)}", datos, content_type
+    )
+    thumb_url = None
+    try:
+        from app.infrastructure.imagenes.thumbnail import generar_thumbnail
+
+        generado = generar_thumbnail(datos, content_type)
+        if generado:
+            thumb_url = _subir_catalogo(
+                f"colores/{color.id}-thumb.jpg", generado[0], generado[1]
+            )
+    except Exception:  # noqa: BLE001
+        current_app.logger.exception("No se pudo generar el thumb del color %s", color.id)
+
+    if url or thumb_url:
+        servicio = _servicio_producto()
+        servicio.guardar_urls_color(color.id, url, thumb_url)
+        color = servicio.consultar_color(color.id) or color
     return jsonify(_a_publico_color(color)), 201
 
 

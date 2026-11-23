@@ -19,6 +19,8 @@ class ProductoColorModel(db.Model):
     nombre = db.Column(db.String(50), nullable=False)
     imagen_bytes = deferred(db.Column(LargeBinary))
     imagen_content_type = db.Column(db.String(50))
+    imagen_url = db.Column(db.Text)
+    imagen_thumb_url = db.Column(db.Text)
     imagen_thumb_bytes = deferred(db.Column(LargeBinary))
     imagen_thumb_content_type = db.Column(db.String(50))
     orden = db.Column(db.Integer, nullable=False, default=0)

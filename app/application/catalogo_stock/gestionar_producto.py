@@ -328,5 +328,13 @@ class GestionarProducto:
         self._regenerar_thumb(color.id, imagen, self._repositorio.guardar_color_thumb)
         return color
 
+    def guardar_urls_color(
+        self,
+        color_id: UUID,
+        imagen_url: str | None,
+        imagen_thumb_url: str | None,
+    ) -> None:
+        self._repositorio.guardar_urls_color(color_id, imagen_url, imagen_thumb_url)
+
     def eliminar_color(self, color_id: UUID) -> None:
         self._repositorio.eliminar_color(color_id)
