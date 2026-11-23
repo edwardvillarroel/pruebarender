@@ -20,7 +20,7 @@ BEGIN
           AND policyname = 'productos publicos'
     ) THEN
         CREATE POLICY "productos publicos" ON public.productos
-            FOR SELECT TO anon, authenticated USING (true);
+            FOR SELECT TO anon, authenticated USING (activo = true);
     END IF;
 
     IF NOT EXISTS (
@@ -38,7 +38,14 @@ BEGIN
           AND policyname = 'producto_colores publicos'
     ) THEN
         CREATE POLICY "producto_colores publicos" ON public.producto_colores
-            FOR SELECT TO anon, authenticated USING (true);
+            FOR SELECT TO anon, authenticated
+            USING (
+                EXISTS (
+                    SELECT 1 FROM public.productos p
+                    WHERE p.id = public.producto_colores.producto_id
+                      AND p.activo = true
+                )
+            );
     END IF;
 END
 $$;
