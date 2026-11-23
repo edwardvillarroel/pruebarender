@@ -2,8 +2,17 @@ from uuid import UUID
 
 from flask import Blueprint, current_app, jsonify, request
 
-from app.api.middleware.auth import requiere_sesion, rol_requerido, usuario_actual
-from app.application.venta_local.gestionar_venta_local import GestionarVentaLocal
+from app.api.middleware.auth import (
+    requiere_sesion,
+    rol_actual,
+    rol_requerido,
+    usuario_actual,
+)
+from app.api.middleware.audit_logger import auditar
+from app.application.venta_local.gestionar_venta_local import (
+    GestionarVentaLocal,
+    SesionNoAutorizada,
+)
 from app.domain.enums import MedioPago
 
 venta_bp = Blueprint("ventas", __name__)
@@ -20,6 +29,7 @@ def _usuario_uuid() -> UUID:
 def _a_publico_sesion(sesion) -> dict:
     return {
         "id": str(sesion.id),
+        "usuario_id": str(sesion.usuario_id),
         "lugar": sesion.lugar,
         "fecha": sesion.fecha.isoformat(),
         "estado": sesion.estado,
@@ -32,6 +42,7 @@ def _a_publico_venta(venta) -> dict:
     return {
         "id": str(venta.id),
         "sesion_id": str(venta.sesion_id),
+        "usuario_id": str(venta.usuario_id) if venta.usuario_id else None,
         "medio_pago": venta.medio_pago,
         "total": venta.total,
         "creado_en": venta.creado_en,
@@ -70,14 +81,24 @@ def _error(mensaje: str, codigo: int):
 
 def _traducir_error(exc: ValueError):
     mensaje = str(exc)
-    if "stock" in mensaje or "cerrada" in mensaje:
+    if "stock" in mensaje or "cerrada" in mensaje or "para esta fecha" in mensaje:
         return _error(mensaje, 409)
     return _error(mensaje, 400)
 
 
+def _cantidad(valor) -> int:
+    if isinstance(valor, bool):
+        raise ValueError("La cantidad debe ser un número entero")
+    if isinstance(valor, int):
+        return valor
+    if isinstance(valor, str) and valor.strip().isdigit():
+        return int(valor.strip())
+    raise ValueError("La cantidad debe ser un número entero")
+
+
 @venta_bp.post("/ventas/sesiones")
 @requiere_sesion()
-@rol_requerido("admin")
+@rol_requerido("admin", "empleado")
 def abrir_sesion_venta():
     datos = request.get_json(silent=True) or {}
     try:
@@ -92,7 +113,7 @@ def abrir_sesion_venta():
 
 @venta_bp.get("/ventas/sesiones/actual")
 @requiere_sesion()
-@rol_requerido("admin")
+@rol_requerido("admin", "empleado")
 def sesion_venta_actual():
     sesion = _servicio().obtener_sesion_abierta(_usuario_uuid())
     if sesion is None:
@@ -106,7 +127,8 @@ def sesion_venta_actual():
 
 @venta_bp.post("/ventas/sesiones/<uuid:sesion_id>/ventas")
 @requiere_sesion()
-@rol_requerido("admin")
+@rol_requerido("admin", "empleado")
+@auditar("registrar_venta")
 def registrar_venta_local(sesion_id):
     datos = request.get_json(silent=True) or {}
     medio_pago = datos.get("medio_pago")
@@ -114,9 +136,9 @@ def registrar_venta_local(sesion_id):
     for item in datos.get("items") or []:
         try:
             producto_id = UUID(str(item["producto_id"]))
-            cantidad = int(item.get("cantidad", 0))
+            cantidad = _cantidad(item.get("cantidad"))
         except (KeyError, TypeError, ValueError):
-            return _error("producto_id y cantidad son obligatorios y válidos", 400)
+            return _error("producto_id y cantidad son obligatorios y enteros", 400)
         items.append((producto_id, cantidad))
     try:
         venta = _servicio().registrar_venta(
@@ -125,6 +147,8 @@ def registrar_venta_local(sesion_id):
             items,
             _usuario_uuid(),
         )
+    except SesionNoAutorizada as exc:
+        return _error(str(exc), 403)
     except ValueError as exc:
         return _traducir_error(exc)
     return jsonify(venta=_a_publico_venta(venta)), 201
@@ -132,11 +156,15 @@ def registrar_venta_local(sesion_id):
 
 @venta_bp.post("/ventas/sesiones/<uuid:sesion_id>/cierre")
 @requiere_sesion()
-@rol_requerido("admin")
+@rol_requerido("admin", "empleado")
 def cerrar_sesion_venta(sesion_id):
     try:
-        sesion = _servicio().cerrar_sesion(sesion_id)
+        sesion = _servicio().cerrar_sesion(
+            sesion_id, _usuario_uuid(), rol_actual()
+        )
         ventas = _servicio().obtener_ventas_de_sesion(sesion_id)
+    except SesionNoAutorizada as exc:
+        return _error(str(exc), 403)
     except ValueError as exc:
         return _traducir_error(exc)
     return jsonify(reporte=_a_publico_reporte(sesion, ventas))

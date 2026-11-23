@@ -2,6 +2,7 @@
 CREATE TABLE VENTAS_LOCAL 
    (	ID uuid NOT NULL , 
 	SESION_ID uuid NOT NULL , 
+	USUARIO_ID uuid , 
 	MEDIO_PAGO varchar(20)  NOT NULL , 
 	TOTAL bigint NOT NULL , 
 	CREADO_EN timestamptz NOT NULL , 
@@ -11,7 +12,10 @@ CREATE TABLE VENTAS_LOCAL
     , 
 	 CONSTRAINT FK_VENTAS_LOCAL_SESION FOREIGN KEY (SESION_ID)
 	  REFERENCES SESIONES_VENTA (ID) 
+	 , CONSTRAINT FK_VENTAS_LOCAL_USUARIO FOREIGN KEY (USUARIO_ID)
+	  REFERENCES USUARIOS (ID) 
    );
 
 CREATE INDEX IF NOT EXISTS ix_ventas_local_sesion ON ventas_local (sesion_id);
+CREATE INDEX IF NOT EXISTS ix_ventas_local_usuario ON ventas_local (usuario_id);
 CREATE UNIQUE INDEX IF NOT EXISTS pk_ventas_local ON ventas_local (id);

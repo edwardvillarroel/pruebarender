@@ -34,3 +34,4 @@ class VentaLocal:
     total: int = 0
     creado_en: datetime | None = None
     id: UUID = field(default_factory=uuid4)
+    usuario_id: UUID | None = None

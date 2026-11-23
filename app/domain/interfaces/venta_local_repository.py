@@ -20,6 +20,10 @@ class VentaLocalRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def obtener_sesion_de_fecha(self, usuario_id: UUID, fecha) -> SesionVenta | None:
+        raise NotImplementedError
+
+    @abstractmethod
     def registrar_venta(self, venta: VentaLocal) -> VentaLocal:
 
         raise NotImplementedError

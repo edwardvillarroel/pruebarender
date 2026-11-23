@@ -16,4 +16,6 @@ CREATE TABLE SESIONES_VENTA
    );
 
 CREATE INDEX IF NOT EXISTS ix_sesiones_venta_usuario ON sesiones_venta (usuario_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_sesiones_venta_abierta_usuario_fecha
+    ON sesiones_venta (usuario_id, fecha) WHERE estado = 'abierta';
 CREATE UNIQUE INDEX IF NOT EXISTS pk_sesiones_venta ON sesiones_venta (id);

@@ -75,7 +75,7 @@ CREATE TABLE USUARIOS
 	MFA_ACTIVO boolean DEFAULT false NOT NULL , 
 	ELIMINADO_EN timestamptz , 
 	PASSWORD_CONFIGURADA boolean DEFAULT true NOT NULL , 
-	 CHECK (rol IN ('admin', 'cliente')) , 
+	 CHECK (rol IN ('admin', 'cliente', 'empleado')) , 
 	 CONSTRAINT CK_USUARIOS_APELLIDO CHECK (rol <> 'cliente' OR apellido IS NOT NULL) , 
 	 PRIMARY KEY (ID), 
 	 CONSTRAINT UQ_USUARIOS_EMAIL UNIQUE (EMAIL)
@@ -290,6 +290,7 @@ CREATE TABLE PRODUCTO_COLORES
 CREATE TABLE VENTAS_LOCAL 
    (	ID uuid NOT NULL , 
 	SESION_ID uuid NOT NULL , 
+	USUARIO_ID uuid , 
 	MEDIO_PAGO varchar(20)  NOT NULL , 
 	TOTAL bigint NOT NULL , 
 	CREADO_EN timestamptz NOT NULL , 
@@ -297,6 +298,8 @@ CREATE TABLE VENTAS_LOCAL
     , 
 	 CONSTRAINT FK_VENTAS_LOCAL_SESION FOREIGN KEY (SESION_ID)
 	  REFERENCES SESIONES_VENTA (ID) 
+	 , CONSTRAINT FK_VENTAS_LOCAL_USUARIO FOREIGN KEY (USUARIO_ID)
+	  REFERENCES USUARIOS (ID) 
    );
 
 CREATE TABLE VENTA_LOCAL_ITEMS 
@@ -341,6 +344,7 @@ CREATE INDEX IF NOT EXISTS ix_producto_colores_producto ON producto_colores (pro
 CREATE UNIQUE INDEX IF NOT EXISTS pk_producto_colores ON producto_colores (id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_producto_colores_nombre ON producto_colores (producto_id, nombre);
 CREATE INDEX IF NOT EXISTS ix_ventas_local_sesion ON ventas_local (sesion_id);
+CREATE INDEX IF NOT EXISTS ix_ventas_local_usuario ON ventas_local (usuario_id);
 CREATE UNIQUE INDEX IF NOT EXISTS pk_ventas_local ON ventas_local (id);
 CREATE INDEX IF NOT EXISTS ix_items_producto ON venta_local_items (producto_id);
 CREATE INDEX IF NOT EXISTS ix_items_venta ON venta_local_items (venta_id);

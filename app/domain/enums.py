@@ -4,6 +4,7 @@ from enum import Enum
 class Rol(str, Enum):
     ADMIN = "admin"
     CLIENTE = "cliente"
+    EMPLEADO = "empleado"
 
 
 class EstadoPedido(str, Enum):

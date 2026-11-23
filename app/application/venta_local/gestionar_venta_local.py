@@ -2,9 +2,13 @@ from datetime import date
 from uuid import UUID
 
 from app.domain.entities.venta_local import SesionVenta, VentaLocal, VentaLocalItem
-from app.domain.enums import EstadoSesionVenta, MedioPago
+from app.domain.enums import EstadoSesionVenta, MedioPago, Rol
 from app.domain.interfaces.repositories import ProductoRepository
 from app.domain.interfaces.venta_local_repository import VentaLocalRepository
+
+
+class SesionNoAutorizada(ValueError):
+    """El usuario intenta operar una sesión que no le pertenece."""
 
 
 class GestionarVentaLocal:
@@ -19,9 +23,15 @@ class GestionarVentaLocal:
             raise ValueError("El lugar es obligatorio")
         if self._repositorio.obtener_sesion_abierta_de(usuario_id) is not None:
             raise ValueError("Ya tienes una sesión de venta abierta. Ciérrala antes de abrir otra.")
+        fecha = fecha or date.today()
+        if self._repositorio.obtener_sesion_de_fecha(usuario_id, fecha) is not None:
+            raise ValueError(
+                "Ya registraste una sesión de venta para esta fecha. "
+                "Solo se permite una sesión por día."
+            )
         sesion = SesionVenta(
             lugar=lugar.strip(),
-            fecha=fecha or date.today(),
+            fecha=fecha,
             usuario_id=usuario_id,
         )
         return self._repositorio.crear_sesion(sesion)
@@ -41,6 +51,10 @@ class GestionarVentaLocal:
             raise ValueError("Sesión no encontrada")
         if sesion.estado != EstadoSesionVenta.ABIERTA.value:
             raise ValueError("La sesión ya está cerrada")
+        if sesion.usuario_id != usuario_id:
+            raise SesionNoAutorizada(
+                "No puedes registrar ventas en una sesión que no es tuya"
+            )
         if medio_pago not in (MedioPago.EFECTIVO.value, MedioPago.TUU.value):
             raise ValueError("Medio de pago inválido")
         if not items:
@@ -51,6 +65,8 @@ class GestionarVentaLocal:
             producto = self._producto_repo.get_by_id(producto_id)
             if producto is None:
                 raise ValueError(f"Producto no encontrado")
+            if isinstance(cantidad, bool) or not isinstance(cantidad, int):
+                raise ValueError("La cantidad debe ser un número entero mayor a cero")
             if cantidad <= 0:
                 raise ValueError("La cantidad debe ser mayor a cero")
             if producto.stock < cantidad:
@@ -72,15 +88,22 @@ class GestionarVentaLocal:
             medio_pago=medio_pago,
             items=lineas,
             total=total,
+            usuario_id=usuario_id,
         )
         return self._repositorio.registrar_venta(venta)
 
-    def cerrar_sesion(self, sesion_id: UUID) -> SesionVenta:
+    def cerrar_sesion(
+        self, sesion_id: UUID, usuario_id: UUID, rol: str
+    ) -> SesionVenta:
         sesion = self._repositorio.obtener_sesion_por_id(sesion_id)
         if sesion is None:
             raise ValueError("Sesión no encontrada")
         if sesion.estado != EstadoSesionVenta.ABIERTA.value:
             raise ValueError("La sesión ya está cerrada")
+        if sesion.usuario_id != usuario_id and rol != Rol.ADMIN.value:
+            raise SesionNoAutorizada(
+                "Solo el dueño de la sesión o un administrador puede cerrarla"
+            )
         cerrada = self._repositorio.cerrar_sesion(sesion_id)
         if cerrada is None:
             raise ValueError("Sesión no encontrada")

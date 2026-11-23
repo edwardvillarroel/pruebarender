@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -42,6 +42,17 @@ class VentaLocalRepository(VentaLocalRepositoryInterface):
                 SesionVentaModel.estado == "abierta",
             )
         ).scalar_one_or_none()
+        return _a_entidad_sesion(modelo) if modelo else None
+
+    def obtener_sesion_de_fecha(self, usuario_id: UUID, fecha: date) -> SesionVenta | None:
+        modelo = db.session.execute(
+            select(SesionVentaModel)
+            .where(
+                SesionVentaModel.usuario_id == usuario_id,
+                SesionVentaModel.fecha == fecha,
+            )
+            .order_by(SesionVentaModel.creado_en.desc())
+        ).scalars().first()
         return _a_entidad_sesion(modelo) if modelo else None
 
     def registrar_venta(self, venta: VentaLocal) -> VentaLocal:
@@ -134,6 +145,7 @@ def _a_entidad_venta(modelo: VentaLocalModel) -> VentaLocal:
         total=modelo.total,
         creado_en=modelo.creado_en,
         items=[_a_entidad_item(i) for i in modelo.items],
+        usuario_id=modelo.usuario_id,
     )
 
 
@@ -167,6 +179,7 @@ def _a_modelo_venta(entidad: VentaLocal) -> VentaLocalModel:
         medio_pago=entidad.medio_pago,
         total=entidad.total,
         creado_en=entidad.creado_en,
+        usuario_id=entidad.usuario_id,
         items=[
             VentaLocalItemModel(
                 id=item.id,

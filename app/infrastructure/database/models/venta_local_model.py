@@ -30,6 +30,7 @@ class VentaLocalModel(db.Model):
 
     id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
     sesion_id = db.Column(db.Uuid, db.ForeignKey("sesiones_venta.id"), nullable=False, index=True)
+    usuario_id = db.Column(db.Uuid, db.ForeignKey("usuarios.id"), nullable=True, index=True)
     medio_pago = db.Column(db.String(20), nullable=False)
     total = db.Column(db.Integer, nullable=False, default=0)
     creado_en = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)

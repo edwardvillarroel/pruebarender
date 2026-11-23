@@ -13,7 +13,8 @@ from app.domain.time import utcnow
 
 MIN_PASSWORD = 8
 MAX_PASSWORD = 72
-ROLES_VALIDOS = {Rol.ADMIN.value, Rol.CLIENTE.value}
+ROLES_VALIDOS = {Rol.ADMIN.value, Rol.CLIENTE.value, Rol.EMPLEADO.value}
+DOMINIO_EMPRESA = "@apolovibes.cl"
 
 
 class UsuarioNoEncontrado(Exception):
@@ -62,7 +63,8 @@ class GestionarUsuarios:
         if not nombre:
             raise DatosUsuarioInvalidos("El nombre es obligatorio")
         if rol not in ROLES_VALIDOS:
-            raise DatosUsuarioInvalidos("El rol debe ser «admin» o «cliente»")
+            raise DatosUsuarioInvalidos("El rol debe ser «admin», «cliente» o «empleado»")
+        _validar_rol_empleado(rol, email)
         if rol == Rol.CLIENTE.value and not apellido:
             raise DatosUsuarioInvalidos("El apellido es obligatorio para un cliente")
         _validar_password(password)
@@ -88,7 +90,8 @@ class GestionarUsuarios:
         usuario = self._buscar(usuario_id)
         nuevo_rol = _texto(rol).lower()
         if nuevo_rol not in ROLES_VALIDOS:
-            raise DatosUsuarioInvalidos("El rol debe ser «admin» o «cliente»")
+            raise DatosUsuarioInvalidos("El rol debe ser «admin», «cliente» o «empleado»")
+        _validar_rol_empleado(nuevo_rol, usuario.email)
 
         if usuario.rol.value == nuevo_rol:
             return self._a_publico(usuario)
@@ -200,6 +203,13 @@ def _nombre_completo(nombre: str, apellido: str | None) -> str:
 
 def _es_mismo_usuario(usuario: Usuario, actor_id: str | None) -> bool:
     return actor_id is not None and str(usuario.id) == str(actor_id)
+
+
+def _validar_rol_empleado(rol: str, email: str) -> None:
+    if rol == Rol.EMPLEADO.value and not email.lower().endswith(DOMINIO_EMPRESA):
+        raise DatosUsuarioInvalidos(
+            f"El rol de empleado solo puede asignarse a correos {DOMINIO_EMPRESA}"
+        )
 
 
 def _validar_password(password: Any) -> None:
